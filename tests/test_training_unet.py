@@ -11,6 +11,7 @@ from PIL import Image
 
 from src.anonymizer.training.unet_trainer import UNetTrainer, TextRenderer
 from src.anonymizer.core.models import TrainingMetrics, ModelArtifacts
+from src.anonymizer.core.config import UNetConfig
 from src.anonymizer.core.exceptions import TrainingError, ValidationError
 
 
@@ -490,9 +491,11 @@ class TestUNetTrainer:
             trainer.optimizer.step.assert_called_once()
             trainer.optimizer.zero_grad.assert_called_once()
 
-    def test_unet_trainer_critical_bug_fixes_verification(self, unet_config):
+    def test_unet_trainer_critical_bug_fixes_verification(self):
         """Test that critical bugs are actually fixed in the trainer."""
-        trainer = UNetTrainer(unet_config)
+        # Use default config to verify production settings, not test fixture
+        config = UNetConfig()
+        trainer = UNetTrainer(config)
 
         # CRITICAL FIX 1: Learning rate should be 1e-4, not 1e-5
         assert trainer.config.learning_rate == 1e-4

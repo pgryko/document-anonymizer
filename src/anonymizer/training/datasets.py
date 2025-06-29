@@ -15,7 +15,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, UnidentifiedImageError
 import numpy as np
 import cv2
 import json
@@ -88,13 +88,18 @@ class ImageValidator:
 
             return True
 
+        except UnidentifiedImageError:
+            raise ValidationError("Invalid image data")
         except Exception as e:
             raise ValidationError(f"Image validation failed: {e}")
 
     @classmethod
     def load_image_safely(cls, image_path: Path) -> np.ndarray:
         """Load image with validation and conversion."""
-        cls.validate_image_file(image_path)
+        try:
+            cls.validate_image_file(image_path)
+        except ValidationError as e:
+            raise PreprocessingError(f"Failed to load image: {e}")
 
         try:
             # Load image
@@ -116,6 +121,9 @@ class ImageValidator:
 
             return image_array
 
+        except ValidationError:
+            # Re-raise validation errors as-is
+            raise
         except Exception as e:
             raise PreprocessingError(f"Failed to load image {image_path}: {e}")
 

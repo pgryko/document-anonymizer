@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 
 from src.anonymizer.training.vae_trainer import VAETrainer, PerceptualLoss
 from src.anonymizer.core.models import ModelArtifacts
+from src.anonymizer.core.config import VAEConfig
 from src.anonymizer.core.exceptions import (
     TrainingError,
     ModelLoadError,
@@ -420,9 +421,11 @@ class TestVAETrainer:
             assert artifacts.metadata["best_loss"] == 0.2
             assert artifacts.metadata["training_completed"] is True
 
-    def test_vae_trainer_critical_bug_fixes_verification(self, vae_config):
+    def test_vae_trainer_critical_bug_fixes_verification(self):
         """Test that critical bugs are actually fixed in the trainer."""
-        trainer = VAETrainer(vae_config)
+        # Use default config to verify production settings, not test fixture
+        config = VAEConfig()
+        trainer = VAETrainer(config)
 
         # CRITICAL FIX 1: Learning rate should be 5e-4, not 5e-6
         assert trainer.config.learning_rate == 5e-4

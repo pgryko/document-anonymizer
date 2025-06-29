@@ -211,13 +211,27 @@ class TestImageValidator:
 
         with patch("PIL.Image.open") as mock_open:
             mock_image = Mock()
+            mock_image.format = "PNG"
+            mock_image.size = (100, 100)
             mock_image.mode = "RGB"
             mock_image.convert.return_value = mock_image
-            mock_open.return_value = mock_image
+            mock_image.verify.return_value = None
+
+            # Set up mock for both context manager and direct return
+            from unittest.mock import MagicMock
+
+            mock_context = MagicMock()
+            mock_context.__enter__.return_value = mock_image
+            mock_context.__exit__.return_value = None
+
+            # For validation (context manager) and loading (direct return)
+            mock_open.side_effect = [mock_context, mock_image]
 
             with patch("numpy.array") as mock_array:
-                # Return array with unexpected shape
-                mock_array.return_value = np.zeros((100, 100, 100, 3))  # 4D array
+                # Return array with unexpected shape (4D instead of 3D)
+                mock_array.return_value = np.zeros(
+                    (100, 100, 100, 3), dtype=np.uint8
+                )  # 4D array
 
                 image_path.touch()
 
@@ -240,12 +254,14 @@ class TestTextRegionValidator:
 
     def test_validate_text_region_empty_original_text(self, sample_bbox):
         """Test validation fails for empty original text."""
-        region = TextRegion(
-            bbox=sample_bbox,
-            original_text="",  # Empty
-            replacement_text="REDACTED",
-            confidence=1.0,
-        )
+        # Create a mock region with empty text to test the validator logic
+        from unittest.mock import Mock
+
+        region = Mock()
+        region.bbox = sample_bbox
+        region.original_text = ""  # Empty
+        region.replacement_text = "REDACTED"
+        region.confidence = 1.0
 
         with pytest.raises(ValidationError, match="Original text too short"):
             TextRegionValidator.validate_text_region(region, (256, 256))
