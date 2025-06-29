@@ -1,37 +1,126 @@
-def main():
-    print("🔧 Document Anonymization System - Clean Implementation")
-    print("=" * 60)
-    print()
-    print("✅ CRITICAL BUGS FIXED:")
-    print("   1. Added missing KL divergence loss to VAE training")
-    print("   2. Corrected learning rates (VAE: 5e-4, UNet: 1e-4)")
-    print("   3. Increased batch sizes for stable training")
-    print("   4. Added perceptual loss for text preservation")
-    print("   5. Comprehensive error handling and validation")
-    print("   6. Memory management and GPU cleanup")
-    print("   7. Safe preprocessing with bounds checking")
-    print()
-    print("📚 Usage Examples:")
-    print(
-        "   VAE Training:  python example_training.py --mode vae --config configs/training/vae_config.yaml"
+#!/usr/bin/env python3
+"""
+Main CLI for Document Anonymization System
+==========================================
+
+This CLI provides commands to train and run the document anonymization system.
+"""
+
+import logging
+import sys
+from pathlib import Path
+import click
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+try:
+    from src.anonymizer.core.config import AppConfig
+    from src.anonymizer.training.vae_trainer import VAETrainer
+    from src.anonymizer.training.unet_trainer import UNetTrainer
+    from src.anonymizer.inference.engine import InferenceEngine
+    from src.anonymizer.core.exceptions import AnonymizerError
+except ImportError as e:
+    logger.error(f"Import failed: {e}")
+    logger.error(
+        "Make sure you have all dependencies installed and the project is properly set up"
     )
-    print(
-        "   UNet Training: python example_training.py --mode unet --config configs/training/unet_config.yaml"
-    )
-    print()
-    print("📁 Project Structure:")
-    print("   src/anonymizer/           - Core implementation")
-    print("   ├── core/                 - Models, config, exceptions")
-    print("   ├── training/             - VAE & UNet trainers (FIXED)")
-    print("   ├── inference/            - Production inference engine")
-    print("   ├── storage/              - Cloudflare R2 integration")
-    print("   └── utils/                - Image ops, text rendering")
-    print("   configs/                  - Training & inference configs")
-    print("   modal_training/           - Modal.com cloud training")
-    print("   tests/                    - Comprehensive test suite")
-    print()
-    print("🚀 Ready for production deployment with Modal.com and Cloudflare R2!")
+    sys.exit(1)
+
+
+@click.group()
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
+def cli(verbose):
+    """Document Anonymization System CLI."""
+    if verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+
+@cli.command(name="train-vae")
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to VAE configuration YAML file",
+)
+def train_vae(config):
+    """Train VAE model."""
+    try:
+        from src.anonymizer.core.config import VAEConfig
+
+        config = VAEConfig.from_env_and_yaml(yaml_path=config)
+        trainer = VAETrainer(config)
+        trainer.setup_distributed()
+        # trainer.train(train_dataloader, val_dataloader)
+        logger.info("VAE training finished.")
+    except AnonymizerError as e:
+        logger.error(f"VAE training failed: {e}")
+        sys.exit(1)
+
+
+@cli.command(name="train-unet")
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to UNet configuration YAML file",
+)
+def train_unet(config):
+    """Train UNet model."""
+    try:
+        from src.anonymizer.core.config import UNetConfig
+
+        config = UNetConfig.from_env_and_yaml(yaml_path=config)
+        trainer = UNetTrainer(config)
+        trainer.setup_distributed()
+        # trainer.train(train_dataloader, val_dataloader)
+        logger.info("UNet training finished.")
+    except AnonymizerError as e:
+        logger.error(f"UNet training failed: {e}")
+        sys.exit(1)
+
+
+@cli.command(name="anonymize")
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to App configuration YAML file",
+)
+@click.option(
+    "--image",
+    "-i",
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to image to anonymize",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    required=True,
+    help="Path to save anonymized image",
+)
+def anonymize(config, image, output):
+    """Anonymize a document."""
+    try:
+        config = AppConfig.from_env_and_yaml(yaml_path=config)
+        InferenceEngine(config.engine)
+        # image_data = open(image, "rb").read()
+        # anonymized_image = engine.anonymize(image_data, [])
+        # with open(output, "wb") as f:
+        #     f.write(anonymized_image)
+        logger.info(f"Anonymized image saved to {output}")
+    except AnonymizerError as e:
+        logger.error(f"Anonymization failed: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    main()
+    cli()

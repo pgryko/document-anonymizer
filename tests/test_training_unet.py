@@ -52,7 +52,7 @@ class TestTextRenderer:
             with patch("PIL.ImageFont.load_default") as mock_default:
                 mock_default.return_value = Mock()
 
-                renderer = TextRenderer()
+                TextRenderer()
 
                 # Should fallback to default font
                 mock_default.assert_called()

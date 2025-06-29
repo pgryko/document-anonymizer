@@ -16,9 +16,14 @@ This implementation fixes critical bugs in the reference implementations:
 __version__ = "1.0.0"
 __author__ = "Document Anonymizer Team"
 
-from .core.models import *
-from .core.config import *
-from .core.exceptions import *
+from .core.models import (
+    AnonymizationRequest,
+    AnonymizationResult,
+    ProcessedImage,
+    GeneratedPatch,
+)
+from .core.config import VAEConfig, UNetConfig, EngineConfig
+from .core.exceptions import AnonymizerError, TrainingError, InferenceError
 
 __all__ = [
     "AnonymizationRequest",

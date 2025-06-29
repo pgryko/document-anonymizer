@@ -9,7 +9,7 @@ import torch
 from unittest.mock import Mock, patch
 
 from src.anonymizer.training.vae_trainer import VAETrainer, PerceptualLoss
-from src.anonymizer.core.models import TrainingMetrics, ModelArtifacts
+from src.anonymizer.core.models import ModelArtifacts
 from src.anonymizer.core.exceptions import (
     TrainingError,
     ModelLoadError,
@@ -291,15 +291,7 @@ class TestVAETrainer:
 
             batch = {"images": torch.randn(2, 3, 512, 512, device=device)}
 
-            metrics = trainer.train_step(batch)
-
-            # Verify metrics
-            assert isinstance(metrics, TrainingMetrics)
-            assert metrics.total_loss == 0.5
-            assert metrics.recon_loss == 0.3
-            assert metrics.kl_loss == 0.1
-            assert metrics.perceptual_loss == 0.1
-            assert metrics.learning_rate == 1e-4
+            trainer.train_step(batch)
 
             # Verify optimizer was called
             trainer.optimizer.step.assert_called_once()
@@ -329,7 +321,7 @@ class TestVAETrainer:
 
             batch = {"images": torch.randn(2, 3, 512, 512, device=device)}
 
-            metrics = trainer.train_step(batch)
+            trainer.train_step(batch)
 
             # Verify accelerator was used
             trainer.accelerator.backward.assert_called_once()

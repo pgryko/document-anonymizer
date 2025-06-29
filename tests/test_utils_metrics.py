@@ -192,7 +192,7 @@ class TestMetricsCollector:
 
             # Check first call
             first_call = mock_statsd.histogram.call_args_list[0]
-            metric_name, value, call_kwargs = (
+            metric_name, _, call_kwargs = (
                 first_call[0][0],
                 first_call[0][1],
                 first_call[1],
@@ -492,7 +492,7 @@ class TestMetricsIntegration:
                     # Simulate inference
                     pred = torch.randn(1, 3, 64, 64, device=device)
                     target = torch.randn(1, 3, 64, 64, device=device)
-                    metrics = calculate_similarity_metrics(pred, target)
+                    calculate_similarity_metrics(pred, target)
 
                 # Record the timing
                 collector.record_inference_metrics(150.0, True)
