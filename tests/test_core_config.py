@@ -6,6 +6,7 @@ Tests configuration loading, validation, and defaults.
 
 import pytest
 import yaml
+from pathlib import Path
 from pydantic import ValidationError
 
 from src.anonymizer.core.config import (
@@ -19,6 +20,7 @@ from src.anonymizer.core.config import (
     EngineConfig,
     R2Config,
     MetricsConfig,
+    AppConfig,
     load_config_from_yaml,
 )
 from src.anonymizer.core.exceptions import ConfigurationError
@@ -190,10 +192,9 @@ class TestVAEConfig:
         """Test that optimizer learning rate syncs with main LR."""
         config = VAEConfig(learning_rate=1e-3)
 
-        # The default optimizer gets the default learning rate, not the main config LR
-        # This is because OptimizerConfig is created with default factory
+        # The optimizer LR should sync with the main config LR via the validator
         assert config.learning_rate == 1e-3  # Main config has correct LR
-        assert config.optimizer.learning_rate == 5e-4  # Optimizer has its default
+        assert config.optimizer.learning_rate == 1e-3  # Optimizer syncs with main LR
 
     def test_vae_config_validation_batch_size(self):
         """Test that batch size must be positive."""
@@ -474,6 +475,22 @@ class TestR2Config:
         assert config.bucket_name == "test-bucket"
         assert config.region == "us-east-1"
 
+    def test_r2_config_auto_env_loading(self, monkeypatch):
+        """Test that R2Config automatically loads from environment variables."""
+        # Set environment variables with R2 prefix
+        monkeypatch.setenv("R2_ENDPOINT_URL", "https://auto.endpoint.com")
+        monkeypatch.setenv("R2_ACCESS_KEY_ID", "auto_key")
+        monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "auto_secret")
+        monkeypatch.setenv("R2_BUCKET_NAME", "auto-bucket")
+
+        # Just instantiate normally - should auto-load from env
+        config = R2Config()
+
+        assert config.endpoint_url == "https://auto.endpoint.com"
+        assert config.access_key_id == "auto_key"
+        assert config.secret_access_key == "auto_secret"
+        assert config.bucket_name == "auto-bucket"
+
 
 class TestMetricsConfig:
     """Test MetricsConfig validation."""
@@ -559,3 +576,87 @@ class TestConfigLoading:
 
         with pytest.raises(ConfigurationError, match="Failed to load configuration"):
             load_config_from_yaml(config_path, VAEConfig)
+
+
+class TestAppConfig:
+    """Test main AppConfig class."""
+
+    def test_valid_app_config(self):
+        """Test creating valid app configuration."""
+        config = AppConfig(
+            environment="production",
+            debug=False,
+            device="cuda",
+            models_dir="./models",
+            data_dir="./data",
+        )
+
+        assert config.environment == "production"
+        assert config.debug is False
+        assert config.device == "cuda"
+        assert config.models_dir == Path("./models")
+        assert config.data_dir == Path("./data")
+        assert isinstance(config.vae, VAEConfig)
+        assert isinstance(config.unet, UNetConfig)
+        assert isinstance(config.engine, EngineConfig)
+
+    def test_app_config_defaults(self):
+        """Test app configuration defaults."""
+        config = AppConfig()
+
+        assert config.environment == "development"
+        assert config.debug is True
+        assert config.log_level == "INFO"
+        assert config.device == "auto"
+        assert config.enable_mixed_precision is True
+        assert config.models_dir == Path("./models")
+        assert config.data_dir == Path("./data")
+        assert config.output_dir == Path("./output")
+
+    def test_app_config_load_from_env(self, monkeypatch):
+        """Test loading AppConfig from environment variables."""
+        monkeypatch.setenv("APP_ENVIRONMENT", "staging")
+        monkeypatch.setenv("APP_DEBUG", "false")
+        monkeypatch.setenv("APP_DEVICE", "mps")
+        monkeypatch.setenv("VAE_BATCH_SIZE", "32")
+        monkeypatch.setenv("UNET_BATCH_SIZE", "16")
+
+        config = AppConfig.load_from_env(env_file=None)
+
+        assert config.environment == "staging"
+        assert config.debug is False
+        assert config.device == "mps"
+        assert config.vae.batch_size == 32
+        assert config.unet.batch_size == 16
+
+    def test_app_config_load_with_overrides(self, temp_dir):
+        """Test AppConfig with YAML overrides."""
+        # Create .env file
+        env_file = temp_dir / "test.env"
+        env_content = """
+APP_ENVIRONMENT=production
+APP_DEBUG=false
+VAE_BATCH_SIZE=64
+"""
+        with open(env_file, "w") as f:
+            f.write(env_content)
+
+        # Create VAE YAML
+        vae_yaml = temp_dir / "vae.yaml"
+        vae_yaml_content = """
+model_name: override-vae
+batch_size: 128
+learning_rate: 0.002
+"""
+        with open(vae_yaml, "w") as f:
+            f.write(vae_yaml_content)
+
+        config = AppConfig.load_with_overrides(
+            env_file=env_file, vae_yaml=vae_yaml, device="custom"
+        )
+
+        assert config.environment == "production"  # From .env
+        assert config.debug is False  # From .env
+        assert config.vae.model_name == "override-vae"  # From YAML
+        assert config.vae.batch_size == 128  # From YAML (overrides .env)
+        assert config.device == "custom"  # From kwargs
