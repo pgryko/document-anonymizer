@@ -1,0 +1,30 @@
+# Inference Engine Configuration
+# ===============================
+#
+# Production-ready inference configuration with safety measures
+
+# Model paths (will be set at runtime)
+vae_model_path: null
+unet_model_path: null
+
+# Inference parameters
+num_inference_steps: 50
+guidance_scale: 7.5
+strength: 1.0
+
+# Memory management
+enable_memory_efficient_attention: true
+enable_sequential_cpu_offload: false
+max_batch_size: 4
+
+# Quality settings
+enable_quality_check: true
+min_confidence_threshold: 0.7
+
+# Preprocessing configuration
+preprocessing:
+  target_crop_size: 512
+  max_scale_factor: 4.0                    # Prevent memory exhaustion
+  max_memory_bytes: 1073741824            # 1GB limit per image
+  padding_mode: "reflect"
+  interpolation: "lanczos"

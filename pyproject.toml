@@ -9,7 +9,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.1.8",
-    "diffusers>=0.32.2",
+    "diffusers>=0.32.2", 
     "pdf2image>=1.17.0",
     "presidio-analyzer>=2.2.358",
     "presidio-anonymizer>=2.2.358",
@@ -17,9 +17,17 @@ dependencies = [
     "pymupdf>=1.25.4",
     "python-decouple>=3.8",
     "spacy>=3.8.4",
-    "tdqm>=0.0.1",
+    "tqdm>=4.66.0",
     "torch>=2.6.0",
+    "torchvision>=0.19.0",
     "transformers>=4.49.0",
+    "accelerate>=1.2.0",
+    "safetensors>=0.4.0",
+    "pydantic>=2.10.0",
+    "pyyaml>=6.0.0",
+    "pillow>=10.0.0",
+    "opencv-python>=4.8.0",
+    "numpy>=1.24.0",
 ]
 
 [dependency-groups]
@@ -28,5 +36,35 @@ dev = [
     "mypy>=1.15.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.0.0",
+    "pytest-mock>=3.12.0",
+    "pytest-xdist>=3.6.0",
     "ruff>=0.11.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+    "--cov=src/anonymizer",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests", 
+    "gpu: Tests requiring GPU",
+    "slow: Slow tests",
+]
+
+[tool.coverage.run]
+source = ["src/anonymizer"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
 ]
