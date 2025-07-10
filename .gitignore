@@ -1,5 +1,5 @@
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -9,9 +9,49 @@ lerna-debug.log*
 .DS_Store
 .idea/
 
-src/reference_code/
-
+# Python
 **/__pycache__/**
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.coverage*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# ML/AI specific
+checkpoints/
+runs/
+outputs/
+cache/
+models/*.pt
+models/*.pth
+models/*.ckpt
+logs/training/
+logs/inference/
+
+# Data files (raw data can be large)
+data/raw/
+data/cache/
+*.zip
+*.tar.gz
+*.tgz
+
+# Keep processed data structure but ignore large files
+data/processed/**/*.png
+data/processed/**/*.jpg
+data/processed/**/*.jpeg
+data/processed/**/*.json
+
+# Reference code
+src/reference_code/
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

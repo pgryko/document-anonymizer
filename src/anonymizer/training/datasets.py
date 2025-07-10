@@ -388,22 +388,20 @@ class AnonymizerDataset(Dataset):
                 constant_values=255,  # White padding
             )
 
-            # Create masks for each text region
-            masks = []
+            # Create a single combined mask for all text regions
+            combined_mask = np.zeros((target_size, target_size), dtype=np.float32)
             texts = []
 
             for region in text_regions:
                 # Scale bounding box
                 scaled_bbox = region.bbox.scale(scale)
 
-                # Create mask
-                mask = np.zeros((target_size, target_size), dtype=np.float32)
-                mask[
+                # Add region to combined mask
+                combined_mask[
                     scaled_bbox.top : scaled_bbox.bottom,
                     scaled_bbox.left : scaled_bbox.right,
                 ] = 1.0
 
-                masks.append(mask)
                 texts.append(region.replacement_text)
 
             # Convert to tensors
@@ -412,13 +410,8 @@ class AnonymizerDataset(Dataset):
             )
             image_tensor = (image_tensor - 0.5) / 0.5  # Normalize to [-1, 1]
 
-            # Combine masks
-            combined_mask = (
-                np.stack(masks, axis=0)
-                if masks
-                else np.zeros((1, target_size, target_size))
-            )
-            mask_tensor = torch.from_numpy(combined_mask).float()
+            # Add channel dimension to mask
+            mask_tensor = torch.from_numpy(combined_mask).unsqueeze(0).float()
 
             return {
                 "images": image_tensor,
@@ -478,7 +471,7 @@ def create_dataloader(
         pin_memory=pin_memory,
         collate_fn=collate_fn,
         persistent_workers=num_workers > 0,
-        prefetch_factor=2 if num_workers > 0 else 2,
+        prefetch_factor=2 if num_workers > 0 else None,
     )
 
 
