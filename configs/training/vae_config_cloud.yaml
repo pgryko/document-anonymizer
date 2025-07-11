@@ -1,0 +1,45 @@
+# VAE Training Configuration - Cloud Production
+# =============================================
+#
+# Optimized for cloud GPU training:
+# - High batch sizes for efficient GPU utilization
+# - Full training epochs for production models
+# - Mixed precision for faster training
+# - Production-ready hyperparameters
+
+# Model configuration
+model_name: "document-anonymizer-vae"
+version: "v1.0"
+base_model: "stabilityai/stable-diffusion-2-1-base"
+
+# Training parameters - Optimized for GPU training
+batch_size: 16                  # High batch size for GPU efficiency
+learning_rate: 5.0e-4           # CRITICAL FIX: Increased from 5e-6
+num_epochs: 100                 # Full training for production
+gradient_accumulation_steps: 2  # Moderate accumulation
+mixed_precision: "fp16"         # Enable for faster GPU training
+gradient_clipping: 1.0
+
+# Loss configuration - Production settings
+loss:
+  kl_weight: 0.00025            # KL divergence weight (was missing!)
+  perceptual_weight: 0.1        # Perceptual loss for text preservation
+  recon_loss_type: "mse"
+
+# Optimizer and scheduler - Production settings
+optimizer:
+  type: "AdamW"
+  learning_rate: 5.0e-4
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+
+scheduler:
+  type: "cosine_with_restarts"
+  warmup_steps: 1000            # Proper warmup for production
+  num_cycles: 3                 # Multiple cycles for better convergence
+  min_lr_ratio: 0.1
+
+# Storage - Cloud paths
+checkpoint_dir: "/workspace/checkpoints/vae"
+save_every_n_steps: 5000        # Less frequent saves for production
+keep_n_checkpoints: 5           # Keep more checkpoints for production

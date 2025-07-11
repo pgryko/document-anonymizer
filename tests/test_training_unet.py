@@ -12,7 +12,7 @@ from PIL import Image
 from src.anonymizer.training.unet_trainer import UNetTrainer, TextRenderer
 from src.anonymizer.core.models import TrainingMetrics, ModelArtifacts
 from src.anonymizer.core.config import UNetConfig
-from src.anonymizer.core.exceptions import TrainingError, ValidationError, ModelLoadError
+from src.anonymizer.core.exceptions import TrainingError, ModelLoadError
 
 
 class TestTextRenderer:
@@ -493,7 +493,9 @@ class TestUNetTrainer:
             # Verify metrics
             assert isinstance(metrics, TrainingMetrics)
             assert abs(metrics.total_loss - 0.8) < 1e-6  # Use approximate comparison
-            assert abs(metrics.recon_loss - 0.8) < 1e-6  # For UNet, this is the diffusion loss
+            assert (
+                abs(metrics.recon_loss - 0.8) < 1e-6
+            )  # For UNet, this is the diffusion loss
             assert metrics.kl_loss == 0.0  # N/A for UNet
             assert metrics.learning_rate == 1e-4
 
