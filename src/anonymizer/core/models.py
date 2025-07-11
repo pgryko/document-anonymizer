@@ -27,12 +27,38 @@ class BoundingBox(BaseModel):
         return v
 
     def scale(self, factor: float) -> "BoundingBox":
-        """Scale bounding box by factor."""
+        """Scale bounding box by factor with proper rounding."""
+        scaled_left = round(self.left * factor)
+        scaled_top = round(self.top * factor)
+        scaled_right = round(self.right * factor)
+        scaled_bottom = round(self.bottom * factor)
+
+        # Ensure minimum size of 1x1
+        if scaled_right <= scaled_left:
+            scaled_right = scaled_left + 1
+        if scaled_bottom <= scaled_top:
+            scaled_bottom = scaled_top + 1
+
         return BoundingBox(
-            left=int(self.left * factor),
-            top=int(self.top * factor),
-            right=int(self.right * factor),
-            bottom=int(self.bottom * factor),
+            left=scaled_left,
+            top=scaled_top,
+            right=scaled_right,
+            bottom=scaled_bottom,
+        )
+
+    def clamp_to_bounds(self, width: int, height: int) -> "BoundingBox":
+        """Clamp bounding box coordinates to image bounds."""
+        # Clamp coordinates to valid bounds
+        clamped_left = max(0, min(self.left, width - 1))
+        clamped_top = max(0, min(self.top, height - 1))
+        clamped_right = max(clamped_left + 1, min(self.right, width))
+        clamped_bottom = max(clamped_top + 1, min(self.bottom, height))
+
+        return BoundingBox(
+            left=clamped_left,
+            top=clamped_top,
+            right=clamped_right,
+            bottom=clamped_bottom,
         )
 
     @property

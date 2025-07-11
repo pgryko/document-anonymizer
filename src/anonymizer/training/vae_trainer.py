@@ -23,7 +23,14 @@ from accelerate import Accelerator
 from diffusers import AutoencoderKL
 from transformers import get_scheduler
 import safetensors.torch
-from torch.utils.tensorboard import SummaryWriter
+
+try:
+    from torch.utils.tensorboard import SummaryWriter
+
+    HAS_TENSORBOARD = True
+except ImportError:
+    SummaryWriter = None
+    HAS_TENSORBOARD = False
 import torchvision.utils as vutils
 
 from ..core.models import TrainingMetrics, ModelArtifacts
@@ -105,7 +112,7 @@ class VAETrainer:
         self.best_loss = float("inf")
 
         # TensorBoard writer (optional)
-        self.tb_writer: Optional[SummaryWriter] = None
+        self.tb_writer: Optional[Any] = None
 
     def setup_distributed(self):
         """Setup distributed training with Accelerator."""
@@ -371,6 +378,10 @@ class VAETrainer:
 
     def setup_tensorboard(self, log_dir: Optional[Path] = None):
         """Setup TensorBoard logging."""
+        if not HAS_TENSORBOARD:
+            logger.warning("TensorBoard not available, skipping setup")
+            return
+
         if log_dir is None:
             log_dir = self.config.checkpoint_dir / "tensorboard"
 
