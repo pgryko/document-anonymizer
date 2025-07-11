@@ -4,6 +4,7 @@ Unit tests for core configuration - Imperative style.
 Tests configuration loading, validation, and defaults.
 """
 
+import os
 import pytest
 import yaml
 from pathlib import Path
@@ -396,9 +397,15 @@ class TestEngineConfig:
         assert config.max_batch_size == 4
         assert config.min_confidence_threshold == 0.7
 
-    def test_engine_config_defaults(self):
+    def test_engine_config_defaults(self, monkeypatch):
         """Test engine configuration defaults."""
-        config = EngineConfig()
+        # Clear any ENGINE_ environment variables to test true defaults
+        engine_env_vars = [key for key in os.environ.keys() if key.startswith('ENGINE_')]
+        for var in engine_env_vars:
+            monkeypatch.delenv(var, raising=False)
+
+        # Also ensure no .env file is loaded by creating config with explicit env_file=None
+        config = EngineConfig(_env_file=None)
 
         assert config.vae_model_path is None
         assert config.unet_model_path is None
@@ -406,7 +413,9 @@ class TestEngineConfig:
         assert config.guidance_scale == 7.5
         assert config.strength == 1.0
         assert config.enable_memory_efficient_attention is True
+        assert config.enable_sequential_cpu_offload is False
         assert config.max_batch_size == 4
+        assert config.enable_quality_check is True
         assert config.min_confidence_threshold == 0.7
 
     def test_engine_config_validation_inference_steps(self):
