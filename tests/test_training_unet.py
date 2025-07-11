@@ -12,7 +12,7 @@ from PIL import Image
 from src.anonymizer.training.unet_trainer import UNetTrainer, TextRenderer
 from src.anonymizer.core.models import TrainingMetrics, ModelArtifacts
 from src.anonymizer.core.config import UNetConfig
-from src.anonymizer.core.exceptions import TrainingError, ValidationError
+from src.anonymizer.core.exceptions import TrainingError, ValidationError, ModelLoadError
 
 
 class TestTextRenderer:
@@ -125,7 +125,8 @@ class TestUNetTrainer:
 
         trainer = UNetTrainer(unet_config)
 
-        with pytest.raises(ValidationError, match="Expected 9-channel UNet"):
+        # The trainer catches ValidationError and re-raises as ModelLoadError
+        with pytest.raises(ModelLoadError, match="Failed to initialize UNet"):
             trainer._initialize_unet()
 
     @patch("src.anonymizer.training.unet_trainer.AutoencoderKL")
@@ -390,6 +391,10 @@ class TestUNetTrainer:
         # Mock noise scheduler
         mock_scheduler = Mock()
         mock_scheduler.add_noise.return_value = torch.randn(2, 4, 64, 64, device=device)
+        # Mock the config attribute that's used in torch.randint
+        mock_config = Mock()
+        mock_config.num_train_timesteps = 1000
+        mock_scheduler.config = mock_config
         trainer.noise_scheduler = mock_scheduler
 
         # Input tensors
@@ -458,15 +463,20 @@ class TestUNetTrainer:
         trainer = UNetTrainer(unet_config)
 
         # Mock components
-        trainer.unet = Mock()
+        mock_unet = Mock()
+        # Mock parameters() method to return an iterable
+        mock_unet.parameters.return_value = [torch.randn(10, requires_grad=True)]
+        trainer.unet = mock_unet
         trainer.optimizer = Mock()
         trainer.optimizer.param_groups = [{"lr": 1e-4}]
         trainer.scheduler = Mock()
 
         # Mock loss computation
         with patch.object(trainer, "_compute_loss") as mock_compute_loss:
+            # Create a tensor that requires gradients for backpropagation
+            loss_tensor = torch.tensor(0.8, device=device, requires_grad=True)
             mock_loss_data = {
-                "loss": torch.tensor(0.8, device=device),
+                "loss": loss_tensor,
                 "noise_pred": torch.randn(2, 4, 64, 64, device=device),
                 "target_noise": torch.randn(2, 4, 64, 64, device=device),
             }
@@ -482,8 +492,8 @@ class TestUNetTrainer:
 
             # Verify metrics
             assert isinstance(metrics, TrainingMetrics)
-            assert metrics.total_loss == 0.8
-            assert metrics.recon_loss == 0.8  # For UNet, this is the diffusion loss
+            assert abs(metrics.total_loss - 0.8) < 1e-6  # Use approximate comparison
+            assert abs(metrics.recon_loss - 0.8) < 1e-6  # For UNet, this is the diffusion loss
             assert metrics.kl_loss == 0.0  # N/A for UNet
             assert metrics.learning_rate == 1e-4
 
