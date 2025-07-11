@@ -174,7 +174,7 @@ class SafeAugmentation:
 
     def __init__(self, config: DatasetConfig):
         self.config = config
-        self.rng = random.Random()
+        self.rng = random.Random(42)  # Fixed seed for deterministic behavior
 
     def augment_image(
         self, image: np.ndarray, text_regions: List[TextRegion]
@@ -183,6 +183,7 @@ class SafeAugmentation:
         try:
             # Convert to PIL for easier manipulation
             pil_image = Image.fromarray(image)
+            original_size = pil_image.size
 
             # Apply brightness adjustment (conservative)
             if self.config.brightness_range > 0:
@@ -200,18 +201,16 @@ class SafeAugmentation:
                 enhancer = ImageEnhance.Contrast(pil_image)
                 pil_image = enhancer.enhance(contrast_factor)
 
-            # Apply rotation (very conservative for text)
+            # Skip rotation to preserve image dimensions and avoid coordinate transformation
+            # This is a conservative approach that preserves text alignment
             if self.config.rotation_range > 0:
-                angle = self.rng.uniform(
-                    -self.config.rotation_range, self.config.rotation_range
-                )
-                pil_image = pil_image.rotate(
-                    angle, expand=True, fillcolor=(255, 255, 255)
-                )
-
-                # Note: For rotation, we'd need to adjust bounding boxes
                 # For now, we skip rotation to avoid complex coordinate transformation
-                # This is a conservative approach that preserves text alignment
+                # and dimension changes that would break the training pipeline
+                pass
+
+            # Ensure image dimensions haven't changed
+            if pil_image.size != original_size:
+                pil_image = pil_image.resize(original_size, Image.LANCZOS)
 
             # Convert back to numpy
             augmented_image = np.array(pil_image)
@@ -274,7 +273,7 @@ class AnonymizerDataset(Dataset):
                 if sample:
                     samples.append(sample)
             except Exception as e:
-                logger.warning(f"Skipping sample {annotation_file}: {e}")
+                logger.error(f"Failed to load sample {annotation_file}: {e}")
                 continue
 
         if not samples:
@@ -388,21 +387,28 @@ class AnonymizerDataset(Dataset):
                 constant_values=255,  # White padding
             )
 
-            # Create a single combined mask for all text regions
-            combined_mask = np.zeros((target_size, target_size), dtype=np.float32)
+            # Create individual masks for each text region
+            masks = []
             texts = []
 
             for region in text_regions:
                 # Scale bounding box
                 scaled_bbox = region.bbox.scale(scale)
 
-                # Add region to combined mask
-                combined_mask[
+                # Create individual mask for this region
+                region_mask = np.zeros((target_size, target_size), dtype=np.float32)
+                region_mask[
                     scaled_bbox.top : scaled_bbox.bottom,
                     scaled_bbox.left : scaled_bbox.right,
                 ] = 1.0
 
+                masks.append(region_mask)
                 texts.append(region.replacement_text)
+
+            # If no text regions, create a dummy mask
+            if not masks:
+                masks.append(np.zeros((target_size, target_size), dtype=np.float32))
+                texts.append("")
 
             # Convert to tensors
             image_tensor = (
@@ -410,8 +416,8 @@ class AnonymizerDataset(Dataset):
             )
             image_tensor = (image_tensor - 0.5) / 0.5  # Normalize to [-1, 1]
 
-            # Add channel dimension to mask
-            mask_tensor = torch.from_numpy(combined_mask).unsqueeze(0).float()
+            # Stack masks into tensor (num_regions, height, width)
+            mask_tensor = torch.from_numpy(np.stack(masks, axis=0)).float()
 
             return {
                 "images": image_tensor,
@@ -435,7 +441,29 @@ def collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     # Separate batch components
     images = torch.stack([item["images"] for item in batch])
-    masks = torch.stack([item["masks"] for item in batch])
+
+    # Handle masks - pad to same number of regions if needed
+    masks_list = [item["masks"] for item in batch]
+    max_regions = max(mask.shape[0] for mask in masks_list)
+
+    # Pad masks to same number of regions
+    padded_masks = []
+    for mask in masks_list:
+        if mask.shape[0] < max_regions:
+            # Pad with zeros
+            padding = torch.zeros(
+                max_regions - mask.shape[0],
+                mask.shape[1],
+                mask.shape[2],
+                dtype=mask.dtype,
+            )
+            padded_mask = torch.cat([mask, padding], dim=0)
+        else:
+            padded_mask = mask
+        padded_masks.append(padded_mask)
+
+    masks = torch.stack(padded_masks)
+
     texts = [item["texts"] for item in batch]  # List of lists
     original_sizes = [item["original_size"] for item in batch]
     scales = [item["scale"] for item in batch]
@@ -496,6 +524,7 @@ def create_datasets(
 
 def create_dataloaders(
     config: DatasetConfig,
+    batch_size: int = 32,
 ) -> Tuple[DataLoader, Optional[DataLoader]]:
     """Create train and validation data loaders."""
     train_dataset, val_dataset = create_datasets(config)
@@ -503,7 +532,7 @@ def create_dataloaders(
     # Create train dataloader
     train_dataloader = create_dataloader(
         train_dataset,
-        batch_size=config.batch_size,
+        batch_size=batch_size,
         shuffle=True,
         num_workers=config.num_workers,
     )
@@ -513,7 +542,7 @@ def create_dataloaders(
     if val_dataset:
         val_dataloader = create_dataloader(
             val_dataset,
-            batch_size=config.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             num_workers=config.num_workers,
         )

@@ -400,7 +400,9 @@ class TestEngineConfig:
     def test_engine_config_defaults(self, monkeypatch):
         """Test engine configuration defaults."""
         # Clear any ENGINE_ environment variables to test true defaults
-        engine_env_vars = [key for key in os.environ.keys() if key.startswith('ENGINE_')]
+        engine_env_vars = [
+            key for key in os.environ.keys() if key.startswith("ENGINE_")
+        ]
         for var in engine_env_vars:
             monkeypatch.delenv(var, raising=False)
 
