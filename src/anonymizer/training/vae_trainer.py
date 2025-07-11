@@ -23,6 +23,8 @@ from accelerate import Accelerator
 from diffusers import AutoencoderKL
 from transformers import get_scheduler
 import safetensors.torch
+from torch.utils.tensorboard import SummaryWriter
+import torchvision.utils as vutils
 
 from ..core.models import TrainingMetrics, ModelArtifacts
 from ..core.config import VAEConfig
@@ -101,6 +103,9 @@ class VAETrainer:
         self.global_step = 0
         self.current_epoch = 0
         self.best_loss = float("inf")
+
+        # TensorBoard writer (optional)
+        self.tb_writer: Optional[SummaryWriter] = None
 
     def setup_distributed(self):
         """Setup distributed training with Accelerator."""
@@ -323,6 +328,55 @@ class VAETrainer:
             avg_losses = total_losses
 
         return avg_losses
+
+    def log_reconstructions(
+        self, batch: Dict[str, torch.Tensor], step: int, num_images: int = 4
+    ):
+        """Log reconstruction visualizations to TensorBoard."""
+        if not self.tb_writer and not self.accelerator:
+            return
+
+        try:
+            self.vae.eval()
+            with torch.no_grad():
+                images = batch["images"][:num_images]
+
+                # Encode and decode
+                posterior = self.vae.encode(images).latent_dist
+                latents = posterior.sample()
+                reconstructed = self.vae.decode(latents).sample
+
+                # Normalize for visualization (from [-1, 1] to [0, 1])
+                images_vis = (images + 1) / 2
+                reconstructed_vis = (reconstructed + 1) / 2
+
+                # Create comparison grid
+                comparison = torch.cat([images_vis, reconstructed_vis], dim=0)
+                grid = vutils.make_grid(
+                    comparison, nrow=num_images, normalize=True, scale_each=True
+                )
+
+                # Log to TensorBoard
+                if self.tb_writer:
+                    self.tb_writer.add_image(
+                        "Reconstructions/Original_vs_Reconstructed", grid, step
+                    )
+                elif self.accelerator:
+                    self.accelerator.log({"reconstructions": grid}, step=step)
+
+            self.vae.train()
+
+        except Exception as e:
+            logger.warning(f"Failed to log reconstructions: {e}")
+
+    def setup_tensorboard(self, log_dir: Optional[Path] = None):
+        """Setup TensorBoard logging."""
+        if log_dir is None:
+            log_dir = self.config.checkpoint_dir / "tensorboard"
+
+        log_dir.mkdir(parents=True, exist_ok=True)
+        self.tb_writer = SummaryWriter(str(log_dir))
+        logger.info(f"TensorBoard logging to {log_dir}")
 
     def save_checkpoint(self, save_path: Optional[Path] = None) -> Path:
         """Save model checkpoint."""
