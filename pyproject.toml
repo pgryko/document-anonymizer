@@ -6,7 +6,7 @@ authors = [
     {name = "Piotr Gryko",email = "piotr.gryko@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "click>=8.1.8",
     "diffusers>=0.32.2",
@@ -30,6 +30,8 @@ dependencies = [
     "numpy>=1.24.0",
     "pydantic-settings>=2.10.1",
     "boto3>=1.39.4",
+    "modal>=0.65.0",
+    "wandb>=0.18.0",
 ]
 
 [dependency-groups]

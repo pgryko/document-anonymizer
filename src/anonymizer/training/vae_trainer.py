@@ -468,7 +468,10 @@ class VAETrainer:
             raise TrainingError(f"Failed to save model artifacts: {e}")
 
     def train(
-        self, train_dataloader: DataLoader, val_dataloader: Optional[DataLoader] = None
+        self,
+        train_dataloader: DataLoader,
+        val_dataloader: Optional[DataLoader] = None,
+        wandb_logger: Optional[Any] = None,
     ):
         """
         Main training loop with all critical fixes applied.
@@ -498,6 +501,10 @@ class VAETrainer:
                 )
                 if val_dataloader:
                     val_dataloader = self.accelerator.prepare(val_dataloader)
+
+            # Setup W&B model watching
+            if wandb_logger and wandb_logger.enabled:
+                wandb_logger.watch(self.vae, log="all", log_freq=100)
 
             # Training loop
             for epoch in range(self.config.num_epochs):
