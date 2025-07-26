@@ -4,9 +4,86 @@ from typing import Optional, List, Union
 from pathlib import Path
 import os
 import yaml
-from pydantic import Field, validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from .exceptions import ConfigurationError
+from .exceptions import ConfigurationError, ValidationError
+
+
+def validate_secure_path(path: Union[str, Path], field_name: str = "path") -> Path:
+    """
+    Validate path for security - prevents directory traversal attacks.
+
+    Args:
+        path: Path to validate
+        field_name: Name of the field being validated (for error messages)
+
+    Returns:
+        Validated Path object
+
+    Raises:
+        ValidationError: If path contains security risks
+    """
+    if path is None:
+        return None
+
+    try:
+        path_obj = Path(path)
+
+        # Check for directory traversal patterns
+        path_str = str(path_obj)
+        dangerous_patterns = [
+            "../",
+            "..\\",  # Parent directory traversal
+            "/etc/",
+            "/proc/",
+            "/sys/",  # System directories (Linux)
+            "C:\\Windows\\",
+            "C:\\Program Files\\",  # System directories (Windows)
+        ]
+
+        for pattern in dangerous_patterns:
+            if pattern in path_str:
+                raise ValidationError(
+                    f"Potentially dangerous path in {field_name}: {path}"
+                )
+
+        # Resolve to absolute path and check bounds
+        try:
+            resolved_path = path_obj.resolve()
+
+            # Ensure path stays within reasonable bounds
+            # This is a basic check - in production you'd define allowed base directories
+            path_parts = resolved_path.parts
+            if len(path_parts) > 10:  # Reasonable depth limit
+                raise ValidationError(f"Path depth too deep in {field_name}: {path}")
+
+        except (OSError, RuntimeError) as e:
+            raise ValidationError(f"Path resolution failed for {field_name}: {e}")
+
+        return path_obj
+
+    except Exception as e:
+        if isinstance(e, ValidationError):
+            raise
+        raise ValidationError(f"Invalid path in {field_name}: {e}")
+
+
+def validate_model_path(
+    path: Union[str, Path], field_name: str = "model_path"
+) -> Optional[Path]:
+    """Validate model file path with additional security checks."""
+    if path is None:
+        return None
+
+    validated_path = validate_secure_path(path, field_name)
+
+    # Additional checks for model files
+    if validated_path.suffix not in [".safetensors", ".bin", ".pt", ".pth", ""]:
+        raise ValidationError(
+            f"Unsupported model file extension in {field_name}: {validated_path.suffix}"
+        )
+
+    return validated_path
 
 
 class OptimizerConfig(BaseSettings):
@@ -24,7 +101,8 @@ class OptimizerConfig(BaseSettings):
     weight_decay: float = Field(0.01, ge=0.0, description="Weight decay")
     betas: List[float] = Field([0.9, 0.999], description="Adam betas")
 
-    @validator("betas")
+    @field_validator("betas")
+    @classmethod
     def validate_betas(cls, v):
         if len(v) != 2 or not all(0.0 <= b < 1.0 for b in v):
             raise ValueError("betas must be [beta1, beta2] with 0 <= beta < 1")
@@ -101,18 +179,25 @@ class VAEConfig(BaseSettings):
 
     # Storage
     checkpoint_dir: Path = Field(
-        Path("/tmp/checkpoints"), description="Checkpoint directory"
+        Path("./checkpoints"), description="Checkpoint directory"
     )
     save_every_n_steps: int = Field(5000, ge=1, description="Save frequency")
     keep_n_checkpoints: int = Field(
         3, ge=1, description="Number of checkpoints to keep"
     )
 
-    @validator("optimizer")
-    def sync_optimizer_lr(cls, v, values):
+    @field_validator("checkpoint_dir")
+    @classmethod
+    def validate_checkpoint_dir(cls, v):
+        """Validate checkpoint directory path for security."""
+        return validate_secure_path(v, "checkpoint_dir")
+
+    @field_validator("optimizer")
+    @classmethod
+    def sync_optimizer_lr(cls, v, info):
         """Ensure optimizer LR matches main learning rate."""
-        if "learning_rate" in values:
-            v.learning_rate = values["learning_rate"]
+        if info.data and "learning_rate" in info.data:
+            v.learning_rate = info.data["learning_rate"]
         return v
 
 
@@ -162,12 +247,18 @@ class UNetConfig(BaseSettings):
 
     # Storage
     checkpoint_dir: Path = Field(
-        Path("/tmp/checkpoints"), description="Checkpoint directory"
+        Path("./checkpoints"), description="Checkpoint directory"
     )
     save_every_n_steps: int = Field(2500, ge=1, description="Save frequency")
     keep_n_checkpoints: int = Field(
         3, ge=1, description="Number of checkpoints to keep"
     )
+
+    @field_validator("checkpoint_dir")
+    @classmethod
+    def validate_checkpoint_dir(cls, v):
+        """Validate checkpoint directory path for security."""
+        return validate_secure_path(v, "checkpoint_dir")
 
 
 class DatasetConfig(BaseSettings):
@@ -184,6 +275,20 @@ class DatasetConfig(BaseSettings):
     val_data_path: Optional[Path] = Field(None, description="Validation data path")
     crop_size: int = Field(512, ge=128, description="Crop size")
     num_workers: int = Field(4, ge=0, description="Data loader workers")
+
+    @field_validator("train_data_path")
+    @classmethod
+    def validate_train_data_path(cls, v):
+        """Validate training data path for security."""
+        return validate_secure_path(v, "train_data_path")
+
+    @field_validator("val_data_path")
+    @classmethod
+    def validate_val_data_path(cls, v):
+        """Validate validation data path for security."""
+        if v is not None:
+            return validate_secure_path(v, "val_data_path")
+        return v
 
     # Augmentation (conservative for text preservation)
     rotation_range: float = Field(
@@ -227,6 +332,22 @@ class EngineConfig(BaseSettings):
     # Model paths
     vae_model_path: Optional[str] = Field(None, description="VAE model path")
     unet_model_path: Optional[str] = Field(None, description="UNet model path")
+
+    @field_validator("vae_model_path")
+    @classmethod
+    def validate_vae_model_path(cls, v):
+        """Validate VAE model path for security."""
+        if v is not None:
+            return str(validate_model_path(v, "vae_model_path"))
+        return v
+
+    @field_validator("unet_model_path")
+    @classmethod
+    def validate_unet_model_path(cls, v):
+        """Validate UNet model path for security."""
+        if v is not None:
+            return str(validate_model_path(v, "unet_model_path"))
+        return v
 
     # Inference parameters
     num_inference_steps: int = Field(50, ge=1, le=1000, description="Inference steps")

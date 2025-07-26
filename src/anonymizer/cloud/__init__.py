@@ -5,6 +5,7 @@ from .wandb_integration import WandbLogger, setup_wandb
 
 try:
     from .modal_app import app as modal_app, train_vae, train_unet
+
     HAS_MODAL = True
 except ImportError:
     modal_app = None
@@ -13,7 +14,7 @@ except ImportError:
     HAS_MODAL = False
 
 __all__ = [
-    "ModalConfig", 
+    "ModalConfig",
     "ModalTrainingConfig",
     "WandbLogger",
     "setup_wandb",

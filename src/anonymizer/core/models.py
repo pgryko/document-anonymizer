@@ -3,7 +3,7 @@
 from typing import List, Dict, Optional, Any
 from pathlib import Path
 import numpy as np
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class BoundingBox(BaseModel):
@@ -14,15 +14,17 @@ class BoundingBox(BaseModel):
     right: int = Field(..., gt=0, description="Right coordinate")
     bottom: int = Field(..., gt=0, description="Bottom coordinate")
 
-    @validator("right")
-    def right_greater_than_left(cls, v, values):
-        if "left" in values and v <= values["left"]:
+    @field_validator("right")
+    @classmethod
+    def right_greater_than_left(cls, v, info):
+        if info.data and "left" in info.data and v <= info.data["left"]:
             raise ValueError("right must be greater than left")
         return v
 
-    @validator("bottom")
-    def bottom_greater_than_top(cls, v, values):
-        if "top" in values and v <= values["top"]:
+    @field_validator("bottom")
+    @classmethod
+    def bottom_greater_than_top(cls, v, info):
+        if info.data and "top" in info.data and v <= info.data["top"]:
             raise ValueError("bottom must be greater than top")
         return v
 

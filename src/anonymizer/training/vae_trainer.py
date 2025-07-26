@@ -31,7 +31,13 @@ try:
 except ImportError:
     SummaryWriter = None
     HAS_TENSORBOARD = False
-import torchvision.utils as vutils
+try:
+    import torchvision.utils as vutils
+
+    HAS_TORCHVISION = True
+except ImportError:
+    vutils = None
+    HAS_TORCHVISION = False
 
 from ..core.models import TrainingMetrics, ModelArtifacts
 from ..core.config import VAEConfig
@@ -340,7 +346,7 @@ class VAETrainer:
         self, batch: Dict[str, torch.Tensor], step: int, num_images: int = 4
     ):
         """Log reconstruction visualizations to TensorBoard."""
-        if not self.tb_writer and not self.accelerator:
+        if not HAS_TORCHVISION or (not self.tb_writer and not self.accelerator):
             return
 
         try:
