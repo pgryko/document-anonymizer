@@ -50,12 +50,53 @@ def cli(verbose):
 def train_vae(config):
     """Train VAE model."""
     try:
-        from src.anonymizer.core.config import VAEConfig
+        from src.anonymizer.core.config import VAEConfig, DatasetConfig
+        from src.anonymizer.training.datasets import create_dataloaders
+        from pathlib import Path
 
-        config = VAEConfig.from_env_and_yaml(yaml_path=config)
-        trainer = VAETrainer(config)
+        # Load VAE configuration
+        vae_config = VAEConfig.from_env_and_yaml(yaml_path=config)
+
+        # Create dataset configuration - optimized for local vs cloud
+        is_local = "local" in str(config).lower()
+        crop_size = 256 if is_local else 512  # Smaller images for local testing
+        num_workers = 0 if is_local else 4  # No multiprocessing for local debugging
+
+        dataset_config = DatasetConfig(
+            train_data_path=Path("data/processed/xfund/vae"),
+            val_data_path=Path("data/processed/xfund/vae"),
+            crop_size=crop_size,
+            num_workers=num_workers,
+        )
+
+        # Create dataloaders
+        logger.info(
+            f"Creating dataloaders (crop_size={crop_size}, workers={num_workers})..."
+        )
+        train_dataloader, val_dataloader = create_dataloaders(
+            dataset_config, batch_size=vae_config.batch_size
+        )
+        logger.info(
+            f"Dataloaders created. Train samples: {len(train_dataloader.dataset)}, "
+            f"Val samples: {len(val_dataloader.dataset) if val_dataloader else 0}"
+        )
+
+        # Memory management for local testing
+        if is_local:
+            import torch
+
+            if torch.backends.mps.is_available():
+                logger.info(
+                    "Running on MPS backend - using conservative memory settings"
+                )
+                # Clear any existing cache
+                torch.mps.empty_cache()
+
+        # Initialize and start training
+        logger.info(f"Starting VAE training with config: {vae_config.model_name}")
+        trainer = VAETrainer(vae_config)
         trainer.setup_distributed()
-        # trainer.train(train_dataloader, val_dataloader)
+        trainer.train(train_dataloader, val_dataloader)
         logger.info("VAE training finished.")
     except AnonymizerError as e:
         logger.error(f"VAE training failed: {e}")

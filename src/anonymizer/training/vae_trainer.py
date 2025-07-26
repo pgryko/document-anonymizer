@@ -24,6 +24,15 @@ from diffusers import AutoencoderKL
 from transformers import get_scheduler
 import safetensors.torch
 
+try:
+    from torch.utils.tensorboard import SummaryWriter
+
+    HAS_TENSORBOARD = True
+except ImportError:
+    SummaryWriter = None
+    HAS_TENSORBOARD = False
+import torchvision.utils as vutils
+
 from ..core.models import TrainingMetrics, ModelArtifacts
 from ..core.config import VAEConfig
 from ..core.exceptions import TrainingError, ModelLoadError, ValidationError
@@ -101,6 +110,9 @@ class VAETrainer:
         self.global_step = 0
         self.current_epoch = 0
         self.best_loss = float("inf")
+
+        # TensorBoard writer (optional)
+        self.tb_writer: Optional[Any] = None
 
     def setup_distributed(self):
         """Setup distributed training with Accelerator."""
@@ -324,6 +336,59 @@ class VAETrainer:
 
         return avg_losses
 
+    def log_reconstructions(
+        self, batch: Dict[str, torch.Tensor], step: int, num_images: int = 4
+    ):
+        """Log reconstruction visualizations to TensorBoard."""
+        if not self.tb_writer and not self.accelerator:
+            return
+
+        try:
+            self.vae.eval()
+            with torch.no_grad():
+                images = batch["images"][:num_images]
+
+                # Encode and decode
+                posterior = self.vae.encode(images).latent_dist
+                latents = posterior.sample()
+                reconstructed = self.vae.decode(latents).sample
+
+                # Normalize for visualization (from [-1, 1] to [0, 1])
+                images_vis = (images + 1) / 2
+                reconstructed_vis = (reconstructed + 1) / 2
+
+                # Create comparison grid
+                comparison = torch.cat([images_vis, reconstructed_vis], dim=0)
+                grid = vutils.make_grid(
+                    comparison, nrow=num_images, normalize=True, scale_each=True
+                )
+
+                # Log to TensorBoard
+                if self.tb_writer:
+                    self.tb_writer.add_image(
+                        "Reconstructions/Original_vs_Reconstructed", grid, step
+                    )
+                elif self.accelerator:
+                    self.accelerator.log({"reconstructions": grid}, step=step)
+
+            self.vae.train()
+
+        except Exception as e:
+            logger.warning(f"Failed to log reconstructions: {e}")
+
+    def setup_tensorboard(self, log_dir: Optional[Path] = None):
+        """Setup TensorBoard logging."""
+        if not HAS_TENSORBOARD:
+            logger.warning("TensorBoard not available, skipping setup")
+            return
+
+        if log_dir is None:
+            log_dir = self.config.checkpoint_dir / "tensorboard"
+
+        log_dir.mkdir(parents=True, exist_ok=True)
+        self.tb_writer = SummaryWriter(str(log_dir))
+        logger.info(f"TensorBoard logging to {log_dir}")
+
     def save_checkpoint(self, save_path: Optional[Path] = None) -> Path:
         """Save model checkpoint."""
         if save_path is None:
@@ -403,7 +468,10 @@ class VAETrainer:
             raise TrainingError(f"Failed to save model artifacts: {e}")
 
     def train(
-        self, train_dataloader: DataLoader, val_dataloader: Optional[DataLoader] = None
+        self,
+        train_dataloader: DataLoader,
+        val_dataloader: Optional[DataLoader] = None,
+        wandb_logger: Optional[Any] = None,
     ):
         """
         Main training loop with all critical fixes applied.
@@ -433,6 +501,10 @@ class VAETrainer:
                 )
                 if val_dataloader:
                     val_dataloader = self.accelerator.prepare(val_dataloader)
+
+            # Setup W&B model watching
+            if wandb_logger and wandb_logger.enabled:
+                wandb_logger.watch(self.vae, log="all", log_freq=100)
 
             # Training loop
             for epoch in range(self.config.num_epochs):

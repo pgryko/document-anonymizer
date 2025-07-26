@@ -174,7 +174,7 @@ class SafeAugmentation:
 
     def __init__(self, config: DatasetConfig):
         self.config = config
-        self.rng = random.Random()
+        self.rng = random.Random(42)  # Fixed seed for deterministic behavior
 
     def augment_image(
         self, image: np.ndarray, text_regions: List[TextRegion]
@@ -183,6 +183,7 @@ class SafeAugmentation:
         try:
             # Convert to PIL for easier manipulation
             pil_image = Image.fromarray(image)
+            original_size = pil_image.size
 
             # Apply brightness adjustment (conservative)
             if self.config.brightness_range > 0:
@@ -200,18 +201,16 @@ class SafeAugmentation:
                 enhancer = ImageEnhance.Contrast(pil_image)
                 pil_image = enhancer.enhance(contrast_factor)
 
-            # Apply rotation (very conservative for text)
+            # Skip rotation to preserve image dimensions and avoid coordinate transformation
+            # This is a conservative approach that preserves text alignment
             if self.config.rotation_range > 0:
-                angle = self.rng.uniform(
-                    -self.config.rotation_range, self.config.rotation_range
-                )
-                pil_image = pil_image.rotate(
-                    angle, expand=True, fillcolor=(255, 255, 255)
-                )
-
-                # Note: For rotation, we'd need to adjust bounding boxes
                 # For now, we skip rotation to avoid complex coordinate transformation
-                # This is a conservative approach that preserves text alignment
+                # and dimension changes that would break the training pipeline
+                pass
+
+            # Ensure image dimensions haven't changed
+            if pil_image.size != original_size:
+                pil_image = pil_image.resize(original_size, Image.LANCZOS)
 
             # Convert back to numpy
             augmented_image = np.array(pil_image)
@@ -274,7 +273,7 @@ class AnonymizerDataset(Dataset):
                 if sample:
                     samples.append(sample)
             except Exception as e:
-                logger.warning(f"Skipping sample {annotation_file}: {e}")
+                logger.error(f"Failed to load sample {annotation_file}: {e}")
                 continue
 
         if not samples:
@@ -338,27 +337,54 @@ class AnonymizerDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
-        """Get dataset item with preprocessing."""
-        try:
-            sample = self.samples[idx]
+        """Get dataset item with preprocessing and robust error handling."""
+        max_retries = 3
 
-            # Get image and text regions
-            image = sample.image.copy()
-            text_regions = sample.text_regions.copy()
+        for attempt in range(max_retries):
+            try:
+                # Use modulo to handle out-of-bounds indices
+                actual_idx = idx % len(self.samples)
+                sample = self.samples[actual_idx]
 
-            # Apply augmentation if training
-            if self.augmentation and self.split == "train":
-                image, text_regions = self.augmentation.augment_image(
-                    image, text_regions
+                # Get image and text regions
+                image = sample.image.copy()
+                text_regions = sample.text_regions.copy()
+
+                # Apply augmentation if training
+                if self.augmentation and self.split == "train":
+                    image, text_regions = self.augmentation.augment_image(
+                        image, text_regions
+                    )
+
+                # Prepare training data
+                result = self._prepare_training_data(image, text_regions)
+
+                # Validate result has valid data
+                if (
+                    result
+                    and "images" in result
+                    and "masks" in result
+                    and result["masks"].shape[0] > 0
+                ):
+                    return result
+                else:
+                    logger.warning(
+                        f"Invalid result for sample {actual_idx}, retrying..."
+                    )
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to get item {actual_idx} (attempt {attempt + 1}): {e}"
                 )
 
-            # Prepare training data
-            return self._prepare_training_data(image, text_regions)
+                # Try next sample on error
+                if attempt < max_retries - 1:
+                    idx = (idx + 1) % len(self.samples)
+                    continue
 
-        except Exception as e:
-            logger.error(f"Failed to get item {idx}: {e}")
-            # Return empty item on error (will be filtered out)
-            return {}
+        # If all retries failed, return empty item (will be filtered out)
+        logger.error(f"All retries failed for index {idx}, returning empty item")
+        return {}
 
     def _prepare_training_data(
         self, image: np.ndarray, text_regions: List[TextRegion]
@@ -388,23 +414,41 @@ class AnonymizerDataset(Dataset):
                 constant_values=255,  # White padding
             )
 
-            # Create masks for each text region
+            # Create individual masks for each text region
             masks = []
             texts = []
+            valid_regions = []
 
             for region in text_regions:
-                # Scale bounding box
+                # Scale bounding box with proper rounding
                 scaled_bbox = region.bbox.scale(scale)
 
-                # Create mask
-                mask = np.zeros((target_size, target_size), dtype=np.float32)
-                mask[
-                    scaled_bbox.top : scaled_bbox.bottom,
-                    scaled_bbox.left : scaled_bbox.right,
+                # Clamp coordinates to valid bounds
+                clamped_bbox = scaled_bbox.clamp_to_bounds(target_size, target_size)
+
+                # Validate bbox is still meaningful after clamping
+                if clamped_bbox.width <= 0 or clamped_bbox.height <= 0:
+                    logger.warning(
+                        f"Scaled bbox too small after clamping, skipping: {clamped_bbox}"
+                    )
+                    continue
+
+                # Create individual mask for this region
+                region_mask = np.zeros((target_size, target_size), dtype=np.float32)
+                region_mask[
+                    clamped_bbox.top : clamped_bbox.bottom,
+                    clamped_bbox.left : clamped_bbox.right,
                 ] = 1.0
 
-                masks.append(mask)
+                masks.append(region_mask)
                 texts.append(region.replacement_text)
+                valid_regions.append(region)
+
+            # If no valid text regions, create a dummy mask
+            if not masks:
+                masks.append(np.zeros((target_size, target_size), dtype=np.float32))
+                texts.append("")
+                logger.warning("No valid text regions found, using dummy mask")
 
             # Convert to tensors
             image_tensor = (
@@ -412,13 +456,8 @@ class AnonymizerDataset(Dataset):
             )
             image_tensor = (image_tensor - 0.5) / 0.5  # Normalize to [-1, 1]
 
-            # Combine masks
-            combined_mask = (
-                np.stack(masks, axis=0)
-                if masks
-                else np.zeros((1, target_size, target_size))
-            )
-            mask_tensor = torch.from_numpy(combined_mask).float()
+            # Stack masks into tensor (num_regions, height, width)
+            mask_tensor = torch.from_numpy(np.stack(masks, axis=0)).float()
 
             return {
                 "images": image_tensor,
@@ -432,25 +471,75 @@ class AnonymizerDataset(Dataset):
             raise PreprocessingError(f"Failed to prepare training data: {e}")
 
 
-def collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Custom collate function for batch processing."""
-    # Filter out empty items
-    batch = [item for item in batch if item]
+def create_dummy_batch() -> Dict[str, Any]:
+    """Create a minimal valid batch for error recovery."""
+    dummy_image = torch.zeros(1, 3, 512, 512, dtype=torch.float32)
+    dummy_mask = torch.zeros(1, 1, 512, 512, dtype=torch.float32)
 
-    if not batch:
-        raise ValidationError("Empty batch after filtering")
+    return {
+        "images": dummy_image,
+        "masks": dummy_mask,
+        "texts": [""],
+        "original_sizes": [(512, 512)],
+        "scales": [1.0],
+        "batch_size": 1,
+        "text_mask_indices": [(0, 0)],  # Track text-mask alignment
+    }
+
+
+def collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Custom collate function for batch processing with improved error handling."""
+    # Filter out empty items and items with no valid text regions
+    valid_batch = [
+        item
+        for item in batch
+        if item and len(item.get("texts", [])) > 0 and item["masks"].shape[0] > 0
+    ]
+
+    if not valid_batch:
+        logger.warning(
+            "All samples in batch failed preprocessing, returning dummy batch"
+        )
+        return create_dummy_batch()
 
     # Separate batch components
-    images = torch.stack([item["images"] for item in batch])
-    masks = torch.stack([item["masks"] for item in batch])
-    texts = [item["texts"] for item in batch]  # List of lists
-    original_sizes = [item["original_size"] for item in batch]
-    scales = [item["scale"] for item in batch]
+    images = torch.stack([item["images"] for item in valid_batch])
 
-    # Flatten texts for TrOCR processing
+    # Handle masks - pad to same number of regions if needed
+    masks_list = [item["masks"] for item in valid_batch]
+    max_regions = max(mask.shape[0] for mask in masks_list)
+
+    # Pad masks to same number of regions
+    padded_masks = []
+    for mask in masks_list:
+        if mask.shape[0] < max_regions:
+            # Pad with zeros
+            padding = torch.zeros(
+                max_regions - mask.shape[0],
+                mask.shape[1],
+                mask.shape[2],
+                dtype=mask.dtype,
+            )
+            padded_mask = torch.cat([mask, padding], dim=0)
+        else:
+            padded_mask = mask
+        padded_masks.append(padded_mask)
+
+    masks = torch.stack(padded_masks)
+
+    # Preserve text-mask alignment
+    texts = [item["texts"] for item in valid_batch]  # List of lists
+    original_sizes = [item["original_size"] for item in valid_batch]
+    scales = [item["scale"] for item in valid_batch]
+
+    # Create text-mask alignment indices and flatten texts
     flat_texts = []
-    for text_list in texts:
-        flat_texts.extend(text_list)
+    text_mask_indices = []
+
+    for batch_idx, text_list in enumerate(texts):
+        for region_idx, text in enumerate(text_list):
+            flat_texts.append(text)
+            text_mask_indices.append((batch_idx, region_idx))
 
     return {
         "images": images,
@@ -458,7 +547,8 @@ def collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
         "texts": flat_texts,
         "original_sizes": original_sizes,
         "scales": scales,
-        "batch_size": len(batch),
+        "batch_size": len(valid_batch),
+        "text_mask_indices": text_mask_indices,  # Track which mask each text belongs to
     }
 
 
@@ -478,7 +568,7 @@ def create_dataloader(
         pin_memory=pin_memory,
         collate_fn=collate_fn,
         persistent_workers=num_workers > 0,
-        prefetch_factor=2 if num_workers > 0 else 2,
+        prefetch_factor=2 if num_workers > 0 else None,
     )
 
 
@@ -503,6 +593,7 @@ def create_datasets(
 
 def create_dataloaders(
     config: DatasetConfig,
+    batch_size: int = 32,
 ) -> Tuple[DataLoader, Optional[DataLoader]]:
     """Create train and validation data loaders."""
     train_dataset, val_dataset = create_datasets(config)
@@ -510,7 +601,7 @@ def create_dataloaders(
     # Create train dataloader
     train_dataloader = create_dataloader(
         train_dataset,
-        batch_size=config.batch_size,
+        batch_size=batch_size,
         shuffle=True,
         num_workers=config.num_workers,
     )
@@ -520,7 +611,7 @@ def create_dataloaders(
     if val_dataset:
         val_dataloader = create_dataloader(
             val_dataset,
-            batch_size=config.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             num_workers=config.num_workers,
         )

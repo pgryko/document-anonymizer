@@ -283,10 +283,10 @@ class TestVAETrainer:
         # Mock loss computation
         with patch.object(trainer, "_compute_loss") as mock_compute_loss:
             mock_losses = {
-                "total_loss": torch.tensor(0.5, device=device),
-                "recon_loss": torch.tensor(0.3, device=device),
-                "kl_loss": torch.tensor(0.1, device=device),
-                "perceptual_loss": torch.tensor(0.1, device=device),
+                "total_loss": torch.tensor(0.5, device=device, requires_grad=True),
+                "recon_loss": torch.tensor(0.3, device=device, requires_grad=True),
+                "kl_loss": torch.tensor(0.1, device=device, requires_grad=True),
+                "perceptual_loss": torch.tensor(0.1, device=device, requires_grad=True),
             }
             mock_compute_loss.return_value = mock_losses
 
@@ -313,10 +313,10 @@ class TestVAETrainer:
         # Mock loss computation
         with patch.object(trainer, "_compute_loss") as mock_compute_loss:
             mock_losses = {
-                "total_loss": torch.tensor(0.5, device=device),
-                "recon_loss": torch.tensor(0.3, device=device),
-                "kl_loss": torch.tensor(0.1, device=device),
-                "perceptual_loss": torch.tensor(0.1, device=device),
+                "total_loss": torch.tensor(0.5, device=device, requires_grad=True),
+                "recon_loss": torch.tensor(0.3, device=device, requires_grad=True),
+                "kl_loss": torch.tensor(0.1, device=device, requires_grad=True),
+                "perceptual_loss": torch.tensor(0.1, device=device, requires_grad=True),
             }
             mock_compute_loss.return_value = mock_losses
 
@@ -472,10 +472,10 @@ class TestVAETrainer:
 
         with patch.object(trainer, "_compute_loss") as mock_compute_loss:
             mock_losses = {
-                "total_loss": torch.tensor(0.5, device=device),
-                "recon_loss": torch.tensor(0.3, device=device),
-                "kl_loss": torch.tensor(0.1, device=device),
-                "perceptual_loss": torch.tensor(0.1, device=device),
+                "total_loss": torch.tensor(0.5, device=device, requires_grad=True),
+                "recon_loss": torch.tensor(0.3, device=device, requires_grad=True),
+                "kl_loss": torch.tensor(0.1, device=device, requires_grad=True),
+                "perceptual_loss": torch.tensor(0.1, device=device, requires_grad=True),
             }
             mock_compute_loss.return_value = mock_losses
 
