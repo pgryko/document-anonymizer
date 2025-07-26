@@ -43,6 +43,7 @@ dev = [
     "pytest-mock>=3.12.0",
     "pytest-xdist>=3.6.0",
     "ruff>=0.11.0",
+    "psutil>=6.0.0",
 ]
 
 [tool.pytest.ini_options]
@@ -64,6 +65,7 @@ markers = [
     "integration: Integration tests", 
     "gpu: Tests requiring GPU",
     "slow: Slow tests",
+    "benchmark: Performance benchmark tests",
 ]
 
 [tool.coverage.run]

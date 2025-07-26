@@ -80,7 +80,7 @@ def visualize_reconstructions(
         if len(diff.shape) == 3:
             diff = np.mean(diff, axis=2)
 
-        im = axes[2, i].imshow(diff, cmap="hot", vmin=0, vmax=0.5)
+        axes[2, i].imshow(diff, cmap="hot", vmin=0, vmax=0.5)
         axes[2, i].set_title(f"Diff (MSE: {mse_per_image[i]:.4f})")
         axes[2, i].axis("off")
 

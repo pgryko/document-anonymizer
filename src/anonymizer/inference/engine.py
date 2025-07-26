@@ -47,6 +47,7 @@ from ..core.exceptions import (
     PostprocessingError,
 )
 from ..utils.image_ops import ImageProcessor
+from ..training.datasets import ImageValidator
 from ..utils.metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
@@ -258,6 +259,7 @@ class InferenceEngine:
         # Initialize components
         self.memory_manager = MemoryManager(self.device)
         self.image_processor = ImageProcessor()
+        self.image_validator = ImageValidator()
         self.metrics_collector = MetricsCollector()
         self.text_renderer = TextRenderer()
         self.ner_processor: Optional[NERProcessor] = None
@@ -482,7 +484,7 @@ class InferenceEngine:
 
             try:
                 # Load and validate image
-                image = self.image_processor.load_image_safely(tmp_path)
+                image = self.image_validator.load_image_safely(tmp_path)
 
                 # Apply preprocessing if configured
                 preprocessing_config = self.config.preprocessing

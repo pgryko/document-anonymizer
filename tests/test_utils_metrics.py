@@ -195,7 +195,7 @@ class TestMetricsCollector:
 
         with patch(
             "builtins.__import__", return_value=mock_datadog_module
-        ) as mock_import:
+        ):
             collector._record_datadog_metrics(metrics, step, prefix, tags)
 
             # Verify statsd.histogram was called for each metric
