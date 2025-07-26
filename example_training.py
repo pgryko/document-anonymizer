@@ -41,11 +41,15 @@ try:
     from src.anonymizer.training.vae_trainer import VAETrainer
 except ImportError as e:
     logger.exception(f"Import failed: {e}")
-    logger.exception("Make sure you have all dependencies installed and the project is properly set up")
+    logger.exception(
+        "Make sure you have all dependencies installed and the project is properly set up"
+    )
     sys.exit(1)
 
 
-def _train_vae_impl(config_path: Path, data_path: Path | None = None, output_dir: Path | None = None):
+def _train_vae_impl(
+    config_path: Path, data_path: Path | None = None, output_dir: Path | None = None
+):
     """
     Train VAE with critical bug fixes.
 
@@ -94,7 +98,9 @@ def _train_vae_impl(config_path: Path, data_path: Path | None = None, output_dir
         raise TrainingError(f"VAE training failed: {e}")
 
 
-def _train_unet_impl(config_path: Path, data_path: Path | None = None, output_dir: Path | None = None):
+def _train_unet_impl(
+    config_path: Path, data_path: Path | None = None, output_dir: Path | None = None
+):
     """
     Train UNet with critical bug fixes.
 

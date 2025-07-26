@@ -428,7 +428,6 @@ class UNetTrainer:
                 learning_rate=current_lr,
             )
 
-
         except Exception as e:
             raise TrainingError(f"Training step failed: {e}")
 

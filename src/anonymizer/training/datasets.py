@@ -324,7 +324,6 @@ class AnonymizerDataset(Dataset):
             # Create sample
             return DatasetSample(image_path=image_path, image=image, text_regions=text_regions)
 
-
         except Exception as e:
             logger.exception(f"Failed to load sample {annotation_file}: {e}")
             return None

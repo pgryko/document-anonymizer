@@ -201,7 +201,6 @@ class ImageProcessor:
             target_min, target_max = target_range
             return normalized * (target_max - target_min) + target_min
 
-
         except Exception as e:
             raise PreprocessingError(f"Image normalization failed: {e}")
 

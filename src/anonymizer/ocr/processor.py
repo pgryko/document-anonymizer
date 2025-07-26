@@ -253,7 +253,6 @@ class OCRProcessor:
         # Remove duplicates
         return self._remove_duplicate_texts(filtered_texts)
 
-
     def _merge_nearby_texts(self, detected_texts: list[DetectedText]) -> list[DetectedText]:
         """Merge text regions that are close together."""
         if len(detected_texts) <= 1:

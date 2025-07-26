@@ -165,7 +165,6 @@ def setup_wandb(
     )
 
 
-
 def log_training_metrics(
     wandb_logger: WandbLogger,
     metrics: dict[str, float],

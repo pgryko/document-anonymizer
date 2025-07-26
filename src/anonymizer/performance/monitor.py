@@ -439,7 +439,6 @@ class PerformanceMonitor:
             "recommendations": self._generate_recommendations(summary),
         }
 
-
     def _generate_insights(self, summary: ResourceSummary) -> list[str]:
         """Generate performance insights from summary data."""
         insights = []

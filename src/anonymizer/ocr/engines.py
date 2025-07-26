@@ -79,7 +79,6 @@ class BaseOCREngine(ABC):
         # Convert back to RGB if original was color
         return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB) if len(image.shape) == 3 else gray
 
-
     def validate_image(self, image: np.ndarray) -> bool:
         """Validate input image."""
         if image is None:

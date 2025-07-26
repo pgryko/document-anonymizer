@@ -8,6 +8,7 @@ Utility functions for font detection, analysis, and manipulation.
 import logging
 import os
 import re
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +228,7 @@ def _parse_style_weight(style_name: str) -> tuple[str, int]:
     return style, weight
 
 
-def detect_font(image_region: any, ocr_result: any | None = None) -> dict[str, any] | None:
+def detect_font(image_region: Any, ocr_result: Any | None = None) -> dict[str, Any] | None:
     """
     Detect font characteristics from image region.
 
@@ -253,7 +254,6 @@ def detect_font(image_region: any, ocr_result: any | None = None) -> dict[str, a
             "size": 12,  # Detected size in points
             "confidence": 0.7,  # Detection confidence
         }
-
 
     except Exception as e:
         logger.debug(f"Font detection failed: {e}")

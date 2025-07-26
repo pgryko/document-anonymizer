@@ -111,9 +111,10 @@ class TestFontManager:
         """Test error handling in font loading."""
         font_manager = FontManager()
 
-        with patch.object(
-            font_manager, "_try_load_font", side_effect=Exception("Unexpected error")
-        ), patch("PIL.ImageFont.load_default") as mock_default:
+        with (
+            patch.object(font_manager, "_try_load_font", side_effect=Exception("Unexpected error")),
+            patch("PIL.ImageFont.load_default") as mock_default,
+        ):
             mock_default_font = Mock()
             mock_default.return_value = mock_default_font
 

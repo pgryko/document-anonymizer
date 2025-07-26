@@ -205,7 +205,6 @@ class AnonymizationBenchmark:
         # - Add synthetic PII data for testing
         # - Include different document types (invoices, forms, etc.)
 
-
     def benchmark_document_loading(
         self, image_size: tuple[int, int] = (1024, 768), num_documents: int = 5
     ) -> BenchmarkResult:
