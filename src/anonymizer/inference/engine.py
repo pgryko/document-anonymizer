@@ -49,6 +49,8 @@ from ..core.exceptions import (
 from ..utils.image_ops import ImageProcessor
 from ..training.datasets import ImageValidator
 from ..utils.metrics import MetricsCollector
+from ..ocr.processor import OCRProcessor
+from ..ocr.models import OCRConfig, OCREngine
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +265,7 @@ class InferenceEngine:
         self.metrics_collector = MetricsCollector()
         self.text_renderer = TextRenderer()
         self.ner_processor: Optional[NERProcessor] = None
+        self.ocr_processor: Optional[OCRProcessor] = None
 
         # Model components
         self.pipeline: Optional[StableDiffusionInpaintPipeline] = None
@@ -273,6 +276,37 @@ class InferenceEngine:
         self._model_lock = threading.Lock()
 
         logger.info(f"InferenceEngine initialized on device: {self.device}")
+    
+    def _initialize_ocr_processor(self):
+        """Initialize OCR processor with optimal configuration."""
+        try:
+            # Create OCR configuration optimized for document anonymization
+            ocr_config = OCRConfig(
+                primary_engine=OCREngine.PADDLEOCR,  # Fast and accurate
+                fallback_engines=[OCREngine.EASYOCR, OCREngine.TESSERACT],
+                min_confidence_threshold=0.6,
+                languages=['en'],  # Can be configured from engine config
+                enable_preprocessing=True,
+                contrast_enhancement=True,
+                noise_reduction=True,
+                filter_short_texts=True,
+                filter_low_confidence=True,
+                use_gpu=self.device.type == "cuda",
+                timeout_seconds=30
+            )
+            
+            self.ocr_processor = OCRProcessor(ocr_config)
+            
+            # Initialize the processor
+            if self.ocr_processor.initialize():
+                logger.info("OCR processor initialized successfully")
+            else:
+                logger.warning("OCR processor initialization failed - falling back to dummy detection")
+                self.ocr_processor = None
+                
+        except Exception as e:
+            logger.warning(f"Failed to initialize OCR processor: {e}")
+            self.ocr_processor = None
 
     def _load_models(self):
         """Load and validate all required models."""
@@ -286,6 +320,10 @@ class InferenceEngine:
                 # Initialize NER processor
                 if self.ner_processor is None:
                     self.ner_processor = NERProcessor()
+                
+                # Initialize OCR processor
+                if self.ocr_processor is None:
+                    self._initialize_ocr_processor()
 
                 # Load Stable Diffusion inpainting pipeline
                 if self.config.unet_model_path and self.config.vae_model_path:
@@ -511,15 +549,54 @@ class InferenceEngine:
             raise PreprocessingError(f"Failed to process input image: {e}")
 
     def _auto_detect_text_regions(self, image: np.ndarray) -> List[TextRegion]:
-        """Auto-detect text regions using NER."""
+        """Auto-detect text regions using OCR and NER."""
         try:
-            if self.ner_processor is None:
-                return []
-
-            # For demo purposes, create a simple text detection
-            # In production, this would integrate with OCR
-            dummy_text = "Sample sensitive text with PII"
-            text_regions = self.ner_processor.detect_pii(dummy_text, image)
+            # Step 1: Use OCR to detect text regions
+            text_regions = []
+            
+            if self.ocr_processor and self.ocr_processor.is_initialized:
+                # Use real OCR to detect text
+                logger.debug("Using OCR for text detection")
+                detected_texts = self.ocr_processor.extract_text_regions(image)
+                
+                if detected_texts:
+                    # Step 2: Apply NER to identify PII in detected text
+                    for detected_text in detected_texts:
+                        if self.ner_processor:
+                            # Use NER to check if text contains PII
+                            pii_regions = self.ner_processor.detect_pii(detected_text.text, image)
+                            
+                            if pii_regions:
+                                # Text contains PII - use original OCR bounding box but update with NER metadata
+                                for pii_region in pii_regions:
+                                    # Create text region with OCR bbox but NER-detected content
+                                    text_region = TextRegion(
+                                        bbox=detected_text.bbox,  # Use accurate OCR bounding box
+                                        original_text=detected_text.text,
+                                        replacement_text=pii_region.replacement_text,
+                                        confidence=min(detected_text.confidence, pii_region.confidence)
+                                    )
+                                    text_regions.append(text_region)
+                        else:
+                            # No NER available - anonymize all detected text
+                            text_region = TextRegion(
+                                bbox=detected_text.bbox,
+                                original_text=detected_text.text,
+                                replacement_text="[TEXT]",
+                                confidence=detected_text.confidence
+                            )
+                            text_regions.append(text_region)
+                
+                logger.info(f"OCR detected {len(detected_texts)} text regions, {len(text_regions)} marked for anonymization")
+            
+            else:
+                # Fallback to dummy detection if OCR unavailable
+                logger.warning("OCR processor not available - using dummy text detection")
+                if self.ner_processor:
+                    dummy_text = "Sample sensitive text with PII"
+                    text_regions = self.ner_processor.detect_pii(dummy_text, image)
+                else:
+                    logger.warning("Neither OCR nor NER processor available")
 
             return text_regions
 
