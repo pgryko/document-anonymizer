@@ -14,15 +14,16 @@ Key fixes:
 """
 
 import logging
+from pathlib import Path
+from typing import Any
+
+import safetensors.torch
 import torch
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
-from pathlib import Path
-from typing import Dict, Optional, Any
 from accelerate import Accelerator
 from diffusers import AutoencoderKL
+from torch.utils.data import DataLoader
 from transformers import get_scheduler
-import safetensors.torch
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -39,9 +40,9 @@ except ImportError:
     vutils = None
     HAS_TORCHVISION = False
 
-from ..core.models import TrainingMetrics, ModelArtifacts
 from ..core.config import VAEConfig
-from ..core.exceptions import TrainingError, ModelLoadError, ValidationError
+from ..core.exceptions import ModelLoadError, TrainingError, ValidationError
+from ..core.models import ModelArtifacts, TrainingMetrics
 from ..utils.metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ class PerceptualLoss(torch.nn.Module):
     def __init__(self, device: torch.device):
         super().__init__()
         try:
-            import torchvision.models as models
+            from torchvision import models
 
             # Use VGG16 features for perceptual loss
             vgg = models.vgg16(pretrained=True).features[:16].to(device)
@@ -105,11 +106,11 @@ class VAETrainer:
     def __init__(self, config: VAEConfig):
         self.config = config
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.accelerator: Optional[Accelerator] = None
-        self.vae: Optional[AutoencoderKL] = None
-        self.optimizer: Optional[torch.optim.Optimizer] = None
-        self.scheduler: Optional[Any] = None
-        self.perceptual_loss: Optional[PerceptualLoss] = None
+        self.accelerator: Accelerator | None = None
+        self.vae: AutoencoderKL | None = None
+        self.optimizer: torch.optim.Optimizer | None = None
+        self.scheduler: Any | None = None
+        self.perceptual_loss: PerceptualLoss | None = None
         self.metrics_collector = MetricsCollector()
 
         # Training state
@@ -118,7 +119,7 @@ class VAETrainer:
         self.best_loss = float("inf")
 
         # TensorBoard writer (optional)
-        self.tb_writer: Optional[Any] = None
+        self.tb_writer: Any | None = None
 
     def setup_distributed(self):
         """Setup distributed training with Accelerator."""
@@ -142,9 +143,7 @@ class VAETrainer:
             # Ensure model is in training mode
             vae.train()
 
-            logger.info(
-                f"VAE initialized: {sum(p.numel() for p in vae.parameters())} parameters"
-            )
+            logger.info(f"VAE initialized: {sum(p.numel() for p in vae.parameters())} parameters")
             return vae
 
         except Exception as e:
@@ -193,7 +192,7 @@ class VAETrainer:
         )
         return scheduler
 
-    def _compute_loss(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def _compute_loss(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         """
         CRITICAL FIX: Compute VAE loss with proper KL divergence term.
 
@@ -251,7 +250,7 @@ class VAETrainer:
             "perceptual_loss": perceptual_loss,
         }
 
-    def train_step(self, batch: Dict[str, torch.Tensor]) -> TrainingMetrics:
+    def train_step(self, batch: dict[str, torch.Tensor]) -> TrainingMetrics:
         """Execute single training step."""
         try:
             # Compute losses
@@ -293,9 +292,7 @@ class VAETrainer:
                 recon_loss=losses["recon_loss"].item(),
                 kl_loss=losses["kl_loss"].item(),
                 perceptual_loss=(
-                    losses["perceptual_loss"].item()
-                    if losses["perceptual_loss"] != 0
-                    else None
+                    losses["perceptual_loss"].item() if losses["perceptual_loss"] != 0 else None
                 ),
                 learning_rate=current_lr,
             )
@@ -305,7 +302,7 @@ class VAETrainer:
         except Exception as e:
             raise TrainingError(f"Training step failed: {e}")
 
-    def validate(self, val_dataloader: DataLoader) -> Dict[str, float]:
+    def validate(self, val_dataloader: DataLoader) -> dict[str, float]:
         """Run validation."""
         if self.vae is None:
             raise TrainingError("VAE not initialized")
@@ -334,17 +331,13 @@ class VAETrainer:
 
         # Average losses
         if num_batches > 0:
-            avg_losses = {
-                key: value / num_batches for key, value in total_losses.items()
-            }
+            avg_losses = {key: value / num_batches for key, value in total_losses.items()}
         else:
             avg_losses = total_losses
 
         return avg_losses
 
-    def log_reconstructions(
-        self, batch: Dict[str, torch.Tensor], step: int, num_images: int = 4
-    ):
+    def log_reconstructions(self, batch: dict[str, torch.Tensor], step: int, num_images: int = 4):
         """Log reconstruction visualizations to TensorBoard."""
         if not HAS_TORCHVISION or (not self.tb_writer and not self.accelerator):
             return
@@ -382,7 +375,7 @@ class VAETrainer:
         except Exception as e:
             logger.warning(f"Failed to log reconstructions: {e}")
 
-    def setup_tensorboard(self, log_dir: Optional[Path] = None):
+    def setup_tensorboard(self, log_dir: Path | None = None):
         """Setup TensorBoard logging."""
         if not HAS_TENSORBOARD:
             logger.warning("TensorBoard not available, skipping setup")
@@ -395,12 +388,10 @@ class VAETrainer:
         self.tb_writer = SummaryWriter(str(log_dir))
         logger.info(f"TensorBoard logging to {log_dir}")
 
-    def save_checkpoint(self, save_path: Optional[Path] = None) -> Path:
+    def save_checkpoint(self, save_path: Path | None = None) -> Path:
         """Save model checkpoint."""
         if save_path is None:
-            save_path = (
-                self.config.checkpoint_dir / f"vae_step_{self.global_step}.safetensors"
-            )
+            save_path = self.config.checkpoint_dir / f"vae_step_{self.global_step}.safetensors"
 
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -465,9 +456,7 @@ class VAETrainer:
                 },
             )
 
-            logger.info(
-                f"Model artifacts saved: {artifacts.model_name} v{artifacts.version}"
-            )
+            logger.info(f"Model artifacts saved: {artifacts.model_name} v{artifacts.version}")
             return artifacts
 
         except Exception as e:
@@ -476,8 +465,8 @@ class VAETrainer:
     def train(
         self,
         train_dataloader: DataLoader,
-        val_dataloader: Optional[DataLoader] = None,
-        wandb_logger: Optional[Any] = None,
+        val_dataloader: DataLoader | None = None,
+        wandb_logger: Any | None = None,
     ):
         """
         Main training loop with all critical fixes applied.
@@ -541,29 +530,21 @@ class VAETrainer:
                             self.save_checkpoint()
 
                     except Exception as e:
-                        logger.error(
-                            f"Training step failed at step {self.global_step}: {e}"
-                        )
+                        logger.error(f"Training step failed at step {self.global_step}: {e}")
                         continue
 
                 # Validation phase
                 if val_dataloader:
                     try:
                         val_losses = self.validate(val_dataloader)
-                        logger.info(
-                            f"Validation - Total Loss: {val_losses['total_loss']:.4f}"
-                        )
+                        logger.info(f"Validation - Total Loss: {val_losses['total_loss']:.4f}")
 
                         # Save best model
                         if val_losses["total_loss"] < self.best_loss:
                             self.best_loss = val_losses["total_loss"]
-                            best_model_path = (
-                                self.config.checkpoint_dir / "best_model.safetensors"
-                            )
+                            best_model_path = self.config.checkpoint_dir / "best_model.safetensors"
                             self.save_checkpoint(best_model_path)
-                            logger.info(
-                                f"New best model saved with loss: {self.best_loss:.4f}"
-                            )
+                            logger.info(f"New best model saved with loss: {self.best_loss:.4f}")
 
                     except Exception as e:
                         logger.error(f"Validation failed: {e}")

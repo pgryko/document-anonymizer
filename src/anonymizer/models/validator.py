@@ -5,15 +5,16 @@ Model Validator
 Validates downloaded models for integrity, compatibility, and functionality.
 """
 
-import logging
-import torch
-from pathlib import Path
-from typing import Dict, Any, List, Optional
 import json
+import logging
+from pathlib import Path
+from typing import Any
+
 import safetensors
+import torch
 from safetensors.torch import load_file
 
-from .config import ModelMetadata, ValidationResult, ModelType, ModelFormat
+from .config import ModelFormat, ModelMetadata, ModelType, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class ModelValidator:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def validate_model(
-        self, model_path: Path, metadata: Optional[ModelMetadata] = None
+        self, model_path: Path, metadata: ModelMetadata | None = None
     ) -> ValidationResult:
         """
         Comprehensive model validation.
@@ -47,9 +48,7 @@ class ModelValidator:
         Returns:
             ValidationResult with detailed validation information
         """
-        result = ValidationResult(
-            valid=True, model_path=model_path, errors=[], warnings=[]
-        )
+        result = ValidationResult(valid=True, model_path=model_path, errors=[], warnings=[])
 
         logger.info(f"Validating model: {model_path}")
 
@@ -106,7 +105,7 @@ class ModelValidator:
     def _validate_file_format(
         self,
         model_path: Path,
-        metadata: Optional[ModelMetadata],
+        metadata: ModelMetadata | None,
         result: ValidationResult,
     ):
         """Validate file format compatibility."""
@@ -115,17 +114,16 @@ class ModelValidator:
         # Determine expected format
         if metadata:
             expected_format = metadata.format
+        # Infer from file extension
+        elif suffix == ".safetensors":
+            expected_format = ModelFormat.SAFETENSORS
+        elif suffix in [".pth", ".pt", ".bin"]:
+            expected_format = ModelFormat.PYTORCH
+        elif model_path.is_dir():
+            expected_format = ModelFormat.DIFFUSERS
         else:
-            # Infer from file extension
-            if suffix == ".safetensors":
-                expected_format = ModelFormat.SAFETENSORS
-            elif suffix in [".pth", ".pt", ".bin"]:
-                expected_format = ModelFormat.PYTORCH
-            elif model_path.is_dir():
-                expected_format = ModelFormat.DIFFUSERS
-            else:
-                result.add_warning(f"Unknown file format: {suffix}")
-                return
+            result.add_warning(f"Unknown file format: {suffix}")
+            return
 
         # Validate format-specific requirements
         if expected_format == ModelFormat.SAFETENSORS:
@@ -195,7 +193,7 @@ class ModelValidator:
         index_path = model_path / "model_index.json"
         if index_path.exists():
             try:
-                with open(index_path, "r") as f:
+                with open(index_path) as f:
                     index_data = json.load(f)
 
                 if "_class_name" not in index_data:
@@ -207,7 +205,7 @@ class ModelValidator:
     def _validate_file_size(
         self,
         model_path: Path,
-        metadata: Optional[ModelMetadata],
+        metadata: ModelMetadata | None,
         result: ValidationResult,
     ):
         """Validate file size."""
@@ -237,9 +235,7 @@ class ModelValidator:
             if actual_size < min_size:
                 result.add_warning(f"File seems too small: {actual_size} bytes")
             elif actual_size > max_size:
-                result.add_warning(
-                    f"File seems very large: {actual_size / 1024**3:.2f}GB"
-                )
+                result.add_warning(f"File seems very large: {actual_size / 1024**3:.2f}GB")
 
         except Exception as e:
             result.add_error(f"File size validation failed: {e}")
@@ -277,7 +273,7 @@ class ModelValidator:
     def _validate_model_content(
         self,
         model_path: Path,
-        metadata: Optional[ModelMetadata],
+        metadata: ModelMetadata | None,
         result: ValidationResult,
     ):
         """Validate model content and structure."""
@@ -295,7 +291,7 @@ class ModelValidator:
     def _validate_safetensors_content(
         self,
         model_path: Path,
-        metadata: Optional[ModelMetadata],
+        metadata: ModelMetadata | None,
         result: ValidationResult,
     ):
         """Validate SafeTensors content."""
@@ -310,9 +306,7 @@ class ModelValidator:
 
             # Validate tensor structure based on model type
             if metadata and metadata.model_type:
-                self._validate_tensor_structure(
-                    tensor_names, metadata.model_type, result
-                )
+                self._validate_tensor_structure(tensor_names, metadata.model_type, result)
 
             logger.debug(f"SafeTensors contains {len(tensor_names)} tensors")
 
@@ -322,7 +316,7 @@ class ModelValidator:
     def _validate_pytorch_content(
         self,
         model_path: Path,
-        metadata: Optional[ModelMetadata],
+        metadata: ModelMetadata | None,
         result: ValidationResult,
     ):
         """Validate PyTorch content."""
@@ -342,9 +336,7 @@ class ModelValidator:
 
                 # Validate tensor structure
                 if metadata and metadata.model_type:
-                    self._validate_tensor_structure(
-                        tensor_names, metadata.model_type, result
-                    )
+                    self._validate_tensor_structure(tensor_names, metadata.model_type, result)
 
                 logger.debug(f"PyTorch model contains {len(tensor_names)} tensors")
 
@@ -354,7 +346,7 @@ class ModelValidator:
     def _validate_diffusers_content(
         self,
         model_path: Path,
-        metadata: Optional[ModelMetadata],
+        metadata: ModelMetadata | None,
         result: ValidationResult,
     ):
         """Validate Diffusers content."""
@@ -383,7 +375,7 @@ class ModelValidator:
             result.add_error(f"Diffusers content validation failed: {e}")
 
     def _validate_tensor_structure(
-        self, tensor_names: List[str], model_type: ModelType, result: ValidationResult
+        self, tensor_names: list[str], model_type: ModelType, result: ValidationResult
     ):
         """Validate tensor structure for specific model types."""
         if model_type == ModelType.VAE:
@@ -409,7 +401,7 @@ class ModelValidator:
     def _validate_model_loading(
         self,
         model_path: Path,
-        metadata: Optional[ModelMetadata],
+        metadata: ModelMetadata | None,
         result: ValidationResult,
     ):
         """Validate that model can be loaded successfully."""
@@ -447,9 +439,7 @@ class ModelValidator:
                         logger.debug("Diffusers pipeline loaded successfully")
 
                 except ImportError:
-                    result.add_warning(
-                        "Cannot test Diffusers loading - diffusers not available"
-                    )
+                    result.add_warning("Cannot test Diffusers loading - diffusers not available")
                 except Exception as e:
                     result.add_error(f"Diffusers loading failed: {e}")
 
@@ -458,9 +448,7 @@ class ModelValidator:
 
     def validate_compatibility(self, model_path: Path) -> ValidationResult:
         """Quick compatibility check for use in inference."""
-        result = ValidationResult(
-            valid=True, model_path=model_path, errors=[], warnings=[]
-        )
+        result = ValidationResult(valid=True, model_path=model_path, errors=[], warnings=[])
 
         # Basic checks
         self._validate_file_exists(model_path, result)
@@ -469,7 +457,7 @@ class ModelValidator:
 
         return result
 
-    def benchmark_model(self, model_path: Path) -> Dict[str, Any]:
+    def benchmark_model(self, model_path: Path) -> dict[str, Any]:
         """Benchmark model loading and inference performance."""
         benchmark_results = {
             "loading_time_ms": 0,
@@ -480,15 +468,14 @@ class ModelValidator:
         }
 
         try:
-            import time
-            import psutil
             import os
+            import time
+
+            import psutil
 
             # Get model size
             if model_path.is_file():
-                benchmark_results["model_size_mb"] = model_path.stat().st_size / (
-                    1024 * 1024
-                )
+                benchmark_results["model_size_mb"] = model_path.stat().st_size / (1024 * 1024)
 
             # Get initial memory
             process = psutil.Process(os.getpid())

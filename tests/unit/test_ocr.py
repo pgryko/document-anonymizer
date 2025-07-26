@@ -6,22 +6,23 @@ Tests for the OCR processing functionality including multiple engines,
 text detection, and integration with the anonymization pipeline.
 """
 
-import pytest
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 import logging
 
+import numpy as np
+import pytest
+from PIL import Image, ImageDraw, ImageFont
+
+from src.anonymizer.core.exceptions import InferenceError, ValidationError
+from src.anonymizer.core.models import BoundingBox
+from src.anonymizer.ocr.engines import BaseOCREngine, create_ocr_engine
 from src.anonymizer.ocr.models import (
     DetectedText,
-    OCRResult,
     OCRConfig,
     OCREngine,
     OCRMetrics,
+    OCRResult,
 )
 from src.anonymizer.ocr.processor import OCRProcessor
-from src.anonymizer.ocr.engines import create_ocr_engine, BaseOCREngine
-from src.anonymizer.core.models import BoundingBox
-from src.anonymizer.core.exceptions import ValidationError, InferenceError
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +34,7 @@ class TestOCRModels:
         """Test DetectedText model creation and validation."""
         bbox = BoundingBox(left=10, top=20, right=100, bottom=50)
 
-        detected_text = DetectedText(
-            text="Sample text", bbox=bbox, confidence=0.95, language="en"
-        )
+        detected_text = DetectedText(text="Sample text", bbox=bbox, confidence=0.95, language="en")
 
         assert detected_text.text == "Sample text"
         assert detected_text.bbox == bbox
@@ -83,9 +82,7 @@ class TestOCRModels:
     def test_ocr_config_validation(self):
         """Test OCRConfig validation."""
         # Valid config
-        config = OCRConfig(
-            primary_engine=OCREngine.PADDLEOCR, min_confidence_threshold=0.7
-        )
+        config = OCRConfig(primary_engine=OCREngine.PADDLEOCR, min_confidence_threshold=0.7)
         assert config.primary_engine == OCREngine.PADDLEOCR
 
         # Invalid confidence threshold
@@ -119,9 +116,7 @@ class TestOCREngines:
         config = OCRConfig()
 
         # Try initializing engines - some may fail due to missing dependencies
-        engines_to_test = [
-            OCREngine.TESSERACT
-        ]  # Tesseract is most likely to be available
+        engines_to_test = [OCREngine.TESSERACT]  # Tesseract is most likely to be available
 
         for engine_type in engines_to_test:
             try:
@@ -130,9 +125,7 @@ class TestOCREngines:
 
                 if success:
                     assert engine.is_initialized
-                    logger.info(
-                        f"✅ {engine_type.value} engine initialized successfully"
-                    )
+                    logger.info(f"✅ {engine_type.value} engine initialized successfully")
                     engine.cleanup()
                 else:
                     logger.warning(f"⚠️ {engine_type.value} engine failed to initialize")
@@ -191,10 +184,8 @@ class TestOCRProcessor:
 
         # Try to use a system font
         try:
-            font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24
-            )
-        except (OSError, IOError):
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
+        except OSError:
             font = ImageFont.load_default()
 
         # Add text
@@ -230,9 +221,7 @@ class TestOCRProcessor:
             logger.info("✅ OCR processor initialized successfully")
             processor.cleanup()
         else:
-            logger.warning(
-                "⚠️ OCR processor initialization failed - dependencies missing"
-            )
+            logger.warning("⚠️ OCR processor initialization failed - dependencies missing")
 
     def test_ocr_processor_context_manager(self, ocr_config):
         """Test OCR processor as context manager."""
@@ -242,9 +231,7 @@ class TestOCRProcessor:
                     assert processor.primary_engine is not None
                     logger.info("✅ OCR processor context manager works")
                 else:
-                    logger.warning(
-                        "⚠️ OCR processor failed to initialize in context manager"
-                    )
+                    logger.warning("⚠️ OCR processor failed to initialize in context manager")
         except Exception as e:
             logger.warning(f"⚠️ OCR processor context manager failed: {e}")
 
@@ -299,9 +286,7 @@ class TestOCRProcessor:
                     assert region.replacement_text == "[TEXT]"
                     assert isinstance(region.bbox, BoundingBox)
 
-                logger.info(
-                    f"✅ Converted {len(text_regions)} text regions successfully"
-                )
+                logger.info(f"✅ Converted {len(text_regions)} text regions successfully")
             else:
                 logger.warning("⚠️ No text detected for conversion test")
 
@@ -329,9 +314,7 @@ class TestOCRProcessor:
                 assert len(region.replacement_text) == len(region.original_text)
                 assert all(c == "X" for c in region.replacement_text.replace(" ", ""))
 
-            logger.info(
-                f"✅ One-step detect and convert successful - {len(text_regions)} regions"
-            )
+            logger.info(f"✅ One-step detect and convert successful - {len(text_regions)} regions")
 
         except Exception as e:
             logger.warning(f"⚠️ One-step detect and convert failed: {e}")
@@ -345,9 +328,7 @@ class TestOCRProcessor:
 
         # Test without initialization
         with pytest.raises(InferenceError):
-            processor.extract_text_regions(
-                np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
-            )
+            processor.extract_text_regions(np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8))
 
         # Test with invalid image
         if processor.initialize():
@@ -365,9 +346,7 @@ class TestOCRProcessor:
         detected_texts = [
             DetectedText(text="A", bbox=bbox, confidence=0.9),  # Too short
             DetectedText(text="Good text", bbox=bbox, confidence=0.9),  # Good
-            DetectedText(
-                text="Low confidence", bbox=bbox, confidence=0.1
-            ),  # Low confidence
+            DetectedText(text="Low confidence", bbox=bbox, confidence=0.1),  # Low confidence
             DetectedText(text="Another good text", bbox=bbox, confidence=0.8),  # Good
         ]
 
@@ -399,7 +378,7 @@ class TestOCRIntegration:
 
     def test_ocr_import_availability(self):
         """Test that OCR modules can be imported."""
-        from src.anonymizer.ocr import OCRProcessor, OCRConfig, OCREngine
+        from src.anonymizer.ocr import OCRConfig, OCREngine, OCRProcessor
 
         # Should import without errors
         assert OCRProcessor is not None

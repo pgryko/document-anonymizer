@@ -10,20 +10,21 @@ This implementation provides safe, efficient dataset loading for document anonym
 - Proper tensor handling and normalization
 """
 
-import logging
-import torch
-from torch.utils.data import Dataset, DataLoader
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
-from PIL import Image, ImageEnhance, UnidentifiedImageError
-import numpy as np
-import cv2
 import json
+import logging
 import random
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import cv2
+import numpy as np
+import torch
+from PIL import Image, ImageEnhance, UnidentifiedImageError
+from torch.utils.data import DataLoader, Dataset
 
 from ..core.config import DatasetConfig
-from ..core.exceptions import ValidationError, PreprocessingError
+from ..core.exceptions import PreprocessingError, ValidationError
 from ..core.models import BoundingBox, TextRegion
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ class DatasetSample:
 
     image_path: Path
     image: np.ndarray
-    text_regions: List[TextRegion]
+    text_regions: list[TextRegion]
 
     def __post_init__(self):
         """Validate sample after initialization."""
@@ -136,9 +137,7 @@ class TextRegionValidator:
     MIN_BBOX_SIZE = 10  # Minimum bbox dimension
 
     @classmethod
-    def validate_text_region(
-        cls, region: TextRegion, image_shape: Tuple[int, int]
-    ) -> bool:
+    def validate_text_region(cls, region: TextRegion, image_shape: tuple[int, int]) -> bool:
         """Validate text region against image."""
         h, w = image_shape
 
@@ -177,8 +176,8 @@ class SafeAugmentation:
         self.rng = random.Random(42)  # Fixed seed for deterministic behavior
 
     def augment_image(
-        self, image: np.ndarray, text_regions: List[TextRegion]
-    ) -> Tuple[np.ndarray, List[TextRegion]]:
+        self, image: np.ndarray, text_regions: list[TextRegion]
+    ) -> tuple[np.ndarray, list[TextRegion]]:
         """Apply safe augmentations that preserve text readability."""
         try:
             # Convert to PIL for easier manipulation
@@ -240,7 +239,7 @@ class AnonymizerDataset(Dataset):
         data_dir: Path,
         config: DatasetConfig,
         split: str = "train",
-        transform: Optional[Any] = None,
+        transform: Any | None = None,
     ):
         self.data_dir = Path(data_dir)
         self.config = config
@@ -257,7 +256,7 @@ class AnonymizerDataset(Dataset):
 
         logger.info(f"Loaded {len(self.samples)} samples for {split} split")
 
-    def _load_dataset(self) -> List[DatasetSample]:
+    def _load_dataset(self) -> list[DatasetSample]:
         """Load and validate dataset samples."""
         samples = []
 
@@ -281,11 +280,11 @@ class AnonymizerDataset(Dataset):
 
         return samples
 
-    def _load_sample(self, annotation_file: Path) -> Optional[DatasetSample]:
+    def _load_sample(self, annotation_file: Path) -> DatasetSample | None:
         """Load single sample with validation."""
         try:
             # Load annotations
-            with open(annotation_file, "r") as f:
+            with open(annotation_file) as f:
                 data = json.load(f)
 
             # Get image path
@@ -323,9 +322,7 @@ class AnonymizerDataset(Dataset):
                 text_regions.append(region)
 
             # Create sample
-            sample = DatasetSample(
-                image_path=image_path, image=image, text_regions=text_regions
-            )
+            sample = DatasetSample(image_path=image_path, image=image, text_regions=text_regions)
 
             return sample
 
@@ -336,7 +333,7 @@ class AnonymizerDataset(Dataset):
     def __len__(self) -> int:
         return len(self.samples)
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int) -> dict[str, Any]:
         """Get dataset item with preprocessing and robust error handling."""
         max_retries = 3
 
@@ -352,9 +349,7 @@ class AnonymizerDataset(Dataset):
 
                 # Apply augmentation if training
                 if self.augmentation and self.split == "train":
-                    image, text_regions = self.augmentation.augment_image(
-                        image, text_regions
-                    )
+                    image, text_regions = self.augmentation.augment_image(image, text_regions)
 
                 # Prepare training data
                 result = self._prepare_training_data(image, text_regions)
@@ -367,15 +362,10 @@ class AnonymizerDataset(Dataset):
                     and result["masks"].shape[0] > 0
                 ):
                     return result
-                else:
-                    logger.warning(
-                        f"Invalid result for sample {actual_idx}, retrying..."
-                    )
+                logger.warning(f"Invalid result for sample {actual_idx}, retrying...")
 
             except Exception as e:
-                logger.error(
-                    f"Failed to get item {actual_idx} (attempt {attempt + 1}): {e}"
-                )
+                logger.error(f"Failed to get item {actual_idx} (attempt {attempt + 1}): {e}")
 
                 # Try next sample on error
                 if attempt < max_retries - 1:
@@ -387,8 +377,8 @@ class AnonymizerDataset(Dataset):
         return {}
 
     def _prepare_training_data(
-        self, image: np.ndarray, text_regions: List[TextRegion]
-    ) -> Dict[str, Any]:
+        self, image: np.ndarray, text_regions: list[TextRegion]
+    ) -> dict[str, Any]:
         """Prepare data for training."""
         try:
             # Resize image to target size
@@ -400,9 +390,7 @@ class AnonymizerDataset(Dataset):
             new_w, new_h = int(w * scale), int(h * scale)
 
             # Resize image
-            resized_image = cv2.resize(
-                image, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4
-            )
+            resized_image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
 
             # Pad to target size
             pad_w = target_size - new_w
@@ -451,9 +439,7 @@ class AnonymizerDataset(Dataset):
                 logger.warning("No valid text regions found, using dummy mask")
 
             # Convert to tensors
-            image_tensor = (
-                torch.from_numpy(padded_image).permute(2, 0, 1).float() / 255.0
-            )
+            image_tensor = torch.from_numpy(padded_image).permute(2, 0, 1).float() / 255.0
             image_tensor = (image_tensor - 0.5) / 0.5  # Normalize to [-1, 1]
 
             # Stack masks into tensor (num_regions, height, width)
@@ -471,7 +457,7 @@ class AnonymizerDataset(Dataset):
             raise PreprocessingError(f"Failed to prepare training data: {e}")
 
 
-def create_dummy_batch() -> Dict[str, Any]:
+def create_dummy_batch() -> dict[str, Any]:
     """Create a minimal valid batch for error recovery."""
     dummy_image = torch.zeros(1, 3, 512, 512, dtype=torch.float32)
     dummy_mask = torch.zeros(1, 1, 512, 512, dtype=torch.float32)
@@ -487,7 +473,7 @@ def create_dummy_batch() -> Dict[str, Any]:
     }
 
 
-def collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
+def collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
     """Custom collate function for batch processing with improved error handling."""
     # Filter out empty items and items with no valid text regions
     valid_batch = [
@@ -497,9 +483,7 @@ def collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
     ]
 
     if not valid_batch:
-        logger.warning(
-            "All samples in batch failed preprocessing, returning dummy batch"
-        )
+        logger.warning("All samples in batch failed preprocessing, returning dummy batch")
         return create_dummy_batch()
 
     # Separate batch components
@@ -574,19 +558,15 @@ def create_dataloader(
 
 def create_datasets(
     config: DatasetConfig,
-) -> Tuple[AnonymizerDataset, Optional[AnonymizerDataset]]:
+) -> tuple[AnonymizerDataset, AnonymizerDataset | None]:
     """Create train and validation datasets."""
     # Create training dataset
-    train_dataset = AnonymizerDataset(
-        data_dir=config.train_data_path, config=config, split="train"
-    )
+    train_dataset = AnonymizerDataset(data_dir=config.train_data_path, config=config, split="train")
 
     # Create validation dataset if path provided
     val_dataset = None
     if config.val_data_path and config.val_data_path.exists():
-        val_dataset = AnonymizerDataset(
-            data_dir=config.val_data_path, config=config, split="val"
-        )
+        val_dataset = AnonymizerDataset(data_dir=config.val_data_path, config=config, split="val")
 
     return train_dataset, val_dataset
 
@@ -594,7 +574,7 @@ def create_datasets(
 def create_dataloaders(
     config: DatasetConfig,
     batch_size: int = 32,
-) -> Tuple[DataLoader, Optional[DataLoader]]:
+) -> tuple[DataLoader, DataLoader | None]:
     """Create train and validation data loaders."""
     train_dataset, val_dataset = create_datasets(config)
 

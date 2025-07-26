@@ -6,12 +6,11 @@ Central font management system for handling font detection, loading, and fallbac
 to ensure consistent text rendering during anonymization.
 """
 
-import os
 import hashlib
-from pathlib import Path
-from typing import Dict, List, Optional
-from dataclasses import dataclass
 import logging
+import os
+from dataclasses import dataclass
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ class FontMetadata:
     size_bytes: int
     checksum: str
     is_bundled: bool = False
-    license_info: Optional[str] = None
+    license_info: str | None = None
 
     @property
     def filename(self) -> str:
@@ -52,7 +51,7 @@ class FontManager:
     to ensure consistent text rendering across different systems.
     """
 
-    def __init__(self, fonts_dir: Optional[Path] = None):
+    def __init__(self, fonts_dir: Path | None = None):
         """
         Initialize font manager.
 
@@ -60,9 +59,9 @@ class FontManager:
             fonts_dir: Optional custom fonts directory
         """
         self.fonts_dir = fonts_dir or self._get_default_fonts_dir()
-        self.fonts_cache: Dict[str, FontMetadata] = {}
-        self.loaded_fonts: Dict[str, str] = {}  # name -> path mapping
-        self.fallback_map: Dict[str, List[str]] = {}
+        self.fonts_cache: dict[str, FontMetadata] = {}
+        self.loaded_fonts: dict[str, str] = {}  # name -> path mapping
+        self.fallback_map: dict[str, list[str]] = {}
 
         # Font providers
         from .bundled import BundledFontProvider
@@ -144,7 +143,7 @@ class FontManager:
             "Georgia": ["Times New Roman", "Times", "Liberation Serif"],
         }
 
-    def get_font(self, font_name: str, style: str = "normal") -> Optional[FontMetadata]:
+    def get_font(self, font_name: str, style: str = "normal") -> FontMetadata | None:
         """
         Get font by name and style.
 
@@ -171,15 +170,13 @@ class FontManager:
             for fallback_name in self.fallback_map[font_name]:
                 fallback_font = self.get_font(fallback_name, style)
                 if fallback_font:
-                    logger.info(
-                        f"Using fallback font {fallback_font.name} for {font_name}"
-                    )
+                    logger.info(f"Using fallback font {fallback_font.name} for {font_name}")
                     return fallback_font
 
         logger.warning(f"Font not found: {font_name} {style}")
         return None
 
-    def get_font_path(self, font_name: str, style: str = "normal") -> Optional[str]:
+    def get_font_path(self, font_name: str, style: str = "normal") -> str | None:
         """
         Get font file path.
 
@@ -193,18 +190,18 @@ class FontManager:
         font = self.get_font(font_name, style)
         return font.path if font else None
 
-    def list_available_fonts(self) -> List[FontMetadata]:
+    def list_available_fonts(self) -> list[FontMetadata]:
         """List all available fonts."""
         return list(self.fonts_cache.values())
 
-    def list_font_families(self) -> List[str]:
+    def list_font_families(self) -> list[str]:
         """List all available font families."""
         families = set()
         for font in self.fonts_cache.values():
             families.add(font.family)
         return sorted(families)
 
-    def install_font(self, font_path: str, metadata: Optional[Dict] = None) -> bool:
+    def install_font(self, font_path: str, metadata: dict | None = None) -> bool:
         """
         Install a font file.
 
@@ -235,17 +232,16 @@ class FontManager:
                 self.fonts_cache[font_metadata.name] = font_metadata
                 logger.info(f"Installed font: {font_metadata.name}")
                 return True
-            else:
-                logger.error(f"Failed to create metadata for font: {font_path}")
-                return False
+            logger.error(f"Failed to create metadata for font: {font_path}")
+            return False
 
         except Exception as e:
             logger.error(f"Failed to install font {font_path}: {e}")
             return False
 
     def _create_font_metadata(
-        self, font_path: str, metadata: Optional[Dict] = None
-    ) -> Optional[FontMetadata]:
+        self, font_path: str, metadata: dict | None = None
+    ) -> FontMetadata | None:
         """Create font metadata from font file."""
         try:
             from .utils import get_font_info
@@ -278,9 +274,7 @@ class FontManager:
             logger.error(f"Failed to create metadata for {font_path}: {e}")
             return None
 
-    def find_similar_fonts(
-        self, target_font: str, max_results: int = 5
-    ) -> List[FontMetadata]:
+    def find_similar_fonts(self, target_font: str, max_results: int = 5) -> list[FontMetadata]:
         """
         Find fonts similar to target font.
 
@@ -309,16 +303,12 @@ class FontManager:
         similarities.sort(key=lambda x: x[0], reverse=True)
         return [font for _, font in similarities[:max_results]]
 
-    def get_font_statistics(self) -> Dict[str, int]:
+    def get_font_statistics(self) -> dict[str, int]:
         """Get font statistics."""
         stats = {
             "total_fonts": len(self.fonts_cache),
-            "bundled_fonts": len(
-                [f for f in self.fonts_cache.values() if f.is_bundled]
-            ),
-            "system_fonts": len(
-                [f for f in self.fonts_cache.values() if not f.is_bundled]
-            ),
+            "bundled_fonts": len([f for f in self.fonts_cache.values() if f.is_bundled]),
+            "system_fonts": len([f for f in self.fonts_cache.values() if not f.is_bundled]),
             "font_families": len(self.list_font_families()),
         }
 
@@ -330,7 +320,7 @@ class FontManager:
         stats.update(style_counts)
         return stats
 
-    def cleanup_fonts(self, dry_run: bool = True) -> Dict[str, int]:
+    def cleanup_fonts(self, dry_run: bool = True) -> dict[str, int]:
         """
         Clean up unused or duplicate fonts.
 

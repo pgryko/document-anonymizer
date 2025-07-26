@@ -4,15 +4,16 @@ Unit tests for UNet trainer - Imperative style.
 Tests the corrected UNet trainer with proper hyperparameters.
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 import torch
-from unittest.mock import Mock, patch
 from PIL import Image
 
-from src.anonymizer.training.unet_trainer import UNetTrainer, TextRenderer
-from src.anonymizer.core.models import TrainingMetrics, ModelArtifacts
 from src.anonymizer.core.config import UNetConfig
-from src.anonymizer.core.exceptions import TrainingError, ModelLoadError
+from src.anonymizer.core.exceptions import ModelLoadError, TrainingError
+from src.anonymizer.core.models import ModelArtifacts, TrainingMetrics
+from src.anonymizer.training.unet_trainer import TextRenderer, UNetTrainer
 
 
 class TestTextRenderer:
@@ -79,9 +80,7 @@ class TestUNetTrainer:
         """Test distributed training setup."""
         trainer = UNetTrainer(unet_config)
 
-        with patch(
-            "src.anonymizer.training.unet_trainer.Accelerator"
-        ) as mock_accelerator:
+        with patch("src.anonymizer.training.unet_trainer.Accelerator") as mock_accelerator:
             mock_accelerator.return_value.device = torch.device("cpu")
 
             trainer.setup_distributed()
@@ -112,9 +111,7 @@ class TestUNetTrainer:
         assert mock_unet.conv_in.in_channels == 9
 
     @patch("src.anonymizer.training.unet_trainer.UNet2DConditionModel")
-    def test_unet_trainer_initialize_unet_wrong_channels(
-        self, mock_unet_class, unet_config
-    ):
+    def test_unet_trainer_initialize_unet_wrong_channels(self, mock_unet_class, unet_config):
         """Test UNet initialization with wrong number of channels."""
         # Mock UNet with wrong number of channels
         mock_unet = Mock()
@@ -181,9 +178,7 @@ class TestUNetTrainer:
             assert param.requires_grad is False
 
     @patch("src.anonymizer.training.unet_trainer.DDPMScheduler")
-    def test_unet_trainer_initialize_noise_scheduler(
-        self, mock_scheduler_class, unet_config
-    ):
+    def test_unet_trainer_initialize_noise_scheduler(self, mock_scheduler_class, unet_config):
         """Test noise scheduler initialization."""
         mock_scheduler = Mock()
         mock_scheduler_class.from_pretrained.return_value = mock_scheduler
@@ -195,9 +190,7 @@ class TestUNetTrainer:
         mock_scheduler_class.from_pretrained.assert_called_once_with(
             unet_config.base_model, subfolder="scheduler"
         )
-        mock_scheduler.set_timesteps.assert_called_once_with(
-            unet_config.num_train_timesteps
-        )
+        mock_scheduler.set_timesteps.assert_called_once_with(unet_config.num_train_timesteps)
 
     def test_unet_trainer_setup_text_projection_needed(self, unet_config, device):
         """Test text projection setup when dimensions don't match."""
@@ -266,10 +259,7 @@ class TestUNetTrainer:
         assert isinstance(optimizer, torch.optim.AdamW)
         # CRITICAL TEST: Learning rate should be 1e-4, not 1e-5
         assert optimizer.param_groups[0]["lr"] == 1e-4
-        assert (
-            optimizer.param_groups[0]["weight_decay"]
-            == unet_config.optimizer.weight_decay
-        )
+        assert optimizer.param_groups[0]["weight_decay"] == unet_config.optimizer.weight_decay
 
     def test_unet_trainer_setup_optimizer_with_projection(self, unet_config, device):
         """Test optimizer setup with text projection layer."""
@@ -329,9 +319,7 @@ class TestUNetTrainer:
             mock_processor.assert_called_once()
             mock_trocr.get_encoder.assert_called_once()
 
-    def test_unet_trainer_prepare_text_conditioning_with_projection(
-        self, unet_config, device
-    ):
+    def test_unet_trainer_prepare_text_conditioning_with_projection(self, unet_config, device):
         """Test text conditioning with projection layer."""
         trainer = UNetTrainer(unet_config)
 
@@ -344,9 +332,7 @@ class TestUNetTrainer:
 
         mock_encoder = Mock()
         mock_encoder_outputs = Mock()
-        mock_encoder_outputs.last_hidden_state = torch.randn(
-            2, 256, 512, device=device
-        )  # 512-dim
+        mock_encoder_outputs.last_hidden_state = torch.randn(2, 256, 512, device=device)  # 512-dim
         mock_encoder.return_value = mock_encoder_outputs
 
         mock_trocr = Mock()
@@ -424,9 +410,7 @@ class TestUNetTrainer:
             # Mock latent preparation
             with patch.object(trainer, "_prepare_latents") as mock_latents:
                 mock_latent_data = {
-                    "unet_inputs": torch.randn(
-                        2, 9, 64, 64, device=device
-                    ),  # 9 channels
+                    "unet_inputs": torch.randn(2, 9, 64, 64, device=device),  # 9 channels
                     "noise": torch.randn(2, 4, 64, 64, device=device),
                     "timesteps": torch.randint(0, 1000, (2,), device=device),
                 }
@@ -493,9 +477,7 @@ class TestUNetTrainer:
             # Verify metrics
             assert isinstance(metrics, TrainingMetrics)
             assert abs(metrics.total_loss - 0.8) < 1e-6  # Use approximate comparison
-            assert (
-                abs(metrics.recon_loss - 0.8) < 1e-6
-            )  # For UNet, this is the diffusion loss
+            assert abs(metrics.recon_loss - 0.8) < 1e-6  # For UNet, this is the diffusion loss
             assert metrics.kl_loss == 0.0  # N/A for UNet
             assert metrics.learning_rate == 1e-4
 
@@ -557,9 +539,7 @@ class TestUNetTrainer:
                 mock_load.assert_called_once()
                 mock_vae.load_state_dict.assert_called_once_with(mock_state_dict)
 
-    def test_unet_trainer_save_model_with_projection(
-        self, unet_config, temp_dir, device
-    ):
+    def test_unet_trainer_save_model_with_projection(self, unet_config, temp_dir, device):
         """Test model saving with text projection layer."""
         trainer = UNetTrainer(unet_config)
         trainer.config.checkpoint_dir = temp_dir
@@ -572,9 +552,7 @@ class TestUNetTrainer:
         trainer.text_projection = torch.nn.Linear(512, 768).to(device)
 
         with patch.object(trainer, "save_checkpoint") as mock_save_checkpoint:
-            mock_save_checkpoint.return_value = (
-                temp_dir / "final_model" / "model.safetensors"
-            )
+            mock_save_checkpoint.return_value = temp_dir / "final_model" / "model.safetensors"
 
             artifacts = trainer.save_model()
 
@@ -622,9 +600,7 @@ class TestUNetTrainer:
                 mock_unet = Mock()
                 mock_unet_output = Mock()
                 # Create incompatible tensors that will cause NaN in MSE loss
-                mock_unet_output.sample = torch.full(
-                    (2, 4, 64, 64), float("inf"), device=device
-                )
+                mock_unet_output.sample = torch.full((2, 4, 64, 64), float("inf"), device=device)
                 mock_unet.return_value = mock_unet_output
                 trainer.unet = mock_unet
 

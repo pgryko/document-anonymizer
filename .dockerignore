@@ -1,0 +1,72 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+env/
+venv/
+ENV/
+.eggs/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+data/
+models/
+output/
+logs/
+*.log
+.env
+.env.*
+!.env.example
+
+# Documentation
+docs/build/
+site/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+.cache/
+
+# Test artifacts
+test-results/
+junit.xml
+report.xml
+
+# Notebooks
+*.ipynb_checkpoints
+
+# Security
+*.pem
+*.key
+*.crt

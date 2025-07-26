@@ -3,11 +3,11 @@
 Manage Cloudflare R2 buckets and tokens using the Cloudflare API.
 """
 
+import argparse
 import os
 import sys
+
 import requests
-import argparse
-from typing import Dict, Optional, List
 from dotenv import load_dotenv
 
 
@@ -24,9 +24,7 @@ class CloudflareR2Manager:
             "Content-Type": "application/json",
         }
 
-    def _make_request(
-        self, method: str, endpoint: str, data: Optional[Dict] = None
-    ) -> Dict:
+    def _make_request(self, method: str, endpoint: str, data: dict | None = None) -> dict:
         """Make authenticated request to Cloudflare API."""
         url = f"{self.base_url}{endpoint}"
 
@@ -49,17 +47,16 @@ class CloudflareR2Manager:
                 print(f"Response: {e.response.text}")
             sys.exit(1)
 
-    def list_buckets(self) -> List[Dict]:
+    def list_buckets(self) -> list[dict]:
         """List all R2 buckets in the account."""
         response = self._make_request("GET", f"/accounts/{self.account_id}/r2/buckets")
 
         if response.get("success"):
             return response.get("result", [])
-        else:
-            print(f"Failed to list buckets: {response.get('errors', [])}")
-            return []
+        print(f"Failed to list buckets: {response.get('errors', [])}")
+        return []
 
-    def create_bucket(self, bucket_name: str, location_hint: str = "WNAM") -> Dict:
+    def create_bucket(self, bucket_name: str, location_hint: str = "WNAM") -> dict:
         """Create a new R2 bucket.
 
         Args:
@@ -71,22 +68,18 @@ class CloudflareR2Manager:
         """
         data = {"name": bucket_name, "locationHint": location_hint}
 
-        response = self._make_request(
-            "POST", f"/accounts/{self.account_id}/r2/buckets", data
-        )
+        response = self._make_request("POST", f"/accounts/{self.account_id}/r2/buckets", data)
 
         if response.get("success"):
             print(f"✅ Bucket '{bucket_name}' created successfully")
             return response.get("result", {})
-        else:
-            errors = response.get("errors", [])
-            for error in errors:
-                if error.get("code") == 10014:  # Bucket already exists
-                    print(f"⚠️  Bucket '{bucket_name}' already exists")
-                    return {"name": bucket_name, "already_exists": True}
-                else:
-                    print(f"❌ Failed to create bucket: {error}")
-            return {}
+        errors = response.get("errors", [])
+        for error in errors:
+            if error.get("code") == 10014:  # Bucket already exists
+                print(f"⚠️  Bucket '{bucket_name}' already exists")
+                return {"name": bucket_name, "already_exists": True}
+            print(f"❌ Failed to create bucket: {error}")
+        return {}
 
     def delete_bucket(self, bucket_name: str) -> bool:
         """Delete an R2 bucket."""
@@ -97,29 +90,25 @@ class CloudflareR2Manager:
         if response.get("success"):
             print(f"✅ Bucket '{bucket_name}' deleted successfully")
             return True
-        else:
-            print(f"❌ Failed to delete bucket: {response.get('errors', [])}")
-            return False
+        print(f"❌ Failed to delete bucket: {response.get('errors', [])}")
+        return False
 
-    def list_tokens(self) -> List[Dict]:
+    def list_tokens(self) -> list[dict]:
         """List all R2 tokens in the account."""
-        response = self._make_request(
-            "GET", f"/accounts/{self.account_id}/r2/credentials"
-        )
+        response = self._make_request("GET", f"/accounts/{self.account_id}/r2/credentials")
 
         if response.get("success"):
             return response.get("result", [])
-        else:
-            print(f"Failed to list tokens: {response.get('errors', [])}")
-            return []
+        print(f"Failed to list tokens: {response.get('errors', [])}")
+        return []
 
     def create_token(
         self,
         token_name: str,
-        permissions: List[str] = None,
-        bucket_names: List[str] = None,
-        ttl_days: Optional[int] = None,
-    ) -> Dict:
+        permissions: list[str] = None,
+        bucket_names: list[str] = None,
+        ttl_days: int | None = None,
+    ) -> dict:
         """Create a new R2 token.
 
         Args:
@@ -151,9 +140,7 @@ class CloudflareR2Manager:
         # Remove None values
         data = {k: v for k, v in data.items() if v is not None}
 
-        response = self._make_request(
-            "POST", f"/accounts/{self.account_id}/r2/credentials", data
-        )
+        response = self._make_request("POST", f"/accounts/{self.account_id}/r2/credentials", data)
 
         if response.get("success"):
             result = response.get("result", {})
@@ -162,9 +149,8 @@ class CloudflareR2Manager:
             print(f"   Secret Access Key: {result.get('secretAccessKey')}")
             print("   ⚠️  Save these credentials securely - they won't be shown again!")
             return result
-        else:
-            print(f"❌ Failed to create token: {response.get('errors', [])}")
-            return {}
+        print(f"❌ Failed to create token: {response.get('errors', [])}")
+        return {}
 
     def delete_token(self, access_key_id: str) -> bool:
         """Delete an R2 token by access key ID."""
@@ -175,13 +161,10 @@ class CloudflareR2Manager:
         if response.get("success"):
             print(f"✅ Token '{access_key_id}' deleted successfully")
             return True
-        else:
-            print(f"❌ Failed to delete token: {response.get('errors', [])}")
-            return False
+        print(f"❌ Failed to delete token: {response.get('errors', [])}")
+        return False
 
-    def ensure_bucket_exists(
-        self, bucket_name: str, location_hint: str = "WNAM"
-    ) -> bool:
+    def ensure_bucket_exists(self, bucket_name: str, location_hint: str = "WNAM") -> bool:
         """Ensure a bucket exists, creating it if necessary.
 
         Args:
@@ -193,9 +176,7 @@ class CloudflareR2Manager:
         """
         # Check if bucket already exists
         buckets = self.list_buckets()
-        existing_bucket = next(
-            (b for b in buckets if b.get("name") == bucket_name), None
-        )
+        existing_bucket = next((b for b in buckets if b.get("name") == bucket_name), None)
 
         if existing_bucket:
             print(f"✅ Bucket '{bucket_name}' already exists")
@@ -210,9 +191,7 @@ def main():
     # Load environment variables
     load_dotenv()
 
-    parser = argparse.ArgumentParser(
-        description="Manage Cloudflare R2 buckets and tokens"
-    )
+    parser = argparse.ArgumentParser(description="Manage Cloudflare R2 buckets and tokens")
     parser.add_argument(
         "--account-id",
         default=os.getenv("CLOUDFLARE_ACCOUNT_ID"),
@@ -232,17 +211,13 @@ def main():
 
     bucket_subparsers.add_parser("list", help="List all buckets")
 
-    create_bucket_parser = bucket_subparsers.add_parser(
-        "create", help="Create a bucket"
-    )
+    create_bucket_parser = bucket_subparsers.add_parser("create", help="Create a bucket")
     create_bucket_parser.add_argument("name", help="Bucket name")
     create_bucket_parser.add_argument(
         "--location", default="WNAM", help="Location hint (WNAM, ENAM, APAC, etc.)"
     )
 
-    delete_bucket_parser = bucket_subparsers.add_parser(
-        "delete", help="Delete a bucket"
-    )
+    delete_bucket_parser = bucket_subparsers.add_parser("delete", help="Delete a bucket")
     delete_bucket_parser.add_argument("name", help="Bucket name")
 
     # Token commands
@@ -260,20 +235,14 @@ def main():
         default=["admin"],
         help="Token permissions",
     )
-    create_token_parser.add_argument(
-        "--buckets", nargs="+", help="Scope to specific buckets"
-    )
+    create_token_parser.add_argument("--buckets", nargs="+", help="Scope to specific buckets")
     create_token_parser.add_argument("--ttl-days", type=int, help="Token TTL in days")
 
     delete_token_parser = token_subparsers.add_parser("delete", help="Delete a token")
-    delete_token_parser.add_argument(
-        "access_key_id", help="Access Key ID of token to delete"
-    )
+    delete_token_parser.add_argument("access_key_id", help="Access Key ID of token to delete")
 
     # Setup command
-    setup_parser = subparsers.add_parser(
-        "setup", help="Quick setup for document-anonymizer"
-    )
+    setup_parser = subparsers.add_parser("setup", help="Quick setup for document-anonymizer")
     setup_parser.add_argument(
         "--bucket-name",
         default="document-anonymizer-data",
@@ -296,9 +265,7 @@ def main():
     args = parser.parse_args()
 
     if not args.account_id:
-        print(
-            "❌ CLOUDFLARE_ACCOUNT_ID is required (set via --account-id or environment variable)"
-        )
+        print("❌ CLOUDFLARE_ACCOUNT_ID is required (set via --account-id or environment variable)")
         sys.exit(1)
 
     if not args.api_token:
@@ -315,9 +282,7 @@ def main():
             if buckets:
                 print("📦 R2 Buckets:")
                 for bucket in buckets:
-                    print(
-                        f"   • {bucket.get('name')} (created: {bucket.get('creation_date')})"
-                    )
+                    print(f"   • {bucket.get('name')} (created: {bucket.get('creation_date')})")
             else:
                 print("No buckets found")
 
@@ -338,9 +303,7 @@ def main():
                 print("No tokens found")
 
         elif args.token_action == "create":
-            manager.create_token(
-                args.name, args.permissions, args.buckets, args.ttl_days
-            )
+            manager.create_token(args.name, args.permissions, args.buckets, args.ttl_days)
 
         elif args.token_action == "delete":
             manager.delete_token(args.access_key_id)
@@ -360,9 +323,7 @@ def main():
             if token_result:
                 print("\n📋 Add these to your .env file:")
                 print(f"CLOUDFLARE_R2_ACCESS_KEY_ID={token_result.get('accessKeyId')}")
-                print(
-                    f"CLOUDFLARE_R2_SECRET_ACCESS_KEY={token_result.get('secretAccessKey')}"
-                )
+                print(f"CLOUDFLARE_R2_SECRET_ACCESS_KEY={token_result.get('secretAccessKey')}")
                 print(f"CLOUDFLARE_R2_BUCKET_NAME={args.bucket_name}")
 
     elif args.command == "auto-ensure":
@@ -370,9 +331,7 @@ def main():
         bucket_name = os.getenv("CLOUDFLARE_R2_BUCKET_NAME")
 
         if not bucket_name:
-            print(
-                "❌ CLOUDFLARE_R2_BUCKET_NAME environment variable is required for auto-ensure"
-            )
+            print("❌ CLOUDFLARE_R2_BUCKET_NAME environment variable is required for auto-ensure")
             sys.exit(1)
 
         print(f"🔍 Ensuring bucket '{bucket_name}' exists...")

@@ -8,15 +8,15 @@ Supports TrOCR, PaddleOCR, EasyOCR, and Tesseract with fallback strategies.
 
 import logging
 import time
-import numpy as np
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+
 import cv2
+import numpy as np
 from PIL import Image
 
-from .models import DetectedText, OCRResult, OCRConfig, OCREngine
+from ..core.exceptions import InferenceError, ValidationError
 from ..core.models import BoundingBox
-from ..core.exceptions import ValidationError, InferenceError
+from .models import DetectedText, OCRConfig, OCREngine, OCRResult
 
 logger = logging.getLogger(__name__)
 
@@ -36,17 +36,14 @@ class BaseOCREngine(ABC):
     @abstractmethod
     def initialize(self) -> bool:
         """Initialize the OCR engine. Returns True if successful."""
-        pass
 
     @abstractmethod
     def detect_text(self, image: np.ndarray) -> OCRResult:
         """Detect text in image. Returns OCRResult."""
-        pass
 
     @abstractmethod
     def cleanup(self):
         """Clean up engine resources."""
-        pass
 
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
         """Apply preprocessing to improve OCR accuracy."""
@@ -62,9 +59,7 @@ class BaseOCREngine(ABC):
                 int(h * self.config.resize_factor),
                 int(w * self.config.resize_factor),
             )
-            processed = cv2.resize(
-                processed, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4
-            )
+            processed = cv2.resize(processed, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
 
         # Convert to grayscale for processing
         if len(processed.shape) == 3:
@@ -94,9 +89,7 @@ class BaseOCREngine(ABC):
             raise ValidationError("Image cannot be None")
 
         if len(image.shape) not in [2, 3]:
-            raise ValidationError(
-                f"Image must be 2D or 3D array, got {len(image.shape)}D"
-            )
+            raise ValidationError(f"Image must be 2D or 3D array, got {len(image.shape)}D")
 
         if image.size == 0:
             raise ValidationError("Image cannot be empty")
@@ -133,9 +126,7 @@ class PaddleOCREngine(BaseOCREngine):
             return True
 
         except ImportError:
-            self.logger.warning(
-                "PaddleOCR not available - install with: pip install paddleocr"
-            )
+            self.logger.warning("PaddleOCR not available - install with: pip install paddleocr")
             return False
         except Exception as e:
             self.logger.error(f"Failed to initialize PaddleOCR: {e}")
@@ -183,9 +174,7 @@ class PaddleOCREngine(BaseOCREngine):
                                     bbox=bbox,
                                     confidence=confidence,
                                     language=(
-                                        self.config.languages[0]
-                                        if self.config.languages
-                                        else "en"
+                                        self.config.languages[0] if self.config.languages else "en"
                                     ),
                                 )
                                 detected_texts.append(detected_text)
@@ -254,9 +243,7 @@ class EasyOCREngine(BaseOCREngine):
             return True
 
         except ImportError:
-            self.logger.warning(
-                "EasyOCR not available - install with: pip install easyocr"
-            )
+            self.logger.warning("EasyOCR not available - install with: pip install easyocr")
             return False
         except Exception as e:
             self.logger.error(f"Failed to initialize EasyOCR: {e}")
@@ -292,17 +279,13 @@ class EasyOCREngine(BaseOCREngine):
                 # Filter by confidence and length
                 if (
                     confidence >= self.config.min_confidence_threshold
-                    and self.config.min_text_length
-                    <= len(text)
-                    <= self.config.max_text_length
+                    and self.config.min_text_length <= len(text) <= self.config.max_text_length
                 ):
                     detected_text = DetectedText(
                         text=text,
                         bbox=bbox,
                         confidence=confidence,
-                        language=(
-                            self.config.languages[0] if self.config.languages else "en"
-                        ),
+                        language=(self.config.languages[0] if self.config.languages else "en"),
                     )
                     detected_texts.append(detected_text)
 
@@ -359,8 +342,8 @@ class TrOCREngine(BaseOCREngine):
     def initialize(self) -> bool:
         """Initialize TrOCR."""
         try:
-            from transformers import TrOCRProcessor, VisionEncoderDecoderModel
             import torch
+            from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
             # Set device
             self.device = torch.device(
@@ -368,13 +351,9 @@ class TrOCREngine(BaseOCREngine):
             )
 
             # Load TrOCR model and processor
-            model_name = (
-                "microsoft/trocr-base-printed"  # or "microsoft/trocr-base-handwritten"
-            )
+            model_name = "microsoft/trocr-base-printed"  # or "microsoft/trocr-base-handwritten"
             self.processor = TrOCRProcessor.from_pretrained(model_name)
-            self.model = VisionEncoderDecoderModel.from_pretrained(model_name).to(
-                self.device
-            )
+            self.model = VisionEncoderDecoderModel.from_pretrained(model_name).to(self.device)
 
             self.is_initialized = True
             self.logger.info(f"TrOCR initialized successfully on {self.device}")
@@ -457,9 +436,7 @@ class TrOCREngine(BaseOCREngine):
                 errors=[str(e)],
             )
 
-    def _detect_text_regions(
-        self, image: np.ndarray
-    ) -> List[Tuple[BoundingBox, np.ndarray]]:
+    def _detect_text_regions(self, image: np.ndarray) -> list[tuple[BoundingBox, np.ndarray]]:
         """Simple text region detection using OpenCV (for TrOCR preprocessing)."""
         # Convert to grayscale
         if len(image.shape) == 3:
@@ -473,9 +450,7 @@ class TrOCREngine(BaseOCREngine):
         closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel)
 
         # Find contours
-        contours, _ = cv2.findContours(
-            closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         regions = []
         for contour in contours:
@@ -526,9 +501,7 @@ class TesseractEngine(BaseOCREngine):
             return True
 
         except ImportError:
-            self.logger.warning(
-                "Tesseract not available - install with: pip install pytesseract"
-            )
+            self.logger.warning("Tesseract not available - install with: pip install pytesseract")
             return False
         except Exception as e:
             self.logger.error(f"Failed to initialize Tesseract: {e}")
@@ -556,9 +529,7 @@ class TesseractEngine(BaseOCREngine):
             data = pytesseract.image_to_data(
                 pil_image,
                 output_type=pytesseract.Output.DICT,
-                lang=(
-                    "+".join(self.config.languages) if self.config.languages else "eng"
-                ),
+                lang=("+".join(self.config.languages) if self.config.languages else "eng"),
             )
 
             # Parse results
@@ -572,11 +543,8 @@ class TesseractEngine(BaseOCREngine):
                 if (
                     text
                     and confidence
-                    >= self.config.min_confidence_threshold
-                    * 100  # Tesseract uses 0-100 scale
-                    and self.config.min_text_length
-                    <= len(text)
-                    <= self.config.max_text_length
+                    >= self.config.min_confidence_threshold * 100  # Tesseract uses 0-100 scale
+                    and self.config.min_text_length <= len(text) <= self.config.max_text_length
                 ):
                     # Create bounding box
                     bbox = BoundingBox(
@@ -590,9 +558,7 @@ class TesseractEngine(BaseOCREngine):
                         text=text,
                         bbox=bbox,
                         confidence=confidence / 100.0,  # Convert to 0-1 scale
-                        language=(
-                            self.config.languages[0] if self.config.languages else "en"
-                        ),
+                        language=(self.config.languages[0] if self.config.languages else "en"),
                     )
                     detected_texts.append(detected_text)
 

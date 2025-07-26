@@ -4,14 +4,15 @@ Unit tests for metrics utilities - Imperative style.
 Tests metrics collection and monitoring functionality.
 """
 
-import torch
-from unittest.mock import patch, Mock
 import time
+from unittest.mock import Mock, patch
+
+import torch
 
 from src.anonymizer.utils.metrics import (
     MetricsCollector,
-    timer,
     calculate_similarity_metrics,
+    timer,
 )
 
 
@@ -155,9 +156,7 @@ class TestMetricsCollector:
             mock_record.assert_called_once()
             call_args = mock_record.call_args[0]
             metrics = call_args[0]
-            tags = (
-                call_args[1] if len(call_args) > 1 else mock_record.call_args[1]["tags"]
-            )
+            tags = call_args[1] if len(call_args) > 1 else mock_record.call_args[1]["tags"]
 
             assert "processing_time_ms" in metrics
             assert "success:True" in tags
@@ -460,9 +459,7 @@ class TestMetricsIntegration:
             # Record metrics for multiple steps
             for step in range(0, 500, 100):
                 # Simulate decreasing loss
-                adjusted_metrics = {
-                    k: v * (1 - step / 1000) for k, v in training_metrics.items()
-                }
+                adjusted_metrics = {k: v * (1 - step / 1000) for k, v in training_metrics.items()}
                 collector.record_training_metrics(adjusted_metrics, step)
 
             # Should have recorded for each step

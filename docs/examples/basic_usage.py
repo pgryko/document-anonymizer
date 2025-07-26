@@ -6,7 +6,8 @@ This module demonstrates basic usage patterns for the Document Anonymization Sys
 """
 
 from pathlib import Path
-from src.anonymizer import DocumentAnonymizer, AnonymizationConfig
+
+from src.anonymizer import AnonymizationConfig, DocumentAnonymizer
 from src.anonymizer.core.models import BoundingBox
 
 
@@ -178,9 +179,7 @@ def example_with_manual_regions():
     # You would need to implement manual region support in the anonymizer
     print(f"Would anonymize {len(manual_regions)} manually specified regions")
     for i, region in enumerate(manual_regions):
-        print(
-            f"   Region {i+1}: {region.width}x{region.height} at ({region.left}, {region.top})"
-        )
+        print(f"   Region {i+1}: {region.width}x{region.height} at ({region.left}, {region.top})")
 
 
 def example_performance_monitoring():
@@ -200,9 +199,7 @@ def example_performance_monitoring():
 
     # Perform anonymization
     anonymizer = DocumentAnonymizer()
-    anonymizer.anonymize_document(
-        "examples/large_document.pdf", "examples/anonymized_large.pdf"
-    )
+    anonymizer.anonymize_document("examples/large_document.pdf", "examples/anonymized_large.pdf")
 
     # End monitoring and get report
     performance_report = monitor.end_session()
@@ -226,9 +223,9 @@ def example_error_handling():
     print("\n=== Error Handling ===")
 
     from src.anonymizer.core.exceptions import (
-        OCRError,
-        NERError,
         InferenceError,
+        NERError,
+        OCRError,
         ValidationError,
     )
 

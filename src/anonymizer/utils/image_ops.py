@@ -1,9 +1,9 @@
 """Safe image operations with comprehensive error handling."""
 
 import logging
-import numpy as np
+
 import cv2
-from typing import Tuple, Union
+import numpy as np
 
 from ..core.exceptions import PreprocessingError, ValidationError
 
@@ -36,9 +36,7 @@ class ImageProcessor:
         # Check memory usage
         estimated_memory = image.nbytes
         if estimated_memory > cls.MAX_MEMORY_BYTES:
-            raise ValidationError(
-                f"Image too large in memory: {estimated_memory} bytes"
-            )
+            raise ValidationError(f"Image too large in memory: {estimated_memory} bytes")
 
         return True
 
@@ -46,7 +44,7 @@ class ImageProcessor:
     def safe_resize(
         cls,
         image: np.ndarray,
-        target_size: Union[int, Tuple[int, int]],
+        target_size: int | tuple[int, int],
         interpolation: int = cv2.INTER_LANCZOS4,
         max_scale_factor: float = 4.0,
     ) -> np.ndarray:
@@ -80,9 +78,7 @@ class ImageProcessor:
             channels = 1 if len(image.shape) == 2 else image.shape[2]
             estimated_memory = new_w * new_h * channels * image.itemsize
             if estimated_memory > cls.MAX_MEMORY_BYTES:
-                raise ValidationError(
-                    f"Output would be too large: {estimated_memory} bytes"
-                )
+                raise ValidationError(f"Output would be too large: {estimated_memory} bytes")
 
             # Perform resize
             if len(image.shape) == 2:
@@ -182,7 +178,7 @@ class ImageProcessor:
 
     @classmethod
     def normalize_image(
-        cls, image: np.ndarray, target_range: Tuple[float, float] = (-1.0, 1.0)
+        cls, image: np.ndarray, target_range: tuple[float, float] = (-1.0, 1.0)
     ) -> np.ndarray:
         """Normalize image to target range."""
         cls.validate_image_array(image)
@@ -224,7 +220,7 @@ class ImageProcessor:
         source_upper = source.upper()
         if source_upper in ["BGR", "RGB"] and len(image.shape) != 3:
             raise ValidationError("Color conversion requires 3-channel image")
-        elif source_upper == "GRAY" and len(image.shape) not in [2, 3]:
+        if source_upper == "GRAY" and len(image.shape) not in [2, 3]:
             raise ValidationError("Grayscale conversion requires 2D or 3D image")
 
         try:
@@ -255,15 +251,11 @@ class ImageProcessor:
 
 
 # Convenience functions
-def safe_resize(
-    image: np.ndarray, target_size: Union[int, Tuple[int, int]], **kwargs
-) -> np.ndarray:
+def safe_resize(image: np.ndarray, target_size: int | tuple[int, int], **kwargs) -> np.ndarray:
     """Convenient wrapper for safe image resizing."""
     return ImageProcessor.safe_resize(image, target_size, **kwargs)
 
 
-def safe_crop(
-    image: np.ndarray, x: int, y: int, width: int, height: int, **kwargs
-) -> np.ndarray:
+def safe_crop(image: np.ndarray, x: int, y: int, width: int, height: int, **kwargs) -> np.ndarray:
     """Convenient wrapper for safe image cropping."""
     return ImageProcessor.safe_crop(image, x, y, width, height, **kwargs)

@@ -5,17 +5,18 @@ Benchmark Suite
 Standardized benchmarks for the document anonymization pipeline.
 """
 
-import time
+import json
 import logging
-from typing import Dict, List, Optional, Any, Tuple
+import time
+from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
+
 import numpy as np
 from PIL import Image
-import json
-from dataclasses import dataclass, asdict
 
-from .profiler import PerformanceProfiler
 from ..core.models import BoundingBox
+from .profiler import PerformanceProfiler
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +32,10 @@ class BenchmarkResult:
     avg_memory_mb: float
     cpu_percent: float
     success: bool
-    error_message: Optional[str] = None
-    additional_metrics: Optional[Dict[str, Any]] = None
+    error_message: str | None = None
+    additional_metrics: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return asdict(self)
 
@@ -47,7 +48,7 @@ class ModelBenchmark:
     for VAE, UNet, and text encoder models.
     """
 
-    def __init__(self, profiler: Optional[PerformanceProfiler] = None):
+    def __init__(self, profiler: PerformanceProfiler | None = None):
         self.profiler = profiler or PerformanceProfiler()
 
     def benchmark_model_loading(self, model_path: Path) -> BenchmarkResult:
@@ -112,7 +113,7 @@ class ModelBenchmark:
     def benchmark_inference_speed(
         self,
         model_type: str,
-        input_size: Tuple[int, int] = (512, 512),
+        input_size: tuple[int, int] = (512, 512),
         num_iterations: int = 10,
     ) -> BenchmarkResult:
         """Benchmark model inference speed."""
@@ -139,9 +140,7 @@ class ModelBenchmark:
                     "num_iterations": num_iterations,
                     "avg_iteration_ms": avg_iteration_time,
                     "input_size": input_size,
-                    "throughput_fps": (
-                        1000 / avg_iteration_time if avg_iteration_time > 0 else 0
-                    ),
+                    "throughput_fps": (1000 / avg_iteration_time if avg_iteration_time > 0 else 0),
                 }
 
         except Exception as e:
@@ -189,11 +188,11 @@ class AnonymizationBenchmark:
     - Output generation
     """
 
-    def __init__(self, profiler: Optional[PerformanceProfiler] = None):
+    def __init__(self, profiler: PerformanceProfiler | None = None):
         self.profiler = profiler or PerformanceProfiler()
 
     def create_test_document(
-        self, size: Tuple[int, int] = (1024, 768), format: str = "RGB"
+        self, size: tuple[int, int] = (1024, 768), format: str = "RGB"
     ) -> Image.Image:
         """Create a synthetic test document image."""
         # Create a white background
@@ -208,7 +207,7 @@ class AnonymizationBenchmark:
         return img
 
     def benchmark_document_loading(
-        self, image_size: Tuple[int, int] = (1024, 768), num_documents: int = 5
+        self, image_size: tuple[int, int] = (1024, 768), num_documents: int = 5
     ) -> BenchmarkResult:
         """Benchmark document loading and preprocessing."""
         benchmark_name = "document_loading"
@@ -236,9 +235,7 @@ class AnonymizationBenchmark:
                     "num_documents": num_documents,
                     "avg_document_ms": avg_doc_time,
                     "image_size": image_size,
-                    "documents_per_second": (
-                        1000 / avg_doc_time if avg_doc_time > 0 else 0
-                    ),
+                    "documents_per_second": (1000 / avg_doc_time if avg_doc_time > 0 else 0),
                 }
 
         except Exception as e:
@@ -274,7 +271,7 @@ class AnonymizationBenchmark:
         )
 
     def benchmark_text_detection(
-        self, image_size: Tuple[int, int] = (1024, 768), num_images: int = 10
+        self, image_size: tuple[int, int] = (1024, 768), num_images: int = 10
     ) -> BenchmarkResult:
         """Benchmark OCR text detection performance."""
         benchmark_name = "text_detection_ocr"
@@ -408,7 +405,7 @@ class AnonymizationBenchmark:
 
     def benchmark_inpainting(
         self,
-        image_size: Tuple[int, int] = (512, 512),
+        image_size: tuple[int, int] = (512, 512),
         num_regions: int = 5,
         num_iterations: int = 3,
     ) -> BenchmarkResult:
@@ -452,9 +449,7 @@ class AnonymizationBenchmark:
                     "num_regions_per_image": num_regions,
                     "avg_inpainting_ms": avg_inpaint_time,
                     "image_size": image_size,
-                    "images_per_second": (
-                        1000 / avg_inpaint_time if avg_inpaint_time > 0 else 0
-                    ),
+                    "images_per_second": (1000 / avg_inpaint_time if avg_inpaint_time > 0 else 0),
                 }
 
         except Exception as e:
@@ -490,7 +485,7 @@ class AnonymizationBenchmark:
         )
 
     def benchmark_end_to_end(
-        self, image_size: Tuple[int, int] = (1024, 768), num_documents: int = 3
+        self, image_size: tuple[int, int] = (1024, 768), num_documents: int = 3
     ) -> BenchmarkResult:
         """Benchmark the complete end-to-end anonymization pipeline."""
         benchmark_name = "end_to_end_anonymization"
@@ -526,9 +521,7 @@ class AnonymizationBenchmark:
                     "num_documents": num_documents,
                     "avg_e2e_ms": avg_e2e_time,
                     "image_size": image_size,
-                    "documents_per_second": (
-                        1000 / avg_e2e_time if avg_e2e_time > 0 else 0
-                    ),
+                    "documents_per_second": (1000 / avg_e2e_time if avg_e2e_time > 0 else 0),
                     "pipeline_stages": [
                         "loading",
                         "ocr",
@@ -571,7 +564,7 @@ class AnonymizationBenchmark:
             additional_metrics=additional_metrics,
         )
 
-    def run_full_benchmark_suite(self) -> List[BenchmarkResult]:
+    def run_full_benchmark_suite(self) -> list[BenchmarkResult]:
         """Run the complete benchmark suite."""
         logger.info("Starting full benchmark suite")
 
@@ -587,9 +580,7 @@ class AnonymizationBenchmark:
         logger.info(f"Completed benchmark suite with {len(results)} tests")
         return results
 
-    def save_benchmark_results(
-        self, results: List[BenchmarkResult], filepath: Path
-    ) -> bool:
+    def save_benchmark_results(self, results: list[BenchmarkResult], filepath: Path) -> bool:
         """Save benchmark results to a JSON file."""
         try:
             data = {

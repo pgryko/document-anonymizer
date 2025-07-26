@@ -6,11 +6,10 @@ Provider for bundled fonts included with the anonymization system.
 These fonts ensure consistent rendering across different systems.
 """
 
-import os
 import hashlib
-from pathlib import Path
-from typing import List, Dict, Optional
 import logging
+import os
+from pathlib import Path
 
 from .manager import FontMetadata
 
@@ -34,7 +33,7 @@ class BundledFontProvider:
         """
         self.fonts_dir = fonts_dir
         self.bundled_fonts_dir = fonts_dir / "bundled"
-        self.fonts_cache: Dict[str, FontMetadata] = {}
+        self.fonts_cache: dict[str, FontMetadata] = {}
 
         # Ensure bundled fonts directory exists
         self.bundled_fonts_dir.mkdir(parents=True, exist_ok=True)
@@ -68,7 +67,7 @@ class BundledFontProvider:
 
         return True
 
-    def _get_required_font_files(self) -> List[str]:
+    def _get_required_font_files(self) -> list[str]:
         """Get list of required bundled font files."""
         return [
             # DejaVu fonts (excellent Unicode coverage, freely redistributable)
@@ -109,7 +108,7 @@ class BundledFontProvider:
             except Exception as e:
                 logger.warning(f"Failed to download {font_file}: {e}")
 
-    def _get_font_sources(self) -> Dict[str, Dict[str, str]]:
+    def _get_font_sources(self) -> dict[str, dict[str, str]]:
         """Get font download sources."""
         return {
             # DejaVu fonts from official releases
@@ -133,11 +132,11 @@ class BundledFontProvider:
             # Add more Liberation fonts...
         }
 
-    def _download_font(self, font_file: str, source_info: Dict[str, str]) -> None:
+    def _download_font(self, font_file: str, source_info: dict[str, str]) -> None:
         """Download a single font file."""
+        import tempfile
         import urllib.request
         import zipfile
-        import tempfile
 
         font_path = self.bundled_fonts_dir / font_file
 
@@ -146,10 +145,7 @@ class BundledFontProvider:
             if self._verify_checksum(str(font_path), source_info.get("checksum")):
                 logger.debug(f"Font {font_file} already exists and is valid")
                 return
-            else:
-                logger.warning(
-                    f"Font {font_file} exists but checksum mismatch, redownloading"
-                )
+            logger.warning(f"Font {font_file} exists but checksum mismatch, redownloading")
 
         # Download and extract
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -186,9 +182,7 @@ class BundledFontProvider:
 
             logger.info(f"Successfully downloaded {font_file}")
 
-    def _verify_checksum(
-        self, file_path: str, expected_checksum: Optional[str]
-    ) -> bool:
+    def _verify_checksum(self, file_path: str, expected_checksum: str | None) -> bool:
         """Verify file checksum."""
         if not expected_checksum:
             return True  # Skip verification if no checksum provided
@@ -201,7 +195,7 @@ class BundledFontProvider:
             logger.error(f"Failed to verify checksum for {file_path}: {e}")
             return False
 
-    def list_fonts(self) -> List[FontMetadata]:
+    def list_fonts(self) -> list[FontMetadata]:
         """List all bundled fonts."""
         fonts = []
 
@@ -218,7 +212,7 @@ class BundledFontProvider:
 
         return fonts
 
-    def _create_font_metadata(self, font_path: str) -> Optional[FontMetadata]:
+    def _create_font_metadata(self, font_path: str) -> FontMetadata | None:
         """Create font metadata from font file."""
         try:
             from .utils import get_font_info
@@ -287,7 +281,7 @@ class BundledFontProvider:
 
         return license_map.get(font_file, "Unknown License")
 
-    def get_font_licenses(self) -> Dict[str, str]:
+    def get_font_licenses(self) -> dict[str, str]:
         """Get license information for all bundled fonts."""
         licenses = {}
 

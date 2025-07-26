@@ -4,21 +4,22 @@ Unit tests for core models - Imperative style.
 Tests all critical data structures and validation logic.
 """
 
-import pytest
-import numpy as np
-from pydantic import ValidationError
 import json
 
+import numpy as np
+import pytest
+from pydantic import ValidationError
+
 from src.anonymizer.core.models import (
-    BoundingBox,
-    TextRegion,
     AnonymizationRequest,
-    ProcessedImage,
-    GeneratedPatch,
-    ModelArtifacts,
+    BoundingBox,
     CropData,
-    TrainingMetrics,
+    GeneratedPatch,
     GenerationMetadata,
+    ModelArtifacts,
+    ProcessedImage,
+    TextRegion,
+    TrainingMetrics,
 )
 
 
@@ -149,8 +150,9 @@ class TestAnonymizationRequest:
 
     def test_anonymization_request_validation_empty_regions(self, sample_image):
         """Test that text regions cannot be empty."""
-        from PIL import Image
         import io
+
+        from PIL import Image
 
         pil_image = Image.fromarray(sample_image)
         buffer = io.BytesIO()
@@ -169,8 +171,9 @@ class TestAnonymizationRequest:
         self, sample_image, sample_text_region
     ):
         """Test that too many text regions are rejected."""
-        from PIL import Image
         import io
+
+        from PIL import Image
 
         pil_image = Image.fromarray(sample_image)
         buffer = io.BytesIO()
@@ -280,9 +283,7 @@ class TestGeneratedPatch:
             guidance_scale=7.5,
         )
 
-        generated_patch = GeneratedPatch(
-            patch=patch, confidence=0.85, metadata=metadata
-        )
+        generated_patch = GeneratedPatch(patch=patch, confidence=0.85, metadata=metadata)
 
         assert generated_patch.patch.shape == (64, 64, 3)
         assert generated_patch.confidence == 0.85
@@ -526,9 +527,7 @@ class TestCropData:
         crop = sample_image[
             sample_bbox.top : sample_bbox.bottom, sample_bbox.left : sample_bbox.right
         ]
-        relative_bbox = BoundingBox(
-            left=0, top=0, right=crop.shape[1], bottom=crop.shape[0]
-        )
+        relative_bbox = BoundingBox(left=0, top=0, right=crop.shape[1], bottom=crop.shape[0])
 
         crop_data = CropData(crop=crop, scale_factor=2.0, relative_bbox=relative_bbox)
 
@@ -541,9 +540,7 @@ class TestCropData:
         crop = sample_image[
             sample_bbox.top : sample_bbox.bottom, sample_bbox.left : sample_bbox.right
         ]
-        relative_bbox = BoundingBox(
-            left=0, top=0, right=crop.shape[1], bottom=crop.shape[0]
-        )
+        relative_bbox = BoundingBox(left=0, top=0, right=crop.shape[1], bottom=crop.shape[0])
 
         with pytest.raises(ValidationError):
             CropData(

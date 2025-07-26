@@ -1,0 +1,268 @@
+stages:
+  - lint
+  - test
+  - security
+  - build
+  - deploy
+
+variables:
+  PYTHON_VERSION: "3.12"
+  POETRY_VERSION: "1.8.3"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  POETRY_HOME: "$CI_PROJECT_DIR/.poetry"
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  POETRY_NO_INTERACTION: "1"
+
+# Cache configuration
+.cache: &cache
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-$PYTHON_VERSION"
+    paths:
+      - .cache/pip
+      - .venv
+      - .poetry
+
+# Python setup template
+.python_setup: &python_setup
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - apt-get update && apt-get install -y git
+    - pip install --upgrade pip
+    - pip install poetry==${POETRY_VERSION}
+    - poetry --version
+    - poetry config virtualenvs.in-project true
+    - poetry install --no-interaction --no-root
+    - poetry install --no-interaction
+
+# Lint stage
+lint:ruff:
+  stage: lint
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry run ruff check src tests
+  only:
+    - branches
+    - merge_requests
+    - tags
+
+lint:black:
+  stage: lint
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry run black --check src tests
+  only:
+    - branches
+    - merge_requests
+    - tags
+
+lint:mypy:
+  stage: lint
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry run mypy src
+  allow_failure: true
+  only:
+    - branches
+    - merge_requests
+    - tags
+
+# Test stage
+test:unit:
+  stage: test
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry run pytest tests/unit -v --cov=src --cov-report=xml --cov-report=html --cov-report=term --junitxml=report.xml
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - coverage.xml
+      - htmlcov/
+    expire_in: 1 week
+  only:
+    - branches
+    - merge_requests
+    - tags
+
+test:integration:
+  stage: test
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry run pytest tests/integration -v --maxfail=5
+  allow_failure: true
+  only:
+    - branches
+    - merge_requests
+    - tags
+
+test:python-versions:
+  stage: test
+  <<: *cache
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.10", "3.11", "3.12"]
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - pip install --upgrade pip
+    - pip install poetry==${POETRY_VERSION}
+    - poetry config virtualenvs.in-project true
+    - poetry install --no-interaction
+  script:
+    - poetry run pytest tests/unit -v
+  only:
+    - main
+    - develop
+    - tags
+
+# Security stage
+security:bandit:
+  stage: security
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry run bandit -r src -ll -i -f json -o bandit-report.json
+  artifacts:
+    reports:
+      sast: bandit-report.json
+    paths:
+      - bandit-report.json
+    expire_in: 1 week
+  only:
+    - branches
+    - merge_requests
+    - tags
+
+security:safety:
+  stage: security
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry run safety check --json > safety-report.json || true
+  artifacts:
+    paths:
+      - safety-report.json
+    expire_in: 1 week
+  allow_failure: true
+  only:
+    - branches
+    - merge_requests
+    - tags
+
+security:dependency-check:
+  stage: security
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry export -f requirements.txt --without-hashes > requirements.txt
+    - pip install pip-audit
+    - pip-audit -r requirements.txt --format json -o audit-report.json || true
+  artifacts:
+    paths:
+      - audit-report.json
+    expire_in: 1 week
+  allow_failure: true
+  only:
+    - main
+    - develop
+
+# Build stage
+build:package:
+  stage: build
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+  only:
+    - branches
+    - merge_requests
+    - tags
+
+build:docker:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker info
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:latest
+    - |
+      if [[ "$CI_COMMIT_TAG" ]]; then
+        docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+      fi
+  only:
+    - main
+    - develop
+    - tags
+
+# Deploy stage
+deploy:pypi:
+  stage: deploy
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry config pypi-token.pypi $PYPI_TOKEN
+    - poetry publish --build
+  only:
+    - tags
+  when: manual
+  environment:
+    name: pypi
+    url: https://pypi.org/project/document-anonymizer/
+
+deploy:docker:
+  stage: deploy
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+    - |
+      if [[ "$CI_COMMIT_TAG" ]]; then
+        docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+        docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+      fi
+  only:
+    - main
+    - tags
+  environment:
+    name: docker-registry
+    url: $CI_REGISTRY
+
+# Pages job for documentation
+pages:
+  stage: deploy
+  <<: *python_setup
+  <<: *cache
+  script:
+    - poetry run mkdocs build --site-dir public
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
+  when: manual

@@ -5,21 +5,21 @@ Interactive VAE Quality Dashboard
 Streamlit app for exploring VAE reconstruction quality with interactive controls.
 """
 
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import plotly.express as px
 import streamlit as st
 import torch
-import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
-import plotly.express as px
-from typing import Dict, Optional
 
-from src.anonymizer.core.config import VAEConfig, DatasetConfig
+from src.anonymizer.core.config import DatasetConfig, VAEConfig
 from src.anonymizer.training.datasets import create_dataloaders
 from src.anonymizer.training.vae_trainer import VAETrainer
 
 
 @st.cache_resource
-def load_vae_model(checkpoint_path: Optional[str], config_path: str) -> VAETrainer:
+def load_vae_model(checkpoint_path: str | None, config_path: str) -> VAETrainer:
     """Load VAE model (cached)."""
     config = VAEConfig.from_env_and_yaml(yaml_path=config_path)
     trainer = VAETrainer(config)
@@ -57,9 +57,7 @@ def load_dataset_samples(config_path: str, max_samples: int = 50):
     for i, batch in enumerate(dataloader):
         if i >= max_samples:
             break
-        samples.append(
-            {"images": batch["images"], "texts": batch.get("texts", []), "index": i}
-        )
+        samples.append({"images": batch["images"], "texts": batch.get("texts", []), "index": i})
 
     return samples
 
@@ -76,7 +74,7 @@ def tensor_to_image(tensor: torch.Tensor) -> np.ndarray:
 
 def compute_reconstruction_metrics(
     original: torch.Tensor, reconstructed: torch.Tensor
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Compute reconstruction quality metrics."""
     with torch.no_grad():
         mse = torch.nn.functional.mse_loss(reconstructed, original).item()
@@ -105,14 +103,10 @@ def compute_reconstruction_metrics(
 
 
 def main():
-    st.set_page_config(
-        page_title="VAE Quality Dashboard", page_icon="🔍", layout="wide"
-    )
+    st.set_page_config(page_title="VAE Quality Dashboard", page_icon="🔍", layout="wide")
 
     st.title("🔍 VAE Quality Assessment Dashboard")
-    st.markdown(
-        "Interactive exploration of VAE reconstruction quality for document anonymization"
-    )
+    st.markdown("Interactive exploration of VAE reconstruction quality for document anonymization")
 
     # Sidebar configuration
     st.sidebar.header("Configuration")
@@ -132,9 +126,7 @@ def main():
 
     # Load model and data
     try:
-        trainer = load_vae_model(
-            checkpoint_path if checkpoint_path else None, config_path
-        )
+        trainer = load_vae_model(checkpoint_path if checkpoint_path else None, config_path)
         samples = load_dataset_samples(config_path)
 
         st.sidebar.success(f"Loaded {len(samples)} samples")
@@ -245,9 +237,7 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
 
         # Scatter plot
-        fig = px.scatter(
-            df, x="MSE", y="PSNR", hover_data=["sample_idx"], title="MSE vs PSNR"
-        )
+        fig = px.scatter(df, x="MSE", y="PSNR", hover_data=["sample_idx"], title="MSE vs PSNR")
         st.plotly_chart(fig, use_container_width=True)
 
 

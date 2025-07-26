@@ -7,15 +7,16 @@ validation, and organization.
 """
 
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Callable, Any
 import shutil
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
-from .config import ModelConfig, ModelSource, ModelMetadata, ModelType, ValidationResult
-from .downloader import ModelDownloader
-from .validator import ModelValidator
-from .registry import ModelRegistry
 from ..core.exceptions import ValidationError
+from .config import ModelConfig, ModelMetadata, ModelSource, ModelType, ValidationResult
+from .downloader import ModelDownloader
+from .registry import ModelRegistry
+from .validator import ModelValidator
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class ModelManager:
     - Version tracking
     """
 
-    def __init__(self, config: Optional[ModelConfig] = None):
+    def __init__(self, config: ModelConfig | None = None):
         self.config = config or ModelConfig()
 
         # Initialize components
@@ -40,14 +41,12 @@ class ModelManager:
         self.validator = ModelValidator(strict_mode=self.config.strict_validation)
         self.registry = ModelRegistry(self.config.models_dir / "registry.json")
 
-        logger.info(
-            f"ModelManager initialized with models directory: {self.config.models_dir}"
-        )
+        logger.info(f"ModelManager initialized with models directory: {self.config.models_dir}")
 
     def download_model(
         self,
         model_name: str,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
         validate: bool = True,
     ) -> ModelMetadata:
         """
@@ -80,24 +79,18 @@ class ModelManager:
                     existing_metadata.local_path, existing_metadata
                 )
                 if not validation.valid:
-                    logger.warning(
-                        "Existing model failed validation, re-downloading..."
-                    )
+                    logger.warning("Existing model failed validation, re-downloading...")
                 else:
                     self.registry.update_usage(model_name)
                     return existing_metadata
 
         # Download the model
         try:
-            metadata = self.downloader.download_model(
-                source, progress_callback=progress_callback
-            )
+            metadata = self.downloader.download_model(source, progress_callback=progress_callback)
 
             # Validate if requested
             if validate:
-                validation = self.validator.validate_model(
-                    metadata.local_path, metadata
-                )
+                validation = self.validator.validate_model(metadata.local_path, metadata)
                 if not validation.valid:
                     # Clean up failed download
                     if metadata.local_path.exists():
@@ -119,7 +112,7 @@ class ModelManager:
             raise
 
     def download_from_huggingface(
-        self, model_id: str, filename: Optional[str] = None, validate: bool = True
+        self, model_id: str, filename: str | None = None, validate: bool = True
     ) -> ModelMetadata:
         """
         Download model directly from Hugging Face Hub.
@@ -137,9 +130,7 @@ class ModelManager:
 
             # Validate if requested
             if validate:
-                validation = self.validator.validate_model(
-                    metadata.local_path, metadata
-                )
+                validation = self.validator.validate_model(metadata.local_path, metadata)
                 if not validation.valid:
                     if metadata.local_path.exists():
                         metadata.local_path.unlink()
@@ -172,13 +163,11 @@ class ModelManager:
         """Validate a model file."""
         return self.validator.validate_model(model_path)
 
-    def list_available_models(
-        self, model_type: Optional[ModelType] = None
-    ) -> List[ModelSource]:
+    def list_available_models(self, model_type: ModelType | None = None) -> list[ModelSource]:
         """List models available in registry."""
         return self.registry.list_models(model_type)
 
-    def list_downloaded_models(self) -> List[ModelMetadata]:
+    def list_downloaded_models(self) -> list[ModelMetadata]:
         """List models that have been downloaded locally."""
         downloaded = []
 
@@ -189,7 +178,7 @@ class ModelManager:
 
         return downloaded
 
-    def get_model_info(self, model_name: str) -> Dict[str, Any]:
+    def get_model_info(self, model_name: str) -> dict[str, Any]:
         """Get detailed information about a model."""
         info = self.registry.get_model_info(model_name)
 
@@ -206,9 +195,7 @@ class ModelManager:
 
         return info
 
-    def get_recommended_setup(
-        self, use_case: str = "default"
-    ) -> Dict[str, ModelMetadata]:
+    def get_recommended_setup(self, use_case: str = "default") -> dict[str, ModelMetadata]:
         """
         Get recommended model setup for specific use cases.
 
@@ -256,9 +243,7 @@ class ModelManager:
 
         return all_available
 
-    def cleanup_models(
-        self, unused_days: int = 30, dry_run: bool = True
-    ) -> Dict[str, Any]:
+    def cleanup_models(self, unused_days: int = 30, dry_run: bool = True) -> dict[str, Any]:
         """
         Clean up unused models to free disk space.
 
@@ -318,7 +303,7 @@ class ModelManager:
 
         return results
 
-    def benchmark_model(self, model_name: str) -> Dict[str, Any]:
+    def benchmark_model(self, model_name: str) -> dict[str, Any]:
         """Benchmark a downloaded model's performance."""
         metadata = self.registry.get_metadata(model_name)
         if not metadata or not metadata.local_path.exists():
@@ -326,16 +311,14 @@ class ModelManager:
 
         return self.validator.benchmark_model(metadata.local_path)
 
-    def verify_all_models(self) -> Dict[str, ValidationResult]:
+    def verify_all_models(self) -> dict[str, ValidationResult]:
         """Verify all downloaded models."""
         results = {}
 
         downloaded_models = self.list_downloaded_models()
         for metadata in downloaded_models:
             try:
-                validation = self.validator.validate_model(
-                    metadata.local_path, metadata
-                )
+                validation = self.validator.validate_model(metadata.local_path, metadata)
                 results[metadata.name] = validation
             except Exception as e:
                 # Create error result
@@ -349,7 +332,7 @@ class ModelManager:
 
         return results
 
-    def get_storage_stats(self) -> Dict[str, Any]:
+    def get_storage_stats(self) -> dict[str, Any]:
         """Get storage statistics for model directory."""
         total_size = 0
         model_count = 0
@@ -386,7 +369,7 @@ class ModelManager:
         """Export list of models to a file."""
         return self.registry.export_registry(export_path)
 
-    def search_models(self, query: str) -> List[ModelSource]:
+    def search_models(self, query: str) -> list[ModelSource]:
         """Search for models by name or description."""
         return self.registry.search_models(query)
 

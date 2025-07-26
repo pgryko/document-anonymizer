@@ -5,16 +5,17 @@ Resource Monitor
 Real-time monitoring of system resources during anonymization operations.
 """
 
-import time
-import logging
-import threading
-from typing import Dict, List, Optional, Any
-from pathlib import Path
-from dataclasses import dataclass, asdict
-from datetime import datetime
 import json
-import psutil
+import logging
 import queue
+import threading
+import time
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +33,10 @@ class ResourceSample:
     disk_io_write_mb: float
     network_sent_mb: float
     network_recv_mb: float
-    gpu_memory_mb: Optional[float] = None
-    gpu_utilization: Optional[float] = None
+    gpu_memory_mb: float | None = None
+    gpu_utilization: float | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return asdict(self)
 
@@ -45,17 +46,17 @@ class ResourceSummary:
     """Summary of resource usage over a period."""
 
     duration_seconds: float
-    cpu_percent: Dict[str, float]  # min, max, avg
-    memory_percent: Dict[str, float]
-    memory_rss_mb: Dict[str, float]
+    cpu_percent: dict[str, float]  # min, max, avg
+    memory_percent: dict[str, float]
+    memory_rss_mb: dict[str, float]
     peak_memory_mb: float
     total_disk_io_mb: float
     total_network_mb: float
-    gpu_peak_memory_mb: Optional[float] = None
-    gpu_avg_utilization: Optional[float] = None
+    gpu_peak_memory_mb: float | None = None
+    gpu_avg_utilization: float | None = None
     sample_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return asdict(self)
 
@@ -77,8 +78,8 @@ class ResourceMonitor:
         self.max_samples = max_samples
         self.is_monitoring = False
 
-        self.samples: List[ResourceSample] = []
-        self._monitor_thread: Optional[threading.Thread] = None
+        self.samples: list[ResourceSample] = []
+        self._monitor_thread: threading.Thread | None = None
         self._sample_queue = queue.Queue()
 
         # Initialize process reference
@@ -105,7 +106,7 @@ class ResourceMonitor:
 
         logger.info(f"ResourceMonitor initialized (interval: {sample_interval}s)")
 
-    def _get_gpu_stats(self) -> tuple[Optional[float], Optional[float]]:
+    def _get_gpu_stats(self) -> tuple[float | None, float | None]:
         """Get GPU memory and utilization stats."""
         if not self.gpu_available or not self._pynvml:
             return None, None
@@ -135,21 +136,21 @@ class ResourceMonitor:
 
             # Disk I/O
             current_disk_io = self.process.io_counters()
-            disk_read_mb = (
-                current_disk_io.read_bytes - self._baseline_disk_io.read_bytes
-            ) / (1024 * 1024)
-            disk_write_mb = (
-                current_disk_io.write_bytes - self._baseline_disk_io.write_bytes
-            ) / (1024 * 1024)
+            disk_read_mb = (current_disk_io.read_bytes - self._baseline_disk_io.read_bytes) / (
+                1024 * 1024
+            )
+            disk_write_mb = (current_disk_io.write_bytes - self._baseline_disk_io.write_bytes) / (
+                1024 * 1024
+            )
 
             # Network I/O
             current_network = psutil.net_io_counters()
-            network_sent_mb = (
-                current_network.bytes_sent - self._baseline_network.bytes_sent
-            ) / (1024 * 1024)
-            network_recv_mb = (
-                current_network.bytes_recv - self._baseline_network.bytes_recv
-            ) / (1024 * 1024)
+            network_sent_mb = (current_network.bytes_sent - self._baseline_network.bytes_sent) / (
+                1024 * 1024
+            )
+            network_recv_mb = (current_network.bytes_recv - self._baseline_network.bytes_recv) / (
+                1024 * 1024
+            )
 
             # GPU stats
             gpu_memory_mb, gpu_utilization = self._get_gpu_stats()
@@ -220,7 +221,7 @@ class ResourceMonitor:
         self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self._monitor_thread.start()
 
-    def stop_monitoring(self) -> List[ResourceSample]:
+    def stop_monitoring(self) -> list[ResourceSample]:
         """Stop monitoring and return collected samples."""
         if not self.is_monitoring:
             return self.samples.copy()
@@ -242,7 +243,7 @@ class ResourceMonitor:
         logger.info(f"Collected {len(self.samples)} resource samples")
         return self.samples.copy()
 
-    def get_current_stats(self) -> Optional[ResourceSample]:
+    def get_current_stats(self) -> ResourceSample | None:
         """Get current resource usage stats."""
         try:
             return self._take_sample()
@@ -250,9 +251,7 @@ class ResourceMonitor:
             logger.error(f"Error getting current stats: {e}")
             return None
 
-    def generate_summary(
-        self, samples: Optional[List[ResourceSample]] = None
-    ) -> ResourceSummary:
+    def generate_summary(self, samples: list[ResourceSample] | None = None) -> ResourceSummary:
         """Generate summary statistics from samples."""
         if samples is None:
             samples = self.samples
@@ -288,17 +287,11 @@ class ResourceMonitor:
             }
 
         # GPU statistics
-        gpu_memory_values = [
-            s.gpu_memory_mb for s in samples if s.gpu_memory_mb is not None
-        ]
-        gpu_util_values = [
-            s.gpu_utilization for s in samples if s.gpu_utilization is not None
-        ]
+        gpu_memory_values = [s.gpu_memory_mb for s in samples if s.gpu_memory_mb is not None]
+        gpu_util_values = [s.gpu_utilization for s in samples if s.gpu_utilization is not None]
 
         gpu_peak_memory = max(gpu_memory_values) if gpu_memory_values else None
-        gpu_avg_util = (
-            sum(gpu_util_values) / len(gpu_util_values) if gpu_util_values else None
-        )
+        gpu_avg_util = sum(gpu_util_values) / len(gpu_util_values) if gpu_util_values else None
 
         # Total I/O
         total_disk_io = sum(s.disk_io_read_mb + s.disk_io_write_mb for s in samples)
@@ -351,7 +344,7 @@ class PerformanceMonitor:
     to provide comprehensive performance insights.
     """
 
-    def __init__(self, results_dir: Optional[Path] = None, auto_export: bool = True):
+    def __init__(self, results_dir: Path | None = None, auto_export: bool = True):
         self.results_dir = results_dir or Path("./performance_results")
         self.auto_export = auto_export
 
@@ -371,7 +364,7 @@ class PerformanceMonitor:
         logger.info(f"Starting performance session: {session_name}")
         self.resource_monitor.start_monitoring()
 
-    def end_session(self) -> Dict[str, Any]:
+    def end_session(self) -> dict[str, Any]:
         """End the current session and generate report."""
         if not hasattr(self, "session_name"):
             logger.warning("No active session to end")
@@ -401,22 +394,20 @@ class PerformanceMonitor:
         # Auto-export if enabled
         if self.auto_export:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            export_path = (
-                self.results_dir / f"session_{self.session_name}_{timestamp}.json"
-            )
+            export_path = self.results_dir / f"session_{self.session_name}_{timestamp}.json"
             self.resource_monitor.export_samples(export_path)
 
         return report
 
-    def get_current_usage(self) -> Optional[ResourceSample]:
+    def get_current_usage(self) -> ResourceSample | None:
         """Get current resource usage."""
         return self.resource_monitor.get_current_stats()
 
     def check_resource_limits(
         self,
-        max_memory_mb: Optional[float] = None,
-        max_cpu_percent: Optional[float] = None,
-    ) -> Dict[str, bool]:
+        max_memory_mb: float | None = None,
+        max_cpu_percent: float | None = None,
+    ) -> dict[str, bool]:
         """Check if current usage exceeds specified limits."""
         current = self.get_current_usage()
         if not current:
@@ -432,7 +423,7 @@ class PerformanceMonitor:
 
         return violations
 
-    def generate_performance_report(self) -> Dict[str, Any]:
+    def generate_performance_report(self) -> dict[str, Any]:
         """Generate comprehensive performance report."""
         if not self.resource_monitor.samples:
             return {"error": "No performance data available"}
@@ -450,7 +441,7 @@ class PerformanceMonitor:
 
         return report
 
-    def _generate_insights(self, summary: ResourceSummary) -> List[str]:
+    def _generate_insights(self, summary: ResourceSummary) -> list[str]:
         """Generate performance insights from summary data."""
         insights = []
 
@@ -482,23 +473,19 @@ class PerformanceMonitor:
 
         return insights
 
-    def _generate_recommendations(self, summary: ResourceSummary) -> List[str]:
+    def _generate_recommendations(self, summary: ResourceSummary) -> list[str]:
         """Generate optimization recommendations."""
         recommendations = []
 
         # Memory recommendations
         if summary.peak_memory_mb > 16000:  # 16GB
-            recommendations.append(
-                "Consider implementing memory optimization techniques"
-            )
+            recommendations.append("Consider implementing memory optimization techniques")
             recommendations.append("Use gradient checkpointing for model training")
 
         # Performance recommendations
         if summary.cpu_percent["avg"] > 70 and summary.duration_seconds > 60:
             recommendations.append("Consider using multiple worker processes")
-            recommendations.append(
-                "Implement asynchronous processing for I/O operations"
-            )
+            recommendations.append("Implement asynchronous processing for I/O operations")
 
         # GPU recommendations
         if summary.gpu_avg_utilization and summary.gpu_avg_utilization < 60:

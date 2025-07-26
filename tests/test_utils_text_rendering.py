@@ -4,17 +4,18 @@ Unit tests for text rendering utilities - Imperative style.
 Tests text rendering for training data generation.
 """
 
-import pytest
-import numpy as np
-from PIL import Image
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
+import numpy as np
+import pytest
+from PIL import Image
+
+from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
 from src.anonymizer.utils.text_rendering import (
     FontManager,
     TextRenderer,
     render_text_simple,
 )
-from src.anonymizer.core.exceptions import ValidationError, PreprocessingError
 
 
 class TestFontManager:
@@ -367,17 +368,13 @@ class TestTextRenderer:
 
                     # Width should be max of lines (100), height should include spacing
                     assert width == 100
-                    assert (
-                        height > 20
-                    )  # Should be greater than single line due to spacing
+                    assert height > 20  # Should be greater than single line due to spacing
 
     def test_estimate_text_size_error_handling(self):
         """Test text size estimation error handling."""
         renderer = TextRenderer()
 
-        with patch.object(
-            renderer.font_manager, "get_font", side_effect=Exception("Font error")
-        ):
+        with patch.object(renderer.font_manager, "get_font", side_effect=Exception("Font error")):
             width, height = renderer.estimate_text_size("Test")
 
             # Should return zeros on error
@@ -433,9 +430,7 @@ class TestTextRenderingEdgeCases:
         """Test rendering very long single line."""
         renderer = TextRenderer(default_image_size=(1000, 100))
 
-        long_text = (
-            "This is a very long line of text that should extend beyond normal bounds"
-        )
+        long_text = "This is a very long line of text that should extend beyond normal bounds"
         image = renderer.render_text(long_text)
 
         assert isinstance(image, Image.Image)

@@ -6,12 +6,13 @@ Tests the complete CLI interface including command parsing, configuration loadin
 and basic functionality verification.
 """
 
-import pytest
 import tempfile
-import yaml
 from pathlib import Path
-from PIL import Image
+
+import pytest
+import yaml
 from click.testing import CliRunner
+from PIL import Image
 
 from main import cli
 
@@ -343,9 +344,7 @@ class TestCLIIntegration:
         # Will fail due to missing data, but should not crash
 
         # Test UNet training command
-        result2 = runner.invoke(
-            cli, ["train-unet", "--config", str(sample_unet_config)]
-        )
+        result2 = runner.invoke(cli, ["train-unet", "--config", str(sample_unet_config)])
         # Will fail due to missing data, but should not crash
 
         # Test anonymization command

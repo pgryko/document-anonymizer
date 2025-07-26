@@ -33,9 +33,7 @@ def test_xfund_compatibility():
 
     try:
         # Create dataset
-        dataset = AnonymizerDataset(
-            data_dir=config.train_data_path, config=config, split="train"
-        )
+        dataset = AnonymizerDataset(data_dir=config.train_data_path, config=config, split="train")
 
         print(f"✓ Successfully created dataset with {len(dataset)} samples")
 
@@ -47,12 +45,11 @@ def test_xfund_compatibility():
         print(f"  - Number of texts: {len(sample['texts'])}")
 
         # Test dataloader
-        dataloader = create_dataloader(
-            dataset, batch_size=2, num_workers=0, shuffle=False
-        )
+        dataloader = create_dataloader(dataset, batch_size=2, num_workers=0, shuffle=False)
 
         # Manually fix the dataloader creation for num_workers=0
         from torch.utils.data import DataLoader
+
         from src.anonymizer.training.datasets import collate_fn
 
         dataloader = DataLoader(

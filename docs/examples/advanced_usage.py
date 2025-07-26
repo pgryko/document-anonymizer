@@ -8,16 +8,17 @@ and integration scenarios for the Document Anonymization System.
 
 import asyncio
 import logging
-from pathlib import Path
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 
-from src.anonymizer import DocumentAnonymizer, AnonymizationConfig
+from src.anonymizer import AnonymizationConfig, DocumentAnonymizer
 from src.anonymizer.core.models import BoundingBox
-from src.anonymizer.ocr import OCREngine, OCRResult, DetectedText
-from src.anonymizer.performance import PerformanceMonitor, AnonymizationBenchmark
+from src.anonymizer.ocr import DetectedText, OCREngine, OCRResult
+from src.anonymizer.performance import AnonymizationBenchmark, PerformanceMonitor
 
 
 class CustomOCREngine(OCREngine):
@@ -25,7 +26,7 @@ class CustomOCREngine(OCREngine):
     Example of implementing a custom OCR engine.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
         self.name = "custom_ocr"
 
@@ -56,7 +57,6 @@ class CustomOCREngine(OCREngine):
 
     def cleanup(self):
         """Clean up any resources."""
-        pass
 
 
 @dataclass
@@ -80,9 +80,7 @@ class CustomAnonymizationStrategy:
 
         # Apply Gaussian blur
         region = image[y1:y2, x1:x2]
-        blurred_region = cv2.GaussianBlur(
-            region, (self.blur_radius, self.blur_radius), 0
-        )
+        blurred_region = cv2.GaussianBlur(region, (self.blur_radius, self.blur_radius), 0)
 
         # Replace region in original image
         result_image = image.copy()
@@ -96,7 +94,7 @@ class AdvancedDocumentProcessor:
     Advanced document processor with custom features.
     """
 
-    def __init__(self, config: Optional[AnonymizationConfig] = None):
+    def __init__(self, config: AnonymizationConfig | None = None):
         self.config = config or AnonymizationConfig()
         self.anonymizer = DocumentAnonymizer(self.config)
         self.performance_monitor = PerformanceMonitor()
@@ -110,9 +108,7 @@ class AdvancedDocumentProcessor:
         self.custom_strategies[name] = strategy
         self.logger.info(f"Registered custom strategy: {name}")
 
-    def process_with_custom_ocr(
-        self, document_path: str, output_path: str
-    ) -> Dict[str, Any]:
+    def process_with_custom_ocr(self, document_path: str, output_path: str) -> dict[str, Any]:
         """
         Process document using custom OCR engine.
         """
@@ -142,9 +138,7 @@ class AdvancedDocumentProcessor:
             "custom_ocr_used": True,
         }
 
-    def process_with_quality_control(
-        self, document_path: str, output_path: str
-    ) -> Dict[str, Any]:
+    def process_with_quality_control(self, document_path: str, output_path: str) -> dict[str, Any]:
         """
         Process document with quality control and fallback mechanisms.
         """
@@ -224,16 +218,16 @@ class BatchProcessingPipeline:
 
     async def async_process_documents(
         self,
-        input_files: List[Path],
+        input_files: list[Path],
         output_dir: Path,
-        config: Optional[AnonymizationConfig] = None,
-    ) -> List[Dict[str, Any]]:
+        config: AnonymizationConfig | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Asynchronously process multiple documents with progress tracking.
         """
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        async def process_single_document(file_path: Path) -> Dict[str, Any]:
+        async def process_single_document(file_path: Path) -> dict[str, Any]:
             """Process a single document asynchronously."""
             try:
                 output_path = output_dir / f"anonymized_{file_path.name}"
@@ -277,15 +271,15 @@ class BatchProcessingPipeline:
         return processed_results
 
     def _process_document_sync(
-        self, input_path: Path, output_path: Path, config: Optional[AnonymizationConfig]
+        self, input_path: Path, output_path: Path, config: AnonymizationConfig | None
     ):
         """Synchronous document processing for use in thread pool."""
         anonymizer = DocumentAnonymizer(config)
         return anonymizer.anonymize_document(str(input_path), str(output_path))
 
     def parallel_process_with_monitoring(
-        self, input_files: List[Path], output_dir: Path
-    ) -> Dict[str, Any]:
+        self, input_files: list[Path], output_dir: Path
+    ) -> dict[str, Any]:
         """
         Process documents in parallel with comprehensive monitoring.
         """
@@ -318,9 +312,7 @@ class BatchProcessingPipeline:
                         }
                     )
                 except Exception as e:
-                    results.append(
-                        {"file": str(file_path), "success": False, "error": str(e)}
-                    )
+                    results.append({"file": str(file_path), "success": False, "error": str(e)})
 
         # End monitoring session
         performance_report = self.performance_monitor.end_session()
@@ -336,9 +328,7 @@ class BatchProcessingPipeline:
             "success_rate": len(successful) / len(input_files) if input_files else 0,
             "total_entities": sum(r.get("entities", 0) for r in successful),
             "avg_processing_time_ms": (
-                sum(r.get("time_ms", 0) for r in successful) / len(successful)
-                if successful
-                else 0
+                sum(r.get("time_ms", 0) for r in successful) / len(successful) if successful else 0
             ),
             "performance_report": performance_report,
             "detailed_results": results,
@@ -354,7 +344,7 @@ class SmartConfigurationManager:
         self.document_profiles = {}
         self.performance_history = {}
 
-    def analyze_document_characteristics(self, document_path: str) -> Dict[str, Any]:
+    def analyze_document_characteristics(self, document_path: str) -> dict[str, Any]:
         """
         Analyze document to determine optimal configuration.
         """
@@ -393,9 +383,7 @@ class SmartConfigurationManager:
                         # This is a simplified calculation
                         total_image_size += img[2] * img[3] if len(img) > 3 else 1000
 
-            characteristics["text_density"] = (
-                total_text_length / len(doc) if len(doc) > 0 else 0
-            )
+            characteristics["text_density"] = total_text_length / len(doc) if len(doc) > 0 else 0
             characteristics["avg_image_size"] = (
                 total_image_size / image_count if image_count > 0 else 0
             )
@@ -438,7 +426,7 @@ class SmartConfigurationManager:
             )
 
         # Simple text documents
-        elif characteristics.get("text_density", 0) > 500 and not characteristics.get(
+        if characteristics.get("text_density", 0) > 500 and not characteristics.get(
             "has_images", False
         ):
             return AnonymizationConfig(
@@ -450,7 +438,7 @@ class SmartConfigurationManager:
             )
 
         # Image-heavy documents
-        elif characteristics.get("has_images", False):
+        if characteristics.get("has_images", False):
             return AnonymizationConfig(
                 ocr_engines=["paddleocr", "easyocr", "trotr"],
                 ocr_confidence_threshold=0.8,
@@ -460,12 +448,11 @@ class SmartConfigurationManager:
             )
 
         # Default balanced configuration
-        else:
-            return AnonymizationConfig(
-                ocr_engines=["paddleocr", "tesseract"],
-                anonymization_strategy="inpainting",
-                use_gpu=True,
-            )
+        return AnonymizationConfig(
+            ocr_engines=["paddleocr", "tesseract"],
+            anonymization_strategy="inpainting",
+            use_gpu=True,
+        )
 
 
 class QualityAssuranceFramework:
@@ -478,7 +465,7 @@ class QualityAssuranceFramework:
 
     def validate_anonymization_result(
         self, original_path: str, anonymized_path: str, result: Any
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Comprehensive validation of anonymization results.
         """
@@ -490,9 +477,7 @@ class QualityAssuranceFramework:
         }
 
         # Check 1: File integrity
-        validation_report["checks"]["file_integrity"] = self._check_file_integrity(
-            anonymized_path
-        )
+        validation_report["checks"]["file_integrity"] = self._check_file_integrity(anonymized_path)
 
         # Check 2: PII leakage detection
         validation_report["checks"]["pii_leakage"] = self._check_pii_leakage(
@@ -505,8 +490,8 @@ class QualityAssuranceFramework:
         )
 
         # Check 4: Metadata preservation
-        validation_report["checks"]["metadata_preservation"] = (
-            self._check_metadata_preservation(original_path, anonymized_path)
+        validation_report["checks"]["metadata_preservation"] = self._check_metadata_preservation(
+            original_path, anonymized_path
         )
 
         # Overall quality score
@@ -516,7 +501,7 @@ class QualityAssuranceFramework:
 
         return validation_report
 
-    def _check_file_integrity(self, file_path: str) -> Dict[str, Any]:
+    def _check_file_integrity(self, file_path: str) -> dict[str, Any]:
         """Check if the anonymized file is valid and readable."""
         try:
             import fitz
@@ -529,9 +514,7 @@ class QualityAssuranceFramework:
         except Exception as e:
             return {"status": "fail", "error": str(e), "readable": False}
 
-    def _check_pii_leakage(
-        self, file_path: str, anonymization_result: Any
-    ) -> Dict[str, Any]:
+    def _check_pii_leakage(self, file_path: str, anonymization_result: Any) -> dict[str, Any]:
         """
         Check for potential PII leakage in the anonymized document.
         """
@@ -544,9 +527,7 @@ class QualityAssuranceFramework:
             "confidence": 0.95,
         }
 
-    def _assess_visual_quality(
-        self, original_path: str, anonymized_path: str
-    ) -> Dict[str, Any]:
+    def _assess_visual_quality(self, original_path: str, anonymized_path: str) -> dict[str, Any]:
         """
         Assess visual quality by comparing original and anonymized documents.
         """
@@ -561,7 +542,7 @@ class QualityAssuranceFramework:
 
     def _check_metadata_preservation(
         self, original_path: str, anonymized_path: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Check if important metadata is preserved while sensitive metadata is removed.
         """
@@ -572,7 +553,7 @@ class QualityAssuranceFramework:
             "title_preserved": True,
         }
 
-    def _calculate_overall_quality(self, checks: Dict[str, Any]) -> float:
+    def _calculate_overall_quality(self, checks: dict[str, Any]) -> float:
         """Calculate overall quality score based on individual checks."""
         scores = []
 
@@ -636,9 +617,7 @@ async def main():
     print("   ✅ Quality assurance framework initialized")
 
     print("\n🎉 Advanced examples setup complete!")
-    print(
-        "💡 To run with real documents, provide sample PDFs in the examples/ directory"
-    )
+    print("💡 To run with real documents, provide sample PDFs in the examples/ directory")
 
 
 if __name__ == "__main__":

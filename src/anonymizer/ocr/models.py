@@ -6,8 +6,8 @@ Data structures for OCR processing and results.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Dict, Any
 from enum import Enum
+from typing import Any
 
 from ..core.models import BoundingBox
 
@@ -28,11 +28,11 @@ class DetectedText:
     text: str
     bbox: BoundingBox
     confidence: float
-    language: Optional[str] = None
-    orientation: Optional[float] = None  # Text rotation angle in degrees
-    font_size: Optional[float] = None  # Estimated font size
-    is_handwritten: Optional[bool] = None
-    metadata: Optional[Dict[str, Any]] = None
+    language: str | None = None
+    orientation: float | None = None  # Text rotation angle in degrees
+    font_size: float | None = None  # Estimated font size
+    is_handwritten: bool | None = None
+    metadata: dict[str, Any] | None = None
 
     def __post_init__(self):
         """Validate detected text after initialization."""
@@ -40,9 +40,7 @@ class DetectedText:
             raise ValueError("Text cannot be empty")
 
         if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(
-                f"Confidence must be between 0 and 1, got {self.confidence}"
-            )
+            raise ValueError(f"Confidence must be between 0 and 1, got {self.confidence}")
 
         if self.orientation is not None and not (-180 <= self.orientation <= 180):
             raise ValueError(
@@ -54,13 +52,13 @@ class DetectedText:
 class OCRResult:
     """Complete OCR processing result for a document image."""
 
-    detected_texts: List[DetectedText]
+    detected_texts: list[DetectedText]
     processing_time_ms: float
     engine_used: OCREngine
-    image_size: Tuple[int, int]  # (width, height)
+    image_size: tuple[int, int]  # (width, height)
     success: bool = True
-    errors: List[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    errors: list[str] = None
+    metadata: dict[str, Any] | None = None
 
     def __post_init__(self):
         """Initialize errors list if None."""
@@ -77,15 +75,13 @@ class OCRResult:
         """Average confidence across all detections."""
         if not self.detected_texts:
             return 0.0
-        return sum(text.confidence for text in self.detected_texts) / len(
-            self.detected_texts
-        )
+        return sum(text.confidence for text in self.detected_texts) / len(self.detected_texts)
 
-    def high_confidence_texts(self, threshold: float = 0.7) -> List[DetectedText]:
+    def high_confidence_texts(self, threshold: float = 0.7) -> list[DetectedText]:
         """Filter texts with confidence above threshold."""
         return [text for text in self.detected_texts if text.confidence >= threshold]
 
-    def filter_by_language(self, language: str) -> List[DetectedText]:
+    def filter_by_language(self, language: str) -> list[DetectedText]:
         """Filter texts by language."""
         return [
             text
@@ -93,15 +89,9 @@ class OCRResult:
             if text.language and text.language.lower() == language.lower()
         ]
 
-    def get_text_by_confidence_range(
-        self, min_conf: float, max_conf: float
-    ) -> List[DetectedText]:
+    def get_text_by_confidence_range(self, min_conf: float, max_conf: float) -> list[DetectedText]:
         """Get texts within confidence range."""
-        return [
-            text
-            for text in self.detected_texts
-            if min_conf <= text.confidence <= max_conf
-        ]
+        return [text for text in self.detected_texts if min_conf <= text.confidence <= max_conf]
 
 
 @dataclass
@@ -110,7 +100,7 @@ class OCRConfig:
 
     # Engine selection
     primary_engine: OCREngine = OCREngine.PADDLEOCR
-    fallback_engines: List[OCREngine] = None
+    fallback_engines: list[OCREngine] = None
 
     # Detection parameters
     min_confidence_threshold: float = 0.5
@@ -124,7 +114,7 @@ class OCRConfig:
     noise_reduction: bool = True
 
     # Language settings
-    languages: List[str] = None  # e.g., ['en', 'es', 'fr']
+    languages: list[str] = None  # e.g., ['en', 'es', 'fr']
     detect_language: bool = True
 
     # Performance settings
@@ -193,10 +183,10 @@ class OCRMetrics:
 
     engine_used: OCREngine
     fallback_attempted: bool = False
-    fallback_engines_tried: List[OCREngine] = None
+    fallback_engines_tried: list[OCREngine] = None
 
-    memory_usage_mb: Optional[float] = None
-    gpu_usage_percent: Optional[float] = None
+    memory_usage_mb: float | None = None
+    gpu_usage_percent: float | None = None
 
     def __post_init__(self):
         """Initialize fallback engines list if None."""
@@ -217,7 +207,7 @@ class OCRMetrics:
             return 0.0
         return self.total_texts_detected / (self.total_processing_time_ms / 1000)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert metrics to dictionary for logging/serialization."""
         return {
             "total_processing_time_ms": self.total_processing_time_ms,
@@ -231,9 +221,7 @@ class OCRMetrics:
             "average_processing_speed": self.average_processing_speed,
             "engine_used": self.engine_used.value,
             "fallback_attempted": self.fallback_attempted,
-            "fallback_engines_tried": [
-                engine.value for engine in self.fallback_engines_tried
-            ],
+            "fallback_engines_tried": [engine.value for engine in self.fallback_engines_tried],
             "memory_usage_mb": self.memory_usage_mb,
             "gpu_usage_percent": self.gpu_usage_percent,
         }

@@ -6,11 +6,10 @@ Provider for system fonts available on the local machine.
 Handles detection and loading of fonts from standard system locations.
 """
 
+import logging
 import os
 import platform
 from pathlib import Path
-from typing import List, Dict, Optional
-import logging
 
 from .manager import FontMetadata
 
@@ -29,12 +28,12 @@ class SystemFontProvider:
         """Initialize system font provider."""
         self.system = platform.system().lower()
         self.font_directories = self._get_system_font_directories()
-        self.fonts_cache: Dict[str, FontMetadata] = {}
+        self.fonts_cache: dict[str, FontMetadata] = {}
 
         logger.debug(f"SystemFontProvider initialized for {self.system}")
         logger.debug(f"Font directories: {self.font_directories}")
 
-    def _get_system_font_directories(self) -> List[Path]:
+    def _get_system_font_directories(self) -> list[Path]:
         """Get system font directories based on operating system."""
         directories = []
 
@@ -43,10 +42,7 @@ class SystemFontProvider:
             directories.extend(
                 [
                     Path(os.environ.get("WINDIR", "C:\\Windows")) / "Fonts",
-                    Path(os.environ.get("LOCALAPPDATA", ""))
-                    / "Microsoft"
-                    / "Windows"
-                    / "Fonts",
+                    Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "Windows" / "Fonts",
                 ]
             )
 
@@ -79,7 +75,7 @@ class SystemFontProvider:
         # Filter to existing directories
         return [d for d in directories if d.exists() and d.is_dir()]
 
-    def list_fonts(self) -> List[FontMetadata]:
+    def list_fonts(self) -> list[FontMetadata]:
         """List all system fonts."""
         fonts = []
 
@@ -91,7 +87,7 @@ class SystemFontProvider:
 
         return fonts
 
-    def _scan_font_directory(self, font_dir: Path) -> List[FontMetadata]:
+    def _scan_font_directory(self, font_dir: Path) -> list[FontMetadata]:
         """Scan a font directory for font files."""
         fonts = []
 
@@ -115,7 +111,7 @@ class SystemFontProvider:
 
         return fonts
 
-    def _create_font_metadata(self, font_path: str) -> Optional[FontMetadata]:
+    def _create_font_metadata(self, font_path: str) -> FontMetadata | None:
         """Create font metadata from system font file."""
         try:
             from .utils import get_font_info
@@ -154,17 +150,13 @@ class SystemFontProvider:
         try:
             # For system fonts, use file size + modification time as a lightweight checksum
             stat = os.stat(font_path)
-            checksum_data = (
-                f"{stat.st_size}_{stat.st_mtime}_{os.path.basename(font_path)}"
-            )
+            checksum_data = f"{stat.st_size}_{stat.st_mtime}_{os.path.basename(font_path)}"
             return hashlib.md5(checksum_data.encode()).hexdigest()
         except Exception:
             # Fallback to filename hash
             return hashlib.md5(os.path.basename(font_path).encode()).hexdigest()
 
-    def find_font(
-        self, font_name: str, style: str = "normal"
-    ) -> Optional[FontMetadata]:
+    def find_font(self, font_name: str, style: str = "normal") -> FontMetadata | None:
         """
         Find a specific system font.
 
@@ -178,12 +170,11 @@ class SystemFontProvider:
         # Use system-specific font finding methods
         if self.system == "windows":
             return self._find_windows_font(font_name, style)
-        elif self.system == "darwin":
+        if self.system == "darwin":
             return self._find_macos_font(font_name, style)
-        else:
-            return self._find_linux_font(font_name, style)
+        return self._find_linux_font(font_name, style)
 
-    def _find_windows_font(self, font_name: str, style: str) -> Optional[FontMetadata]:
+    def _find_windows_font(self, font_name: str, style: str) -> FontMetadata | None:
         """Find font on Windows using registry."""
         try:
             import winreg
@@ -226,12 +217,12 @@ class SystemFontProvider:
 
         return None
 
-    def _find_macos_font(self, font_name: str, style: str) -> Optional[FontMetadata]:
+    def _find_macos_font(self, font_name: str, style: str) -> FontMetadata | None:
         """Find font on macOS using system font cache."""
         try:
             # Try using system font database
-            import subprocess
             import json
+            import subprocess
 
             # Use system_profiler to get font information
             result = subprocess.run(
@@ -239,20 +230,20 @@ class SystemFontProvider:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                check=False,
             )
 
             if result.returncode == 0:
                 data = json.loads(result.stdout)
                 # Parse font data and find matching font
                 # This is a simplified implementation
-                pass
 
         except Exception as e:
             logger.debug(f"Failed to search macOS fonts for {font_name}: {e}")
 
         return None
 
-    def _find_linux_font(self, font_name: str, style: str) -> Optional[FontMetadata]:
+    def _find_linux_font(self, font_name: str, style: str) -> FontMetadata | None:
         """Find font on Linux using fontconfig."""
         try:
             import subprocess
@@ -263,6 +254,7 @@ class SystemFontProvider:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                check=False,
             )
 
             if result.returncode == 0:
@@ -275,7 +267,7 @@ class SystemFontProvider:
 
         return None
 
-    def get_system_font_info(self) -> Dict[str, any]:
+    def get_system_font_info(self) -> dict[str, any]:
         """Get system font information."""
         info = {
             "system": self.system,
@@ -287,9 +279,7 @@ class SystemFontProvider:
         directory_counts = {}
         for font_dir in self.font_directories:
             try:
-                count = len(list(font_dir.rglob("*.ttf"))) + len(
-                    list(font_dir.rglob("*.otf"))
-                )
+                count = len(list(font_dir.rglob("*.ttf"))) + len(list(font_dir.rglob("*.otf")))
                 directory_counts[str(font_dir)] = count
             except Exception:
                 directory_counts[str(font_dir)] = 0
@@ -306,14 +296,14 @@ class SystemFontProvider:
                 # Refresh fontconfig cache
                 import subprocess
 
-                subprocess.run(["fc-cache", "-f"], timeout=30)
+                subprocess.run(["fc-cache", "-f"], timeout=30, check=False)
                 logger.info("Refreshed fontconfig cache")
 
             elif self.system == "darwin":
                 # Clear macOS font cache
                 import subprocess
 
-                subprocess.run(["atsutil", "databases", "-remove"], timeout=30)
+                subprocess.run(["atsutil", "databases", "-remove"], timeout=30, check=False)
                 logger.info("Cleared macOS font cache")
 
             elif self.system == "windows":

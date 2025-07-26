@@ -16,29 +16,29 @@ This implementation fixes critical bugs in the reference implementations:
 __version__ = "1.0.0"
 __author__ = "Document Anonymizer Team"
 
+from .core.config import EngineConfig, UNetConfig, VAEConfig
+from .core.exceptions import AnonymizerError, InferenceError, TrainingError
 from .core.models import (
     AnonymizationRequest,
     AnonymizationResult,
-    ProcessedImage,
-    GeneratedPatch,
     FontInfo,
+    GeneratedPatch,
+    ProcessedImage,
 )
-from .core.config import VAEConfig, UNetConfig, EngineConfig
-from .core.exceptions import AnonymizerError, TrainingError, InferenceError
 from .fonts import FontManager, FontMetadata
 
 __all__ = [
     "AnonymizationRequest",
     "AnonymizationResult",
-    "ProcessedImage",
-    "GeneratedPatch",
-    "FontInfo",
-    "VAEConfig",
-    "UNetConfig",
-    "EngineConfig",
     "AnonymizerError",
-    "TrainingError",
-    "InferenceError",
+    "EngineConfig",
+    "FontInfo",
     "FontManager",
     "FontMetadata",
+    "GeneratedPatch",
+    "InferenceError",
+    "ProcessedImage",
+    "TrainingError",
+    "UNetConfig",
+    "VAEConfig",
 ]

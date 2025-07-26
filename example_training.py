@@ -25,6 +25,7 @@ Usage:
 import logging
 import sys
 from pathlib import Path
+
 import click
 
 # Setup logging
@@ -34,15 +35,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 try:
-    from src.anonymizer.core.config import VAEConfig, UNetConfig
-    from src.anonymizer.training.vae_trainer import VAETrainer
-    from src.anonymizer.training.unet_trainer import UNetTrainer
+    from src.anonymizer.core.config import UNetConfig, VAEConfig
     from src.anonymizer.core.exceptions import TrainingError
+    from src.anonymizer.training.unet_trainer import UNetTrainer
+    from src.anonymizer.training.vae_trainer import VAETrainer
 except ImportError as e:
     logger.error(f"Import failed: {e}")
-    logger.error(
-        "Make sure you have all dependencies installed and the project is properly set up"
-    )
+    logger.error("Make sure you have all dependencies installed and the project is properly set up")
     sys.exit(1)
 
 
@@ -61,13 +60,9 @@ def _train_vae_impl(config_path: Path, data_path: Path = None, output_dir: Path 
     try:
         # Load configuration - now supports environment variables!
         config = VAEConfig.from_env_and_yaml(yaml_path=config_path)
-        logger.info(
-            f"✅ Loaded VAE config with LR={config.learning_rate} (FIXED from 5e-6)"
-        )
+        logger.info(f"✅ Loaded VAE config with LR={config.learning_rate} (FIXED from 5e-6)")
         logger.info(f"✅ Batch size: {config.batch_size} (FIXED from 2)")
-        logger.info(
-            f"✅ KL weight: {config.loss.kl_weight} (CRITICAL FIX: was missing!)"
-        )
+        logger.info(f"✅ KL weight: {config.loss.kl_weight} (CRITICAL FIX: was missing!)")
 
         # Override paths if provided
         if data_path:
@@ -99,9 +94,7 @@ def _train_vae_impl(config_path: Path, data_path: Path = None, output_dir: Path 
         raise TrainingError(f"VAE training failed: {e}")
 
 
-def _train_unet_impl(
-    config_path: Path, data_path: Path = None, output_dir: Path = None
-):
+def _train_unet_impl(config_path: Path, data_path: Path = None, output_dir: Path = None):
     """
     Train UNet with critical bug fixes.
 
@@ -116,13 +109,9 @@ def _train_unet_impl(
     try:
         # Load configuration - now supports environment variables!
         config = UNetConfig.from_env_and_yaml(yaml_path=config_path)
-        logger.info(
-            f"✅ Loaded UNet config with LR={config.learning_rate} (FIXED from 1e-5)"
-        )
+        logger.info(f"✅ Loaded UNet config with LR={config.learning_rate} (FIXED from 1e-5)")
         logger.info(f"✅ Batch size: {config.batch_size} (FIXED from 4)")
-        logger.info(
-            f"✅ Base model: {config.base_model} (correct 9-channel architecture)"
-        )
+        logger.info(f"✅ Base model: {config.base_model} (correct 9-channel architecture)")
 
         # Override paths if provided
         if data_path:
@@ -426,9 +415,7 @@ def validate_config(config, model_type, env_file):
             logger.info(
                 f"✅ UNet config valid - LR: {config_obj.learning_rate}, Batch: {config_obj.batch_size}"
             )
-            logger.info(
-                f"   Model: {config_obj.model_name}, Base: {config_obj.base_model}"
-            )
+            logger.info(f"   Model: {config_obj.model_name}, Base: {config_obj.base_model}")
         elif model_type == "app":
             from src.anonymizer.core.config import AppConfig
 

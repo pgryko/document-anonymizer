@@ -1,0 +1,32 @@
+# Code Owners for Document Anonymizer
+
+# Global owners
+* @piotrgryko
+
+# Core components
+/src/anonymizer/core/ @piotrgryko
+/src/anonymizer/models/ @piotrgryko
+/src/anonymizer/inference/ @piotrgryko
+
+# Training and ML
+/src/anonymizer/training/ @piotrgryko
+/src/anonymizer/cloud/ @piotrgryko
+
+# OCR and text processing
+/src/anonymizer/ocr/ @piotrgryko
+
+# Batch processing
+/src/anonymizer/batch/ @piotrgryko
+
+# Tests
+/tests/ @piotrgryko
+
+# CI/CD
+/.github/ @piotrgryko
+/.gitlab-ci.yml @piotrgryko
+/Dockerfile @piotrgryko
+/docker-compose.yml @piotrgryko
+
+# Documentation
+/docs/ @piotrgryko
+*.md @piotrgryko

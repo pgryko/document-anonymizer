@@ -5,21 +5,22 @@ Model Management Tests
 Tests for model downloading, validation, and management functionality.
 """
 
-import pytest
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from src.anonymizer.models.config import (
     ModelConfig,
-    ModelSource,
-    ModelMetadata,
-    ValidationResult,
-    ModelType,
     ModelFormat,
+    ModelMetadata,
+    ModelSource,
+    ModelType,
+    ValidationResult,
 )
+from src.anonymizer.models.manager import ModelManager
 from src.anonymizer.models.registry import ModelRegistry
 from src.anonymizer.models.validator import ModelValidator
-from src.anonymizer.models.manager import ModelManager
 
 
 class TestModelConfig:
@@ -46,9 +47,7 @@ class TestModelConfig:
         """Test ModelSource validation."""
         # Test empty name
         with pytest.raises(ValueError):
-            ModelSource(
-                name="", url="https://example.com", format=ModelFormat.SAFETENSORS
-            )
+            ModelSource(name="", url="https://example.com", format=ModelFormat.SAFETENSORS)
 
         # Test empty URL
         with pytest.raises(ValueError):
@@ -118,9 +117,7 @@ class TestModelConfig:
 
     def test_validation_result(self):
         """Test ValidationResult functionality."""
-        result = ValidationResult(
-            valid=True, model_path=Path("/test/path"), errors=[], warnings=[]
-        )
+        result = ValidationResult(valid=True, model_path=Path("/test/path"), errors=[], warnings=[])
 
         assert result.valid is True
         assert not result.has_errors
@@ -420,10 +417,7 @@ class TestModelManager:
 
         # All results should contain the search term
         for result in results:
-            assert (
-                "sd2" in result.name.lower()
-                or "sd2" in (result.description or "").lower()
-            )
+            assert "sd2" in result.name.lower() or "sd2" in (result.description or "").lower()
 
     def test_cleanup_functionality(self, manager):
         """Test cleanup functionality."""
@@ -449,10 +443,10 @@ class TestModelIntegration:
     def test_model_imports(self):
         """Test that model management modules can be imported."""
         from src.anonymizer.models import (
-            ModelManager,
             ModelConfig,
-            ModelType,
             ModelFormat,
+            ModelManager,
+            ModelType,
         )
 
         # Should import without errors

@@ -4,18 +4,19 @@ Unit tests for VAE trainer - Imperative style.
 Tests the corrected VAE trainer with KL divergence loss fix.
 """
 
-import pytest
-import torch
 from unittest.mock import Mock, patch
 
-from src.anonymizer.training.vae_trainer import VAETrainer, PerceptualLoss
-from src.anonymizer.core.models import ModelArtifacts
+import pytest
+import torch
+
 from src.anonymizer.core.config import VAEConfig
 from src.anonymizer.core.exceptions import (
-    TrainingError,
     ModelLoadError,
+    TrainingError,
     ValidationError,
 )
+from src.anonymizer.core.models import ModelArtifacts
+from src.anonymizer.training.vae_trainer import PerceptualLoss, VAETrainer
 
 
 class TestPerceptualLoss:
@@ -110,9 +111,7 @@ class TestVAETrainer:
         """Test distributed training setup."""
         trainer = VAETrainer(vae_config)
 
-        with patch(
-            "src.anonymizer.training.vae_trainer.Accelerator"
-        ) as mock_accelerator:
+        with patch("src.anonymizer.training.vae_trainer.Accelerator") as mock_accelerator:
             mock_accelerator.return_value.device = torch.device("cpu")
 
             trainer.setup_distributed()
@@ -160,10 +159,7 @@ class TestVAETrainer:
 
         assert isinstance(optimizer, torch.optim.AdamW)
         assert optimizer.param_groups[0]["lr"] == vae_config.learning_rate
-        assert (
-            optimizer.param_groups[0]["weight_decay"]
-            == vae_config.optimizer.weight_decay
-        )
+        assert optimizer.param_groups[0]["weight_decay"] == vae_config.optimizer.weight_decay
 
     def test_vae_trainer_setup_optimizer_unsupported(self, vae_config):
         """Test optimizer setup with unsupported optimizer type."""
@@ -181,9 +177,7 @@ class TestVAETrainer:
         """Test optimizer setup without VAE initialization."""
         trainer = VAETrainer(vae_config)
 
-        with pytest.raises(
-            TrainingError, match="VAE must be initialized before optimizer"
-        ):
+        with pytest.raises(TrainingError, match="VAE must be initialized before optimizer"):
             trainer._setup_optimizer()
 
     def test_vae_trainer_compute_loss_critical_fix(self, vae_config, device):
@@ -247,9 +241,7 @@ class TestVAETrainer:
         mock_vae = Mock()
         mock_posterior = Mock()
         mock_posterior.sample.return_value = torch.randn(2, 4, 64, 64, device=device)
-        mock_posterior.kl.return_value = torch.tensor(
-            float("nan"), device=device
-        )  # NaN KL
+        mock_posterior.kl.return_value = torch.tensor(float("nan"), device=device)  # NaN KL
 
         mock_encode_result = Mock()
         mock_encode_result.latent_dist = mock_posterior
@@ -406,9 +398,7 @@ class TestVAETrainer:
         trainer.vae = mock_vae
 
         with patch.object(trainer, "save_checkpoint") as mock_save_checkpoint:
-            mock_save_checkpoint.return_value = (
-                temp_dir / "final_model" / "model.safetensors"
-            )
+            mock_save_checkpoint.return_value = temp_dir / "final_model" / "model.safetensors"
 
             artifacts = trainer.save_model()
 

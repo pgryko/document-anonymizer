@@ -6,9 +6,9 @@ Configuration classes for model management, downloading, and validation.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Any
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
 
 class ModelType(Enum):
@@ -39,12 +39,12 @@ class ModelSource:
     name: str
     url: str
     format: ModelFormat
-    size_mb: Optional[int] = None
-    checksum: Optional[str] = None
+    size_mb: int | None = None
+    checksum: str | None = None
     checksum_type: str = "sha256"
     requires_auth: bool = False
-    license: Optional[str] = None
-    description: Optional[str] = None
+    license: str | None = None
+    description: str | None = None
 
     def __post_init__(self):
         """Validate model source configuration."""
@@ -83,7 +83,7 @@ class ModelConfig:
 
     # Security settings
     allow_external_urls: bool = True
-    trusted_domains: List[str] = None
+    trusted_domains: list[str] = None
 
     def __post_init__(self):
         """Initialize and validate configuration."""
@@ -121,19 +121,19 @@ class ModelMetadata:
     source_url: str
     local_path: Path
     size_bytes: int
-    checksum: Optional[str] = None
-    download_date: Optional[str] = None
-    last_used: Optional[str] = None
+    checksum: str | None = None
+    download_date: str | None = None
+    last_used: str | None = None
     usage_count: int = 0
-    tags: Optional[List[str]] = None
-    description: Optional[str] = None
+    tags: list[str] | None = None
+    description: str | None = None
 
     def __post_init__(self):
         """Initialize metadata."""
         if self.tags is None:
             self.tags = []
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert metadata to dictionary for serialization."""
         return {
             "name": self.name,
@@ -152,7 +152,7 @@ class ModelMetadata:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ModelMetadata":
+    def from_dict(cls, data: dict[str, Any]) -> "ModelMetadata":
         """Create metadata from dictionary."""
         return cls(
             name=data["name"],
@@ -177,12 +177,12 @@ class ValidationResult:
 
     valid: bool
     model_path: Path
-    errors: List[str]
-    warnings: List[str]
-    checksum_valid: Optional[bool] = None
-    format_valid: Optional[bool] = None
-    size_valid: Optional[bool] = None
-    loadable: Optional[bool] = None
+    errors: list[str]
+    warnings: list[str]
+    checksum_valid: bool | None = None
+    format_valid: bool | None = None
+    size_valid: bool | None = None
+    loadable: bool | None = None
 
     def __post_init__(self):
         """Initialize validation result."""

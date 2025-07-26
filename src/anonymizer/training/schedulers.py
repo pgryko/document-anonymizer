@@ -2,6 +2,7 @@
 
 import math
 from typing import Any
+
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from transformers import get_scheduler as get_hf_scheduler
@@ -32,9 +33,7 @@ class CosineAnnealingWithRestartsLR(_LRScheduler):
         """Calculate learning rate."""
         return [
             self.eta_min
-            + (base_lr - self.eta_min)
-            * (1 + math.cos(math.pi * self.T_cur / self.T_i))
-            / 2
+            + (base_lr - self.eta_min) * (1 + math.cos(math.pi * self.T_cur / self.T_i)) / 2
             for base_lr in self.base_lrs
         ]
 

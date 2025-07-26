@@ -2,25 +2,26 @@
 Pytest configuration and fixtures for document anonymization tests.
 """
 
+import json
+import tempfile
+from pathlib import Path
+
+import numpy as np
 import pytest
 import torch
-import numpy as np
-from pathlib import Path
 from PIL import Image
-import tempfile
-import json
 
-from src.anonymizer.core.models import (
-    BoundingBox,
-    TextRegion,
-    AnonymizationRequest,
-    ProcessedImage,
-)
 from src.anonymizer.core.config import (
-    VAEConfig,
-    UNetConfig,
-    EngineConfig,
     DatasetConfig,
+    EngineConfig,
+    UNetConfig,
+    VAEConfig,
+)
+from src.anonymizer.core.models import (
+    AnonymizationRequest,
+    BoundingBox,
+    ProcessedImage,
+    TextRegion,
 )
 
 
@@ -73,14 +74,10 @@ def sample_text_region(sample_bbox):
 @pytest.fixture
 def sample_processed_image(sample_image, sample_bbox):
     """Create sample processed image."""
-    crop = sample_image[
-        sample_bbox.top : sample_bbox.bottom, sample_bbox.left : sample_bbox.right
-    ]
+    crop = sample_image[sample_bbox.top : sample_bbox.bottom, sample_bbox.left : sample_bbox.right]
     mask = np.ones((crop.shape[0], crop.shape[1]), dtype=np.float32)
 
-    return ProcessedImage(
-        crop=crop, mask=mask, original_bbox=sample_bbox, scale_factor=1.0
-    )
+    return ProcessedImage(crop=crop, mask=mask, original_bbox=sample_bbox, scale_factor=1.0)
 
 
 @pytest.fixture
@@ -234,7 +231,6 @@ def skip_if_no_models():
     """Skip test if models not available (to avoid downloads in tests)."""
     # This can be used to skip tests that require model downloads
     # We'll mock the models instead
-    pass
 
 
 def pytest_configure(config):

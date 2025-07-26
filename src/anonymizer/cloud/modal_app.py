@@ -1,8 +1,7 @@
 """Modal.com application for document anonymizer training."""
 
-import sys
 import logging
-from typing import Optional
+import sys
 from pathlib import Path
 
 try:
@@ -88,15 +87,15 @@ if HAS_MODAL:
     def train_vae(
         config_path: str,
         train_data_path: str,
-        val_data_path: Optional[str] = None,
+        val_data_path: str | None = None,
         output_dir: str = "/data/checkpoints",
         wandb_project: str = "document-anonymizer",
-        wandb_entity: Optional[str] = None,
-        wandb_tags: Optional[list] = None,
+        wandb_entity: str | None = None,
+        wandb_tags: list | None = None,
         push_to_hub: bool = False,
-        hub_model_id: Optional[str] = None,
+        hub_model_id: str | None = None,
         hub_private: bool = True,
-        resume_from_checkpoint: Optional[str] = None,
+        resume_from_checkpoint: str | None = None,
         compile_model: bool = False,
     ):
         """Train VAE model on Modal.com."""
@@ -106,22 +105,21 @@ if HAS_MODAL:
 
         try:
             # Import training modules
-            from src.anonymizer.training import VAETrainer
-            from src.anonymizer.core.config import VAEConfig
-            from src.anonymizer.training.datasets import create_dataloader
-            import yaml
             import torch
+            import yaml
+
+            from src.anonymizer.core.config import VAEConfig
+            from src.anonymizer.training import VAETrainer
+            from src.anonymizer.training.datasets import create_dataloader
 
             print("🚀 Starting VAE training on Modal.com")
-            print(
-                f"GPU: {torch.cuda.get_device_name() if torch.cuda.is_available() else 'CPU'}"
-            )
+            print(f"GPU: {torch.cuda.get_device_name() if torch.cuda.is_available() else 'CPU'}")
             print(f"Config: {config_path}")
             print(f"Train data: {train_data_path}")
             print(f"Output: {output_dir}")
 
             # Load configuration
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config_dict = yaml.safe_load(f)
 
             # Create VAE config
@@ -204,7 +202,6 @@ if HAS_MODAL:
             if push_to_hub and hub_model_id:
                 print(f"📤 Pushing model to HuggingFace Hub: {hub_model_id}")
                 # TODO: Implement HuggingFace Hub upload
-                pass
 
             # Finish W&B run
             wandb_logger.finish()
@@ -230,15 +227,15 @@ if HAS_MODAL:
     def train_unet(
         config_path: str,
         train_data_path: str,
-        val_data_path: Optional[str] = None,
+        val_data_path: str | None = None,
         output_dir: str = "/data/checkpoints",
         wandb_project: str = "document-anonymizer",
-        wandb_entity: Optional[str] = None,
-        wandb_tags: Optional[list] = None,
+        wandb_entity: str | None = None,
+        wandb_tags: list | None = None,
         push_to_hub: bool = False,
-        hub_model_id: Optional[str] = None,
+        hub_model_id: str | None = None,
         hub_private: bool = True,
-        resume_from_checkpoint: Optional[str] = None,
+        resume_from_checkpoint: str | None = None,
         compile_model: bool = False,
     ):
         """Train UNet model on Modal.com."""
@@ -248,22 +245,21 @@ if HAS_MODAL:
 
         try:
             # Import training modules
-            from src.anonymizer.training import UNetTrainer
-            from src.anonymizer.core.config import UNetConfig
-            from src.anonymizer.training.datasets import create_dataloader
-            import yaml
             import torch
+            import yaml
+
+            from src.anonymizer.core.config import UNetConfig
+            from src.anonymizer.training import UNetTrainer
+            from src.anonymizer.training.datasets import create_dataloader
 
             print("🚀 Starting UNet training on Modal.com")
-            print(
-                f"GPU: {torch.cuda.get_device_name() if torch.cuda.is_available() else 'CPU'}"
-            )
+            print(f"GPU: {torch.cuda.get_device_name() if torch.cuda.is_available() else 'CPU'}")
             print(f"Config: {config_path}")
             print(f"Train data: {train_data_path}")
             print(f"Output: {output_dir}")
 
             # Load configuration
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config_dict = yaml.safe_load(f)
 
             # Create UNet config
@@ -341,7 +337,6 @@ if HAS_MODAL:
             if push_to_hub and hub_model_id:
                 print(f"📤 Pushing model to HuggingFace Hub: {hub_model_id}")
                 # TODO: Implement HuggingFace Hub upload
-                pass
 
             # Finish W&B run
             wandb_logger.finish()
@@ -365,8 +360,6 @@ else:
         raise ImportError("Modal not available. Install with: pip install modal")
 
     if app is None:
-        app = type(
-            "DummyApp", (), {"function": lambda *args, **kwargs: _modal_not_available}
-        )()
+        app = type("DummyApp", (), {"function": lambda *args, **kwargs: _modal_not_available})()
         train_vae = _modal_not_available
         train_unet = _modal_not_available

@@ -5,13 +5,12 @@ Model Registry
 Manages a registry of available models for document anonymization.
 """
 
-import logging
 import json
-from pathlib import Path
-from typing import Dict, List, Optional
+import logging
 from datetime import datetime
+from pathlib import Path
 
-from .config import ModelSource, ModelMetadata, ModelType, ModelFormat
+from .config import ModelFormat, ModelMetadata, ModelSource, ModelType
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +26,10 @@ class ModelRegistry:
     - Custom model registration
     """
 
-    def __init__(self, registry_path: Optional[Path] = None):
+    def __init__(self, registry_path: Path | None = None):
         self.registry_path = registry_path or Path("models/registry.json")
-        self._models: Dict[str, ModelSource] = {}
-        self._metadata: Dict[str, ModelMetadata] = {}
+        self._models: dict[str, ModelSource] = {}
+        self._metadata: dict[str, ModelMetadata] = {}
 
         # Load predefined models
         self._load_predefined_models()
@@ -113,7 +112,7 @@ class ModelRegistry:
     def _load_registry(self):
         """Load custom model registry from disk."""
         try:
-            with open(self.registry_path, "r") as f:
+            with open(self.registry_path) as f:
                 data = json.load(f)
 
             # Load custom models
@@ -206,15 +205,15 @@ class ModelRegistry:
             logger.error(f"Failed to register metadata for {metadata.name}: {e}")
             return False
 
-    def get_model(self, name: str) -> Optional[ModelSource]:
+    def get_model(self, name: str) -> ModelSource | None:
         """Get model source by name."""
         return self._models.get(name)
 
-    def get_metadata(self, name: str) -> Optional[ModelMetadata]:
+    def get_metadata(self, name: str) -> ModelMetadata | None:
         """Get model metadata by name."""
         return self._metadata.get(name)
 
-    def list_models(self, model_type: Optional[ModelType] = None) -> List[ModelSource]:
+    def list_models(self, model_type: ModelType | None = None) -> list[ModelSource]:
         """List available models, optionally filtered by type."""
         models = list(self._models.values())
 
@@ -234,44 +233,42 @@ class ModelRegistry:
 
         if model_type == ModelType.VAE:
             return "vae" in name_lower
-        elif model_type == ModelType.UNET:
+        if model_type == ModelType.UNET:
             return "unet" in name_lower
-        elif model_type == ModelType.TEXT_ENCODER:
+        if model_type == ModelType.TEXT_ENCODER:
             return "text" in name_lower or "encoder" in name_lower
-        elif model_type == ModelType.FULL_PIPELINE:
+        if model_type == ModelType.FULL_PIPELINE:
             return "inpainting" in name_lower or "pipeline" in name_lower
 
         return True
 
-    def get_recommended_models(
-        self, use_case: str = "default"
-    ) -> Dict[str, ModelSource]:
+    def get_recommended_models(self, use_case: str = "default") -> dict[str, ModelSource]:
         """Get recommended models for specific use cases."""
 
         if use_case == "fast":
             # Fast inference setup
             return {"pipeline": self._models["sd1.5-inpainting"]}
 
-        elif use_case == "quality":
+        if use_case == "quality":
             # High quality setup
             return {"pipeline": self._models["sd2-inpainting"]}
 
-        elif use_case == "custom":
+        if use_case == "custom":
             # Custom trained models
             return {
                 "vae": self._models["anonymizer-vae-v1"],
                 "unet": self._models["anonymizer-unet-v1"],
             }
 
-        else:  # default
-            # Balanced setup
-            return {
-                "pipeline": self._models["sd2-inpainting"],
-                "vae": self._models["sd2-vae"],
-                "unet": self._models["sd2-unet"],
-            }
+        # default
+        # Balanced setup
+        return {
+            "pipeline": self._models["sd2-inpainting"],
+            "vae": self._models["sd2-vae"],
+            "unet": self._models["sd2-unet"],
+        }
 
-    def search_models(self, query: str) -> List[ModelSource]:
+    def search_models(self, query: str) -> list[ModelSource]:
         """Search models by name or description."""
         query_lower = query.lower()
         results = []
@@ -284,7 +281,7 @@ class ModelRegistry:
 
         return results
 
-    def get_model_info(self, name: str) -> Dict[str, str]:
+    def get_model_info(self, name: str) -> dict[str, str]:
         """Get detailed information about a model."""
         source = self.get_model(name)
         metadata = self.get_metadata(name)
@@ -319,7 +316,7 @@ class ModelRegistry:
             metadata.last_used = datetime.now().isoformat()
             self._save_registry()
 
-    def cleanup_unused_models(self, days_threshold: int = 30) -> List[str]:
+    def cleanup_unused_models(self, days_threshold: int = 30) -> list[str]:
         """Identify models not used in specified days."""
         unused_models = []
         cutoff_date = datetime.now().timestamp() - (days_threshold * 24 * 3600)
@@ -327,9 +324,7 @@ class ModelRegistry:
         for name, metadata in self._metadata.items():
             if metadata.last_used:
                 try:
-                    last_used_date = datetime.fromisoformat(
-                        metadata.last_used
-                    ).timestamp()
+                    last_used_date = datetime.fromisoformat(metadata.last_used).timestamp()
                     if last_used_date < cutoff_date:
                         unused_models.append(name)
                 except ValueError:
@@ -357,9 +352,7 @@ class ModelRegistry:
                     }
                     for source in self._models.values()
                 ],
-                "metadata": [
-                    metadata.to_dict() for metadata in self._metadata.values()
-                ],
+                "metadata": [metadata.to_dict() for metadata in self._metadata.values()],
             }
 
             export_path.parent.mkdir(parents=True, exist_ok=True)

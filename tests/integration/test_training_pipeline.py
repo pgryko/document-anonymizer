@@ -6,22 +6,23 @@ Tests the complete training pipeline including VAE trainer, UNet trainer,
 dataset loading, and model checkpointing functionality.
 """
 
-import pytest
-import torch
-import tempfile
-import yaml
 import json
-from pathlib import Path
-from PIL import Image
 import logging
 import os
+import tempfile
+from pathlib import Path
 
-from src.anonymizer.core.config import VAEConfig, UNetConfig, DatasetConfig
-from src.anonymizer.training.vae_trainer import VAETrainer
-from src.anonymizer.training.unet_trainer import UNetTrainer
-from src.anonymizer.training.datasets import AnonymizerDataset, create_dataloaders
+import pytest
+import torch
+import yaml
+from PIL import Image
+
+from src.anonymizer.core.config import DatasetConfig, UNetConfig, VAEConfig
 from src.anonymizer.core.exceptions import TrainingError
 from src.anonymizer.core.models import TrainingMetrics
+from src.anonymizer.training.datasets import AnonymizerDataset, create_dataloaders
+from src.anonymizer.training.unet_trainer import UNetTrainer
+from src.anonymizer.training.vae_trainer import VAETrainer
 
 logger = logging.getLogger(__name__)
 
@@ -169,17 +170,13 @@ class TestTrainingPipelineIntegration:
             logger.info(f"✅ Dataset creation test passed - {len(dataset)} samples")
 
         except Exception as e:
-            logger.warning(
-                f"⚠️ Dataset creation test skipped - missing annotations: {e}"
-            )
+            logger.warning(f"⚠️ Dataset creation test skipped - missing annotations: {e}")
             pytest.skip(f"Dataset creation failed: {e}")
 
     def test_dataloader_creation(self, dataset_config):
         """Test dataloader creation."""
         try:
-            train_dataloader, val_dataloader = create_dataloaders(
-                dataset_config, batch_size=2
-            )
+            train_dataloader, val_dataloader = create_dataloaders(dataset_config, batch_size=2)
 
             assert train_dataloader is not None
             assert val_dataloader is not None
@@ -298,9 +295,7 @@ class TestTrainingPipelineIntegration:
             assert metrics.kl_loss >= 0
             assert trainer.global_step == 1
 
-            logger.info(
-                f"✅ VAE training step test passed - Loss: {metrics.total_loss:.4f}"
-            )
+            logger.info(f"✅ VAE training step test passed - Loss: {metrics.total_loss:.4f}")
 
         except Exception as e:
             logger.warning(f"⚠️ VAE training step test skipped: {e}")
@@ -331,9 +326,7 @@ class TestTrainingPipelineIntegration:
             assert metrics.total_loss > 0
             assert trainer.global_step == 1
 
-            logger.info(
-                f"✅ UNet training step test passed - Loss: {metrics.total_loss:.4f}"
-            )
+            logger.info(f"✅ UNet training step test passed - Loss: {metrics.total_loss:.4f}")
 
         except Exception as e:
             logger.warning(f"⚠️ UNet training step test skipped: {e}")
@@ -360,15 +353,13 @@ class TestTrainingPipelineIntegration:
             state_path = checkpoint_path.with_suffix(".json")
             assert state_path.exists()
 
-            with open(state_path, "r") as f:
+            with open(state_path) as f:
                 state = json.load(f)
                 assert state["global_step"] == 42
                 assert state["current_epoch"] == 2
                 assert state["best_loss"] == 0.123
 
-            logger.info(
-                f"✅ Checkpoint saving test passed - saved to {checkpoint_path}"
-            )
+            logger.info(f"✅ Checkpoint saving test passed - saved to {checkpoint_path}")
 
         except Exception as e:
             logger.warning(f"⚠️ Checkpoint saving test skipped: {e}")
@@ -395,9 +386,7 @@ class TestTrainingPipelineIntegration:
             assert artifacts.metadata["final_step"] == 100
             assert artifacts.metadata["training_completed"] is True
 
-            logger.info(
-                f"✅ Model artifacts saving test passed - {artifacts.model_name}"
-            )
+            logger.info(f"✅ Model artifacts saving test passed - {artifacts.model_name}")
 
         except Exception as e:
             logger.warning(f"⚠️ Model artifacts test skipped: {e}")
@@ -418,6 +407,7 @@ class TestTrainingPipelineIntegration:
     def test_memory_cleanup(self, vae_config):
         """Test memory cleanup during training."""
         import gc
+
         import psutil
 
         trainer = VAETrainer(vae_config)
@@ -452,13 +442,9 @@ class TestTrainingPipelineIntegration:
             memory_increase = final_memory - initial_memory
 
             # Allow reasonable memory increase for model loading
-            assert (
-                memory_increase < 2000
-            ), f"Memory increased by {memory_increase:.1f}MB"
+            assert memory_increase < 2000, f"Memory increased by {memory_increase:.1f}MB"
 
-            logger.info(
-                f"✅ Memory cleanup test passed - memory increase: {memory_increase:.1f}MB"
-            )
+            logger.info(f"✅ Memory cleanup test passed - memory increase: {memory_increase:.1f}MB")
 
         except Exception as e:
             logger.warning(f"⚠️ Memory cleanup test skipped: {e}")

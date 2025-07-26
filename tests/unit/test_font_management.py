@@ -6,17 +6,18 @@ Unit tests for font detection, loading, and management functionality.
 """
 
 import tempfile
-import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
+
 from src.anonymizer.fonts import (
+    BundledFontProvider,
     FontManager,
     FontMetadata,
-    BundledFontProvider,
     SystemFontProvider,
 )
-from src.anonymizer.fonts.utils import find_similar_font, calculate_font_similarity
+from src.anonymizer.fonts.utils import calculate_font_similarity, find_similar_font
 
 
 class TestFontMetadata:

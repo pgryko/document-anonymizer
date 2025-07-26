@@ -4,17 +4,18 @@ Unit tests for configuration environment variable support - Imperative style.
 Tests pydantic-settings integration for .env files and environment variables.
 """
 
-import pytest
 import os
+
+import pytest
 
 from src.anonymizer.core.config import (
     AppConfig,
-    VAEConfig,
-    UNetConfig,
     EngineConfig,
-    R2Config,
     MetricsConfig,
     OptimizerConfig,
+    R2Config,
+    UNetConfig,
+    VAEConfig,
 )
 
 
@@ -228,9 +229,7 @@ learning_rate: 0.001
         with open(vae_yaml, "w") as f:
             f.write(vae_yaml_content)
 
-        config = AppConfig.load_with_overrides(
-            env_file=env_file, vae_yaml=vae_yaml, device="mps"
-        )
+        config = AppConfig.load_with_overrides(env_file=env_file, vae_yaml=vae_yaml, device="mps")
 
         assert config.environment == "production"  # From .env
         assert config.vae.model_name == "yaml-vae"  # From YAML override
@@ -393,9 +392,7 @@ class TestValidationWithEnvVars:
         """Test that environment variables are properly type converted."""
         monkeypatch.setenv("VAE_BATCH_SIZE", "64")  # String -> int
         monkeypatch.setenv("VAE_LEARNING_RATE", "0.001")  # String -> float
-        monkeypatch.setenv(
-            "ENGINE_ENABLE_MEMORY_EFFICIENT_ATTENTION", "false"
-        )  # String -> bool
+        monkeypatch.setenv("ENGINE_ENABLE_MEMORY_EFFICIENT_ATTENTION", "false")  # String -> bool
 
         vae_config = VAEConfig()
         engine_config = EngineConfig()

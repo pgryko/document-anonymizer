@@ -7,13 +7,14 @@ Command-line utility for running performance benchmarks and monitoring
 resource usage of the document anonymization pipeline.
 """
 
-import click
+import json
 import logging
 import sys
 import time
-from pathlib import Path
-import json
 from datetime import datetime
+from pathlib import Path
+
+import click
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -64,9 +65,7 @@ def document_loading(ctx, image_size: str, num_documents: int, iterations: int):
         width, height = map(int, image_size.split("x"))
         size = (width, height)
     except ValueError:
-        click.echo(
-            "❌ Invalid image size format. Use WIDTHxHEIGHT (e.g., 1024x768)", err=True
-        )
+        click.echo("❌ Invalid image size format. Use WIDTHxHEIGHT (e.g., 1024x768)", err=True)
         return
 
     click.echo("🔄 Benchmarking document loading...")
@@ -80,9 +79,7 @@ def document_loading(ctx, image_size: str, num_documents: int, iterations: int):
     for i in range(iterations):
         click.echo(f"\n⏳ Running iteration {i+1}/{iterations}...")
 
-        result = benchmark.benchmark_document_loading(
-            image_size=size, num_documents=num_documents
-        )
+        result = benchmark.benchmark_document_loading(image_size=size, num_documents=num_documents)
 
         results.append(result)
 
@@ -97,12 +94,8 @@ def document_loading(ctx, image_size: str, num_documents: int, iterations: int):
     # Calculate averages
     successful_results = [r for r in results if r.success]
     if successful_results:
-        avg_duration = sum(r.duration_ms for r in successful_results) / len(
-            successful_results
-        )
-        avg_memory = sum(r.peak_memory_mb for r in successful_results) / len(
-            successful_results
-        )
+        avg_duration = sum(r.duration_ms for r in successful_results) / len(successful_results)
+        avg_memory = sum(r.peak_memory_mb for r in successful_results) / len(successful_results)
 
         click.echo("\n📊 Results Summary:")
         click.echo(f"   Average duration: {avg_duration:.1f}ms")
@@ -136,9 +129,7 @@ def text_detection(ctx, image_size: str, num_images: int, iterations: int):
         width, height = map(int, image_size.split("x"))
         size = (width, height)
     except ValueError:
-        click.echo(
-            "❌ Invalid image size format. Use WIDTHxHEIGHT (e.g., 512x512)", err=True
-        )
+        click.echo("❌ Invalid image size format. Use WIDTHxHEIGHT (e.g., 512x512)", err=True)
         return
 
     click.echo("🔄 Benchmarking OCR text detection...")
@@ -152,9 +143,7 @@ def text_detection(ctx, image_size: str, num_images: int, iterations: int):
     for i in range(iterations):
         click.echo(f"\n⏳ Running iteration {i+1}/{iterations}...")
 
-        result = benchmark.benchmark_text_detection(
-            image_size=size, num_images=num_images
-        )
+        result = benchmark.benchmark_text_detection(image_size=size, num_images=num_images)
 
         results.append(result)
 
@@ -218,9 +207,7 @@ def inpainting(ctx, image_size: str, num_regions: int, iterations: int):
         width, height = map(int, image_size.split("x"))
         size = (width, height)
     except ValueError:
-        click.echo(
-            "❌ Invalid image size format. Use WIDTHxHEIGHT (e.g., 512x512)", err=True
-        )
+        click.echo("❌ Invalid image size format. Use WIDTHxHEIGHT (e.g., 512x512)", err=True)
         return
 
     click.echo("🔄 Benchmarking diffusion inpainting...")
@@ -268,9 +255,7 @@ def end_to_end(ctx, image_size: str, num_documents: int, iterations: int):
         width, height = map(int, image_size.split("x"))
         size = (width, height)
     except ValueError:
-        click.echo(
-            "❌ Invalid image size format. Use WIDTHxHEIGHT (e.g., 1024x768)", err=True
-        )
+        click.echo("❌ Invalid image size format. Use WIDTHxHEIGHT (e.g., 1024x768)", err=True)
         return
 
     click.echo("🔄 Benchmarking end-to-end anonymization...")
@@ -284,9 +269,7 @@ def end_to_end(ctx, image_size: str, num_documents: int, iterations: int):
     for i in range(iterations):
         click.echo(f"\n⏳ Running iteration {i+1}/{iterations}...")
 
-        result = benchmark.benchmark_end_to_end(
-            image_size=size, num_documents=num_documents
-        )
+        result = benchmark.benchmark_end_to_end(image_size=size, num_documents=num_documents)
 
         results.append(result)
 
@@ -297,10 +280,7 @@ def end_to_end(ctx, image_size: str, num_documents: int, iterations: int):
             )
 
             # Show pipeline breakdown if available
-            if (
-                result.additional_metrics
-                and "pipeline_stages" in result.additional_metrics
-            ):
+            if result.additional_metrics and "pipeline_stages" in result.additional_metrics:
                 stages = result.additional_metrics["pipeline_stages"]
                 click.echo(f"   Pipeline stages: {' → '.join(stages)}")
         else:
@@ -402,9 +382,7 @@ def monitor(ctx, duration: int, interval: float):
         click.echo(f"Samples: {resource_summary['sample_count']}")
 
         if resource_summary.get("gpu_peak_memory_mb"):
-            click.echo(
-                f"Peak GPU Memory: {resource_summary['gpu_peak_memory_mb']:.1f}MB"
-            )
+            click.echo(f"Peak GPU Memory: {resource_summary['gpu_peak_memory_mb']:.1f}MB")
 
     except KeyboardInterrupt:
         click.echo("\n\n⏹️  Monitoring stopped by user")
@@ -461,27 +439,19 @@ def analyze(results_file: Path):
             if successful[0].get("additional_metrics"):
                 metrics = successful[0]["additional_metrics"]
                 if "throughput_fps" in metrics:
-                    click.echo(
-                        f"   Throughput: {metrics['throughput_fps']:.2f} items/second"
-                    )
+                    click.echo(f"   Throughput: {metrics['throughput_fps']:.2f} items/second")
 
     except Exception as e:
         click.echo(f"❌ Error analyzing results: {e}", err=True)
 
 
-def _display_and_save_results(
-    results, benchmark_type: str, results_dir: Path, item_count: int
-):
+def _display_and_save_results(results, benchmark_type: str, results_dir: Path, item_count: int):
     """Helper to display and save benchmark results."""
     successful_results = [r for r in results if r.success]
 
     if successful_results:
-        avg_duration = sum(r.duration_ms for r in successful_results) / len(
-            successful_results
-        )
-        avg_memory = sum(r.peak_memory_mb for r in successful_results) / len(
-            successful_results
-        )
+        avg_duration = sum(r.duration_ms for r in successful_results) / len(successful_results)
+        avg_memory = sum(r.peak_memory_mb for r in successful_results) / len(successful_results)
 
         click.echo("\n📊 Results Summary:")
         click.echo(f"   Average duration: {avg_duration:.1f}ms")

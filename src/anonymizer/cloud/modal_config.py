@@ -1,6 +1,7 @@
 """Modal.com configuration for cloud training."""
 
-from typing import Optional, List, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -38,9 +39,7 @@ class ModalConfig(BaseSettings):
 
     # Secrets configuration
     wandb_secret_name: str = Field("wandb-secret", description="W&B secret name")
-    hf_secret_name: str = Field(
-        "huggingface-secret", description="HuggingFace secret name"
-    )
+    hf_secret_name: str = Field("huggingface-secret", description="HuggingFace secret name")
 
 
 class ModalTrainingConfig(BaseModel):
@@ -52,30 +51,28 @@ class ModalTrainingConfig(BaseModel):
 
     # Data configuration
     train_data_path: str = Field(..., description="Training data path")
-    val_data_path: Optional[str] = Field(None, description="Validation data path")
+    val_data_path: str | None = Field(None, description="Validation data path")
 
     # Output configuration
     output_dir: str = Field("/data/checkpoints", description="Output directory")
-    checkpoint_name: Optional[str] = Field(None, description="Checkpoint name")
+    checkpoint_name: str | None = Field(None, description="Checkpoint name")
 
     # W&B configuration
     wandb_project: str = Field("document-anonymizer", description="W&B project name")
-    wandb_entity: Optional[str] = Field(None, description="W&B entity/username")
-    wandb_tags: List[str] = Field(default_factory=list, description="W&B tags")
+    wandb_entity: str | None = Field(None, description="W&B entity/username")
+    wandb_tags: list[str] = Field(default_factory=list, description="W&B tags")
 
     # HuggingFace Hub configuration
     push_to_hub: bool = Field(False, description="Push model to HuggingFace Hub")
-    hub_model_id: Optional[str] = Field(None, description="HuggingFace model ID")
+    hub_model_id: str | None = Field(None, description="HuggingFace model ID")
     hub_private: bool = Field(True, description="Make HuggingFace model private")
 
     # Advanced options
-    resume_from_checkpoint: Optional[str] = Field(
-        None, description="Resume from checkpoint"
-    )
+    resume_from_checkpoint: str | None = Field(None, description="Resume from checkpoint")
     compile_model: bool = Field(False, description="Use torch.compile")
     mixed_precision: str = Field("bf16", description="Mixed precision mode")
 
-    def get_wandb_config(self) -> Dict[str, Any]:
+    def get_wandb_config(self) -> dict[str, Any]:
         """Get W&B configuration dictionary."""
         return {
             "model_type": self.model_type,

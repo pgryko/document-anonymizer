@@ -2,9 +2,9 @@
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple, List, Union
-from PIL import Image, ImageDraw, ImageFont
+
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 from ..core.exceptions import PreprocessingError, ValidationError
 
@@ -31,9 +31,7 @@ class FontManager:
         self._font_cache = {}
         self._default_font = None
 
-    def get_font(
-        self, font_name: Optional[str] = None, size: int = 32
-    ) -> ImageFont.ImageFont:
+    def get_font(self, font_name: str | None = None, size: int = 32) -> ImageFont.ImageFont:
         """Get font with fallback handling."""
         cache_key = (font_name, size)
 
@@ -44,7 +42,7 @@ class FontManager:
         self._font_cache[cache_key] = font
         return font
 
-    def _load_font(self, font_name: Optional[str], size: int) -> ImageFont.ImageFont:
+    def _load_font(self, font_name: str | None, size: int) -> ImageFont.ImageFont:
         """Load font with fallbacks."""
         try:
             # Try specific font name first
@@ -75,15 +73,13 @@ class FontManager:
             logger.error(f"Font loading failed: {e}")
             return ImageFont.load_default()
 
-    def _try_load_font(
-        self, font_path: str, size: int
-    ) -> Optional[ImageFont.ImageFont]:
+    def _try_load_font(self, font_path: str, size: int) -> ImageFont.ImageFont | None:
         """Try to load a specific font."""
         try:
             font = ImageFont.truetype(font_path, size)
             logger.debug(f"Loaded font: {font_path}")
             return font
-        except (OSError, IOError):
+        except OSError:
             return None
 
 
@@ -92,9 +88,9 @@ class TextRenderer:
 
     def __init__(
         self,
-        font_manager: Optional[FontManager] = None,
+        font_manager: FontManager | None = None,
         default_font_size: int = 32,
-        default_image_size: Tuple[int, int] = (384, 384),
+        default_image_size: tuple[int, int] = (384, 384),
     ):
         self.font_manager = font_manager or FontManager()
         self.default_font_size = default_font_size
@@ -103,11 +99,11 @@ class TextRenderer:
     def render_text(
         self,
         text: str,
-        font_name: Optional[str] = None,
-        font_size: Optional[int] = None,
-        image_size: Optional[Tuple[int, int]] = None,
-        background_color: Union[str, Tuple[int, int, int]] = "white",
-        text_color: Union[str, Tuple[int, int, int]] = "black",
+        font_name: str | None = None,
+        font_size: int | None = None,
+        image_size: tuple[int, int] | None = None,
+        background_color: str | tuple[int, int, int] = "white",
+        text_color: str | tuple[int, int, int] = "black",
         align: str = "center",
     ) -> Image.Image:
         """
@@ -160,15 +156,11 @@ class TextRenderer:
 
             # Calculate total text dimensions
             total_width = max(line_widths) if line_widths else 0
-            total_height = (
-                sum(line_heights) + (len(lines) - 1) * font_size // 4
-            )  # line spacing
+            total_height = sum(line_heights) + (len(lines) - 1) * font_size // 4  # line spacing
 
             # Validate text fits in image
             if total_width > image_size[0] or total_height > image_size[1]:
-                logger.warning(
-                    f"Text may not fit: {total_width}x{total_height} in {image_size}"
-                )
+                logger.warning(f"Text may not fit: {total_width}x{total_height} in {image_size}")
 
             # Calculate starting position
             if align == "center":
@@ -198,7 +190,7 @@ class TextRenderer:
         except Exception as e:
             raise PreprocessingError(f"Text rendering failed: {e}")
 
-    def render_text_batch(self, texts: List[str], **kwargs) -> List[Image.Image]:
+    def render_text_batch(self, texts: list[str], **kwargs) -> list[Image.Image]:
         """Render multiple texts efficiently."""
         if not texts:
             raise ValidationError("Text list cannot be empty")
@@ -225,9 +217,9 @@ class TextRenderer:
     def estimate_text_size(
         self,
         text: str,
-        font_name: Optional[str] = None,
-        font_size: Optional[int] = None,
-    ) -> Tuple[int, int]:
+        font_name: str | None = None,
+        font_size: int | None = None,
+    ) -> tuple[int, int]:
         """Estimate text size without rendering."""
         try:
             font_size = font_size or self.default_font_size
@@ -264,7 +256,7 @@ class TextRenderer:
 
 # Convenience functions
 def render_text_simple(
-    text: str, size: int = 32, image_size: Tuple[int, int] = (384, 384)
+    text: str, size: int = 32, image_size: tuple[int, int] = (384, 384)
 ) -> np.ndarray:
     """Simple text rendering function."""
     renderer = TextRenderer(default_font_size=size, default_image_size=image_size)

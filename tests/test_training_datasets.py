@@ -4,29 +4,30 @@ Unit tests for dataset loading and preprocessing - Imperative style.
 Tests robust dataset loading with comprehensive validation.
 """
 
-import pytest
-import numpy as np
-import torch
-from PIL import Image
 import json
 from pathlib import Path
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
+import numpy as np
+import pytest
+import torch
+from PIL import Image
+
+from src.anonymizer.core.config import DatasetConfig
+from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
+from src.anonymizer.core.models import BoundingBox, TextRegion
 from src.anonymizer.training.datasets import (
+    AnonymizerDataset,
     DatasetSample,
     ImageValidator,
-    TextRegionValidator,
     SafeAugmentation,
-    AnonymizerDataset,
+    TextRegionValidator,
     collate_fn,
-    create_dummy_batch,
     create_dataloader,
-    create_datasets,
     create_dataloaders,
+    create_datasets,
+    create_dummy_batch,
 )
-from src.anonymizer.core.models import BoundingBox, TextRegion
-from src.anonymizer.core.config import DatasetConfig
-from src.anonymizer.core.exceptions import ValidationError, PreprocessingError
 
 
 class TestDatasetSample:
@@ -230,9 +231,7 @@ class TestImageValidator:
 
             with patch("numpy.array") as mock_array:
                 # Return array with unexpected shape (4D instead of 3D)
-                mock_array.return_value = np.zeros(
-                    (100, 100, 100, 3), dtype=np.uint8
-                )  # 4D array
+                mock_array.return_value = np.zeros((100, 100, 100, 3), dtype=np.uint8)  # 4D array
 
                 image_path.touch()
 
@@ -247,9 +246,7 @@ class TestTextRegionValidator:
         """Test validating valid text region."""
         image_shape = (256, 256)
 
-        result = TextRegionValidator.validate_text_region(
-            sample_text_region, image_shape
-        )
+        result = TextRegionValidator.validate_text_region(sample_text_region, image_shape)
 
         assert result is True
 
@@ -298,16 +295,12 @@ class TestTextRegionValidator:
         region.replacement_text = "REDACTED"
         region.confidence = 1.0
 
-        with pytest.raises(
-            ValidationError, match="Bounding box has negative coordinates"
-        ):
+        with pytest.raises(ValidationError, match="Bounding box has negative coordinates"):
             TextRegionValidator.validate_text_region(region, (256, 256))
 
     def test_validate_text_region_bbox_exceeds_image(self):
         """Test validation fails for bbox exceeding image dimensions."""
-        large_bbox = BoundingBox(
-            left=0, top=0, right=300, bottom=300
-        )  # Exceeds 256x256
+        large_bbox = BoundingBox(left=0, top=0, right=300, bottom=300)  # Exceeds 256x256
         region = TextRegion(
             bbox=large_bbox,
             original_text="Test",
@@ -315,16 +308,12 @@ class TestTextRegionValidator:
             confidence=1.0,
         )
 
-        with pytest.raises(
-            ValidationError, match="Bounding box exceeds image dimensions"
-        ):
+        with pytest.raises(ValidationError, match="Bounding box exceeds image dimensions"):
             TextRegionValidator.validate_text_region(region, (256, 256))
 
     def test_validate_text_region_bbox_too_small(self, sample_bbox):
         """Test validation fails for bbox that's too small."""
-        tiny_bbox = BoundingBox(
-            left=50, top=50, right=55, bottom=55
-        )  # 5x5 (below 10x10 minimum)
+        tiny_bbox = BoundingBox(left=50, top=50, right=55, bottom=55)  # 5x5 (below 10x10 minimum)
         region = TextRegion(
             bbox=tiny_bbox,
             original_text="Test",
@@ -346,9 +335,7 @@ class TestSafeAugmentation:
         assert augmentation.config == dataset_config
         assert augmentation.rng is not None
 
-    def test_augment_image_brightness(
-        self, sample_image, sample_text_region, dataset_config
-    ):
+    def test_augment_image_brightness(self, sample_image, sample_text_region, dataset_config):
         """Test brightness augmentation."""
         dataset_config.brightness_range = 0.2
         augmentation = SafeAugmentation(dataset_config)
@@ -363,9 +350,7 @@ class TestSafeAugmentation:
         assert len(augmented_regions) == 1
         assert augmented_regions[0] == sample_text_region  # Regions unchanged
 
-    def test_augment_image_contrast(
-        self, sample_image, sample_text_region, dataset_config
-    ):
+    def test_augment_image_contrast(self, sample_image, sample_text_region, dataset_config):
         """Test contrast augmentation."""
         dataset_config.contrast_range = 0.15
         augmentation = SafeAugmentation(dataset_config)
@@ -378,9 +363,7 @@ class TestSafeAugmentation:
         assert augmented_image.shape == sample_image.shape
         assert len(augmented_regions) == 1
 
-    def test_augment_image_no_augmentation(
-        self, sample_image, sample_text_region, dataset_config
-    ):
+    def test_augment_image_no_augmentation(self, sample_image, sample_text_region, dataset_config):
         """Test with no augmentation (zero ranges)."""
         dataset_config.brightness_range = 0.0
         dataset_config.contrast_range = 0.0
@@ -395,9 +378,7 @@ class TestSafeAugmentation:
         assert np.array_equal(augmented_image, sample_image)
         assert augmented_regions == [sample_text_region]
 
-    def test_augment_image_error_handling(
-        self, sample_image, sample_text_region, dataset_config
-    ):
+    def test_augment_image_error_handling(self, sample_image, sample_text_region, dataset_config):
         """Test augmentation error handling."""
         augmentation = SafeAugmentation(dataset_config)
 
@@ -410,9 +391,7 @@ class TestSafeAugmentation:
             assert np.array_equal(augmented_image, sample_image)
             assert augmented_regions == [sample_text_region]
 
-    def test_augment_image_rotation_skipped(
-        self, sample_image, sample_text_region, dataset_config
-    ):
+    def test_augment_image_rotation_skipped(self, sample_image, sample_text_region, dataset_config):
         """Test that rotation is conservatively skipped."""
         dataset_config.rotation_range = 10.0  # Would cause rotation
         augmentation = SafeAugmentation(dataset_config)
@@ -431,9 +410,7 @@ class TestAnonymizerDataset:
 
     def test_dataset_initialization(self, mock_dataset_dir, dataset_config):
         """Test dataset initialization."""
-        dataset = AnonymizerDataset(
-            data_dir=mock_dataset_dir, config=dataset_config, split="train"
-        )
+        dataset = AnonymizerDataset(data_dir=mock_dataset_dir, config=dataset_config, split="train")
 
         assert dataset.data_dir == mock_dataset_dir
         assert dataset.config == dataset_config
@@ -537,9 +514,7 @@ class TestAnonymizerDataset:
         dataset = AnonymizerDataset(mock_dataset_dir, dataset_config)
 
         sample = dataset.samples[0]
-        training_data = dataset._prepare_training_data(
-            sample.image, sample.text_regions
-        )
+        training_data = dataset._prepare_training_data(sample.image, sample.text_regions)
 
         assert "images" in training_data
         assert "masks" in training_data
@@ -554,9 +529,7 @@ class TestAnonymizerDataset:
 
     def test_dataset_augmentation_train_split(self, mock_dataset_dir, dataset_config):
         """Test that augmentation is applied to train split."""
-        train_dataset = AnonymizerDataset(
-            mock_dataset_dir, dataset_config, split="train"
-        )
+        train_dataset = AnonymizerDataset(mock_dataset_dir, dataset_config, split="train")
 
         assert train_dataset.augmentation is not None
 
@@ -604,9 +577,7 @@ class TestCollateFn:
         assert collated["masks"].shape[0] == 2  # Batch size
         # Masks should be padded to same number of regions (2)
         assert collated["masks"].shape[1] == 2  # Max regions
-        assert (
-            len(collated["texts"]) == 3
-        )  # Flattened texts: ["Hello", "World", "Test"]
+        assert len(collated["texts"]) == 3  # Flattened texts: ["Hello", "World", "Test"]
         assert collated["batch_size"] == 2
 
     def test_collate_fn_empty_items_filtered(self):
@@ -733,9 +704,7 @@ class TestDataLoaderCreation:
         # Use default batch size of 2 for testing
         batch_size = 2
 
-        train_dataloader, val_dataloader = create_dataloaders(
-            config, batch_size=batch_size
-        )
+        train_dataloader, val_dataloader = create_dataloaders(config, batch_size=batch_size)
 
         assert train_dataloader.batch_size == 2
         assert val_dataloader.batch_size == 2
@@ -755,9 +724,7 @@ class TestDataLoaderCreation:
         )
         batch_size = 2
 
-        train_dataloader, val_dataloader = create_dataloaders(
-            config, batch_size=batch_size
-        )
+        train_dataloader, val_dataloader = create_dataloaders(config, batch_size=batch_size)
 
         assert train_dataloader is not None
         assert val_dataloader is None
@@ -810,9 +777,7 @@ class TestDatasetIntegration:
         assert isinstance(item1, dict)
         assert isinstance(item2, dict)
 
-    def test_dataset_deterministic_with_augmentation(
-        self, mock_dataset_dir, dataset_config
-    ):
+    def test_dataset_deterministic_with_augmentation(self, mock_dataset_dir, dataset_config):
         """Test dataset determinism with augmentation."""
         # Create datasets with augmentation
         dataset1 = AnonymizerDataset(mock_dataset_dir, dataset_config, split="train")
@@ -972,9 +937,7 @@ class TestDatasetPreprocessingFixes:
             json.dump(annotation_data, f)
 
         # Create dataset - should handle out-of-bounds gracefully
-        dataset = AnonymizerDataset(
-            data_dir=temp_dir, config=mock_dataset_config, split="train"
-        )
+        dataset = AnonymizerDataset(data_dir=temp_dir, config=mock_dataset_config, split="train")
 
         # Should successfully create dataset
         assert len(dataset) == 1
@@ -1193,9 +1156,7 @@ class TestDatasetErrorHandling:
         with open(annotation_path, "w") as f:
             json.dump(annotation_data, f)
 
-        dataset = AnonymizerDataset(
-            data_dir=temp_dir, config=mock_dataset_config, split="train"
-        )
+        dataset = AnonymizerDataset(data_dir=temp_dir, config=mock_dataset_config, split="train")
 
         # Test that out-of-bounds indices are handled with modulo
         item = dataset[100]  # Way beyond dataset size
@@ -1206,9 +1167,7 @@ class TestDatasetErrorHandling:
         # Create dataset with problematic data that will cause preprocessing to fail
         # This is harder to test directly, so we'll mock the _prepare_training_data method
 
-        dataset = AnonymizerDataset(
-            data_dir=temp_dir, config=mock_dataset_config, split="train"
-        )
+        dataset = AnonymizerDataset(data_dir=temp_dir, config=mock_dataset_config, split="train")
 
         # Add a dummy sample to avoid empty dataset
         dummy_image = np.ones((256, 256, 3), dtype=np.uint8) * 255
@@ -1230,9 +1189,7 @@ class TestDatasetErrorHandling:
 
         # Mock _prepare_training_data to always fail
         original_method = dataset._prepare_training_data
-        dataset._prepare_training_data = Mock(
-            side_effect=Exception("Simulated failure")
-        )
+        dataset._prepare_training_data = Mock(side_effect=Exception("Simulated failure"))
 
         try:
             # Should return empty dict after all retries fail

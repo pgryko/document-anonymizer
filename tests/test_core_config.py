@@ -5,23 +5,24 @@ Tests configuration loading, validation, and defaults.
 """
 
 import os
+from pathlib import Path
+
 import pytest
 import yaml
-from pathlib import Path
 from pydantic import ValidationError
 
 from src.anonymizer.core.config import (
-    OptimizerConfig,
-    SchedulerConfig,
-    LossConfig,
-    VAEConfig,
-    UNetConfig,
-    DatasetConfig,
-    PreprocessingConfig,
-    EngineConfig,
-    R2Config,
-    MetricsConfig,
     AppConfig,
+    DatasetConfig,
+    EngineConfig,
+    LossConfig,
+    MetricsConfig,
+    OptimizerConfig,
+    PreprocessingConfig,
+    R2Config,
+    SchedulerConfig,
+    UNetConfig,
+    VAEConfig,
     load_config_from_yaml,
 )
 from src.anonymizer.core.exceptions import ConfigurationError
@@ -126,9 +127,7 @@ class TestLossConfig:
 
     def test_valid_loss_config(self):
         """Test creating valid loss configuration."""
-        config = LossConfig(
-            kl_weight=0.00025, perceptual_weight=0.1, recon_loss_type="mse"
-        )
+        config = LossConfig(kl_weight=0.00025, perceptual_weight=0.1, recon_loss_type="mse")
 
         assert config.kl_weight == 0.00025
         assert config.perceptual_weight == 0.1
@@ -400,9 +399,7 @@ class TestEngineConfig:
     def test_engine_config_defaults(self, monkeypatch):
         """Test engine configuration defaults."""
         # Clear any ENGINE_ environment variables to test true defaults
-        engine_env_vars = [
-            key for key in os.environ.keys() if key.startswith("ENGINE_")
-        ]
+        engine_env_vars = [key for key in os.environ.keys() if key.startswith("ENGINE_")]
         for var in engine_env_vars:
             monkeypatch.delenv(var, raising=False)
 

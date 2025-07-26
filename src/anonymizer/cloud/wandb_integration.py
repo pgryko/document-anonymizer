@@ -1,8 +1,8 @@
 """Weights & Biases integration for experiment tracking."""
 
-import time
 import logging
-from typing import Dict, Any, Optional, List
+import time
+from typing import Any
 
 try:
     import wandb
@@ -23,10 +23,10 @@ class WandbLogger:
     def __init__(
         self,
         project: str,
-        entity: Optional[str] = None,
-        name: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        config: Optional[Dict[str, Any]] = None,
+        entity: str | None = None,
+        name: str | None = None,
+        tags: list[str] | None = None,
+        config: dict[str, Any] | None = None,
         enabled: bool = True,
     ):
         self.project = project
@@ -46,7 +46,7 @@ class WandbLogger:
         timestamp = int(time.time())
         return f"anonymizer-{timestamp}"
 
-    def init(self, **kwargs) -> Optional[Any]:
+    def init(self, **kwargs) -> Any | None:
         """Initialize W&B run."""
         if not self.enabled:
             return None
@@ -72,7 +72,7 @@ class WandbLogger:
             self.enabled = False
             return None
 
-    def log(self, metrics: Dict[str, Any], step: Optional[int] = None) -> None:
+    def log(self, metrics: dict[str, Any], step: int | None = None) -> None:
         """Log metrics to W&B."""
         if not self.enabled or not self.run:
             return
@@ -85,8 +85,8 @@ class WandbLogger:
     def log_model(
         self,
         model_path: str,
-        name: Optional[str] = None,
-        aliases: Optional[List[str]] = None,
+        name: str | None = None,
+        aliases: list[str] | None = None,
     ) -> None:
         """Log model artifact to W&B."""
         if not self.enabled or not self.run:
@@ -103,7 +103,7 @@ class WandbLogger:
         except Exception as e:
             logger.error(f"Failed to log model to W&B: {e}")
 
-    def log_config(self, config: Dict[str, Any]) -> None:
+    def log_config(self, config: dict[str, Any]) -> None:
         """Update run configuration."""
         if not self.enabled or not self.run:
             return
@@ -137,7 +137,7 @@ class WandbLogger:
 
 def setup_wandb(
     training_config: ModalTrainingConfig,
-    model_config: Dict[str, Any],
+    model_config: dict[str, Any],
     platform: str = "modal.com",
 ) -> WandbLogger:
     """Setup W&B logger for training."""
@@ -169,9 +169,9 @@ def setup_wandb(
 
 def log_training_metrics(
     wandb_logger: WandbLogger,
-    metrics: Dict[str, float],
+    metrics: dict[str, float],
     step: int,
-    epoch: Optional[int] = None,
+    epoch: int | None = None,
     phase: str = "train",
 ) -> None:
     """Log training metrics with proper formatting."""

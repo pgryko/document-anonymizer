@@ -11,20 +11,21 @@ This implementation fixes critical bugs in the reference UNet training:
 """
 
 import logging
+from pathlib import Path
+from typing import Any
+
+import safetensors.torch
 import torch
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
-from pathlib import Path
-from typing import Dict, Optional, List, Any
 from accelerate import Accelerator
-from diffusers import UNet2DConditionModel, DDPMScheduler, AutoencoderKL
-from transformers import TrOCRProcessor, VisionEncoderDecoderModel, get_scheduler
+from diffusers import AutoencoderKL, DDPMScheduler, UNet2DConditionModel
 from PIL import Image, ImageDraw, ImageFont
-import safetensors.torch
+from torch.utils.data import DataLoader
+from transformers import TrOCRProcessor, VisionEncoderDecoderModel, get_scheduler
 
-from ..core.models import TrainingMetrics, ModelArtifacts
 from ..core.config import UNetConfig
-from ..core.exceptions import TrainingError, ModelLoadError, ValidationError
+from ..core.exceptions import ModelLoadError, TrainingError, ValidationError
+from ..core.models import ModelArtifacts, TrainingMetrics
 from ..utils.metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
@@ -41,11 +42,11 @@ class TextRenderer:
         try:
             # Try to load Arial font
             self.font = ImageFont.truetype("Arial.ttf", font_size)
-        except (OSError, IOError):
+        except OSError:
             try:
                 # Fallback to DejaVu Sans
                 self.font = ImageFont.truetype("DejaVuSans.ttf", font_size)
-            except (OSError, IOError):
+            except OSError:
                 # Use default font
                 self.font = ImageFont.load_default()
                 logger.warning("Using default font for text rendering")
@@ -77,20 +78,20 @@ class UNetTrainer:
     def __init__(self, config: UNetConfig):
         self.config = config
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.accelerator: Optional[Accelerator] = None
+        self.accelerator: Accelerator | None = None
 
         # Models
-        self.unet: Optional[UNet2DConditionModel] = None
-        self.vae: Optional[AutoencoderKL] = None
-        self.trocr: Optional[VisionEncoderDecoderModel] = None
-        self.trocr_processor: Optional[TrOCRProcessor] = None
-        self.noise_scheduler: Optional[DDPMScheduler] = None
+        self.unet: UNet2DConditionModel | None = None
+        self.vae: AutoencoderKL | None = None
+        self.trocr: VisionEncoderDecoderModel | None = None
+        self.trocr_processor: TrOCRProcessor | None = None
+        self.noise_scheduler: DDPMScheduler | None = None
 
         # Training components
-        self.optimizer: Optional[torch.optim.Optimizer] = None
-        self.scheduler: Optional[Any] = None
+        self.optimizer: torch.optim.Optimizer | None = None
+        self.scheduler: Any | None = None
         self.text_renderer = TextRenderer()
-        self.text_projection: Optional[torch.nn.Linear] = None
+        self.text_projection: torch.nn.Linear | None = None
         self.metrics_collector = MetricsCollector()
 
         # Training state
@@ -122,22 +123,14 @@ class UNetTrainer:
         """
         try:
             logger.info(f"Loading UNet from {self.config.base_model}")
-            unet = UNet2DConditionModel.from_pretrained(
-                self.config.base_model, subfolder="unet"
-            )
+            unet = UNet2DConditionModel.from_pretrained(self.config.base_model, subfolder="unet")
 
             # Verify architecture is correct (9 channels for inpainting)
             if unet.conv_in.in_channels != 9:
-                raise ValidationError(
-                    f"Expected 9-channel UNet, got {unet.conv_in.in_channels}"
-                )
+                raise ValidationError(f"Expected 9-channel UNet, got {unet.conv_in.in_channels}")
 
-            logger.info(
-                f"UNet initialized: {sum(p.numel() for p in unet.parameters())} parameters"
-            )
-            logger.info(
-                f"UNet input channels: {unet.conv_in.in_channels} (correct for inpainting)"
-            )
+            logger.info(f"UNet initialized: {sum(p.numel() for p in unet.parameters())} parameters")
+            logger.info(f"UNet input channels: {unet.conv_in.in_channels} (correct for inpainting)")
 
             return unet
 
@@ -188,9 +181,7 @@ class UNetTrainer:
     def _initialize_noise_scheduler(self) -> DDPMScheduler:
         """Initialize noise scheduler for training."""
         try:
-            scheduler = DDPMScheduler.from_pretrained(
-                self.config.base_model, subfolder="scheduler"
-            )
+            scheduler = DDPMScheduler.from_pretrained(self.config.base_model, subfolder="scheduler")
 
             # Set training timesteps
             scheduler.set_timesteps(self.config.num_train_timesteps)
@@ -206,9 +197,7 @@ class UNetTrainer:
     def _setup_text_projection(self):
         """Setup text projection layer if needed."""
         if self.trocr is None or self.unet is None:
-            raise TrainingError(
-                "TrOCR and UNet must be initialized before text projection"
-            )
+            raise TrainingError("TrOCR and UNet must be initialized before text projection")
 
         # Get TrOCR encoder output dimension
         trocr_dim = self.trocr.config.encoder.hidden_size
@@ -288,7 +277,7 @@ class UNetTrainer:
         )
         return scheduler
 
-    def _prepare_text_conditioning(self, texts: List[str]) -> torch.Tensor:
+    def _prepare_text_conditioning(self, texts: list[str]) -> torch.Tensor:
         """Extract text features using TrOCR."""
         if self.trocr is None or self.trocr_processor is None:
             raise TrainingError("TrOCR not initialized")
@@ -299,14 +288,12 @@ class UNetTrainer:
 
             # Process with TrOCR
             with torch.no_grad():
-                inputs = self.trocr_processor(
-                    images=text_images, return_tensors="pt"
-                ).to(self.device)
+                inputs = self.trocr_processor(images=text_images, return_tensors="pt").to(
+                    self.device
+                )
 
                 # Get encoder features
-                encoder_outputs = self.trocr.get_encoder()(
-                    pixel_values=inputs.pixel_values
-                )
+                encoder_outputs = self.trocr.get_encoder()(pixel_values=inputs.pixel_values)
                 features = encoder_outputs.last_hidden_state
 
             # Apply projection if needed
@@ -320,7 +307,7 @@ class UNetTrainer:
 
     def _prepare_latents(
         self, images: torch.Tensor, masks: torch.Tensor
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Prepare latent inputs for diffusion training."""
         if self.vae is None or self.noise_scheduler is None:
             raise TrainingError("VAE and noise scheduler must be initialized")
@@ -345,9 +332,7 @@ class UNetTrainer:
             noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
 
             # Prepare mask latents
-            mask_latents = F.interpolate(
-                masks.float(), size=latents.shape[-2:], mode="nearest"
-            )
+            mask_latents = F.interpolate(masks.float(), size=latents.shape[-2:], mode="nearest")
 
             # Prepare masked image latents
             masked_images = images * (1 - masks)
@@ -357,16 +342,14 @@ class UNetTrainer:
 
             # Concatenate inputs for 9-channel UNet
             # 4 (noisy) + 1 (mask) + 4 (masked_image) = 9 channels
-            unet_inputs = torch.cat(
-                [noisy_latents, mask_latents, masked_latents], dim=1
-            )
+            unet_inputs = torch.cat([noisy_latents, mask_latents, masked_latents], dim=1)
 
             return {"unet_inputs": unet_inputs, "noise": noise, "timesteps": timesteps}
 
         except Exception as e:
             raise TrainingError(f"Latent preparation failed: {e}")
 
-    def _compute_loss(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def _compute_loss(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         """Compute diffusion loss."""
         images = batch["images"]
         masks = batch["masks"]
@@ -401,7 +384,7 @@ class UNetTrainer:
             "target_noise": latent_data["noise"],
         }
 
-    def train_step(self, batch: Dict[str, torch.Tensor]) -> TrainingMetrics:
+    def train_step(self, batch: dict[str, torch.Tensor]) -> TrainingMetrics:
         """Execute single training step."""
         try:
             # Compute loss
@@ -421,13 +404,9 @@ class UNetTrainer:
                     params.extend(self.text_projection.parameters())
 
                 if self.accelerator:
-                    self.accelerator.clip_grad_norm_(
-                        params, self.config.gradient_clipping
-                    )
+                    self.accelerator.clip_grad_norm_(params, self.config.gradient_clipping)
                 else:
-                    torch.nn.utils.clip_grad_norm_(
-                        params, self.config.gradient_clipping
-                    )
+                    torch.nn.utils.clip_grad_norm_(params, self.config.gradient_clipping)
 
             # Optimizer step
             self.optimizer.step()
@@ -454,7 +433,7 @@ class UNetTrainer:
         except Exception as e:
             raise TrainingError(f"Training step failed: {e}")
 
-    def validate(self, val_dataloader: DataLoader) -> Dict[str, float]:
+    def validate(self, val_dataloader: DataLoader) -> dict[str, float]:
         """Run validation."""
         if self.unet is None:
             raise TrainingError("UNet not initialized")
@@ -478,12 +457,10 @@ class UNetTrainer:
         avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
         return {"loss": avg_loss}
 
-    def save_checkpoint(self, save_path: Optional[Path] = None) -> Path:
+    def save_checkpoint(self, save_path: Path | None = None) -> Path:
         """Save model checkpoint."""
         if save_path is None:
-            save_path = (
-                self.config.checkpoint_dir / f"unet_step_{self.global_step}.safetensors"
-            )
+            save_path = self.config.checkpoint_dir / f"unet_step_{self.global_step}.safetensors"
 
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -499,15 +476,12 @@ class UNetTrainer:
             # Add text projection if exists
             if self.text_projection is not None:
                 if self.accelerator:
-                    unwrapped_projection = self.accelerator.unwrap_model(
-                        self.text_projection
-                    )
+                    unwrapped_projection = self.accelerator.unwrap_model(self.text_projection)
                 else:
                     unwrapped_projection = self.text_projection
 
                 projection_state = {
-                    f"text_projection.{k}": v
-                    for k, v in unwrapped_projection.state_dict().items()
+                    f"text_projection.{k}": v for k, v in unwrapped_projection.state_dict().items()
                 }
                 state_dict.update(projection_state)
 
@@ -565,17 +539,13 @@ class UNetTrainer:
                 },
             )
 
-            logger.info(
-                f"Model artifacts saved: {artifacts.model_name} v{artifacts.version}"
-            )
+            logger.info(f"Model artifacts saved: {artifacts.model_name} v{artifacts.version}")
             return artifacts
 
         except Exception as e:
             raise TrainingError(f"Failed to save model artifacts: {e}")
 
-    def train(
-        self, train_dataloader: DataLoader, val_dataloader: Optional[DataLoader] = None
-    ):
+    def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader | None = None):
         """
         Main training loop with corrected hyperparameters.
 
@@ -643,18 +613,14 @@ class UNetTrainer:
                             self.metrics_collector.record_training_metrics(
                                 metrics.to_dict(), self.global_step
                             )
-                            logger.info(
-                                f"Step {self.global_step}: Loss={metrics.total_loss:.4f}"
-                            )
+                            logger.info(f"Step {self.global_step}: Loss={metrics.total_loss:.4f}")
 
                         # Save checkpoint
                         if self.global_step % self.config.save_every_n_steps == 0:
                             self.save_checkpoint()
 
                     except Exception as e:
-                        logger.error(
-                            f"Training step failed at step {self.global_step}: {e}"
-                        )
+                        logger.error(f"Training step failed at step {self.global_step}: {e}")
                         continue
 
                 # Validation phase
@@ -666,13 +632,9 @@ class UNetTrainer:
                         # Save best model
                         if val_losses["loss"] < self.best_loss:
                             self.best_loss = val_losses["loss"]
-                            best_model_path = (
-                                self.config.checkpoint_dir / "best_model.safetensors"
-                            )
+                            best_model_path = self.config.checkpoint_dir / "best_model.safetensors"
                             self.save_checkpoint(best_model_path)
-                            logger.info(
-                                f"New best model saved with loss: {self.best_loss:.4f}"
-                            )
+                            logger.info(f"New best model saved with loss: {self.best_loss:.4f}")
 
                     except Exception as e:
                         logger.error(f"Validation failed: {e}")

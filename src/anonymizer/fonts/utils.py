@@ -5,15 +5,14 @@ Font Utilities
 Utility functions for font detection, analysis, and manipulation.
 """
 
+import logging
 import os
 import re
-from typing import Dict, Optional, Tuple, List
-import logging
 
 logger = logging.getLogger(__name__)
 
 
-def get_font_info(font_path: str) -> Optional[Dict[str, any]]:
+def get_font_info(font_path: str) -> dict[str, any] | None:
     """
     Extract font information from font file.
 
@@ -35,7 +34,7 @@ def get_font_info(font_path: str) -> Optional[Dict[str, any]]:
         return None
 
 
-def _get_font_info_fonttools(font_path: str) -> Optional[Dict[str, any]]:
+def _get_font_info_fonttools(font_path: str) -> dict[str, any] | None:
     """Get font info using fonttools library."""
     try:
         from fontTools.ttLib import TTFont
@@ -68,7 +67,7 @@ def _get_font_info_fonttools(font_path: str) -> Optional[Dict[str, any]]:
         return None
 
 
-def _get_font_name(name_table, name_id: int) -> Optional[str]:
+def _get_font_name(name_table, name_id: int) -> str | None:
     """Extract font name from name table."""
     try:
         # Try to get English name first
@@ -89,16 +88,14 @@ def _get_font_name(name_table, name_id: int) -> Optional[str]:
     return None
 
 
-def _get_font_info_freetype(font_path: str) -> Optional[Dict[str, any]]:
+def _get_font_info_freetype(font_path: str) -> dict[str, any] | None:
     """Get font info using freetype library."""
     try:
         import freetype
 
         face = freetype.Face(font_path)
 
-        font_family = (
-            face.family_name.decode("utf-8") if face.family_name else "Unknown"
-        )
+        font_family = face.family_name.decode("utf-8") if face.family_name else "Unknown"
         style_name = face.style_name.decode("utf-8") if face.style_name else "Regular"
 
         # Parse style and weight
@@ -120,7 +117,7 @@ def _get_font_info_freetype(font_path: str) -> Optional[Dict[str, any]]:
         return None
 
 
-def _get_font_info_fallback(font_path: str) -> Optional[Dict[str, any]]:
+def _get_font_info_fallback(font_path: str) -> dict[str, any] | None:
     """Fallback font info extraction from filename."""
     try:
         filename = os.path.basename(font_path)
@@ -154,7 +151,7 @@ def _get_font_info_fallback(font_path: str) -> Optional[Dict[str, any]]:
         return None
 
 
-def _extract_style_from_name(name: str) -> Tuple[str, str]:
+def _extract_style_from_name(name: str) -> tuple[str, str]:
     """Extract family and style from font name."""
     # Common style suffixes
     style_patterns = [
@@ -174,7 +171,7 @@ def _extract_style_from_name(name: str) -> Tuple[str, str]:
     return name, "Regular"
 
 
-def _parse_style_weight(style_name: str) -> Tuple[str, int]:
+def _parse_style_weight(style_name: str) -> tuple[str, int]:
     """
     Parse style name into style and weight.
 
@@ -187,8 +184,7 @@ def _parse_style_weight(style_name: str) -> Tuple[str, int]:
 
     # Determine if italic
     is_italic = any(
-        keyword in style_name_lower
-        for keyword in ["italic", "oblique", "slanted", "it", "obl"]
+        keyword in style_name_lower for keyword in ["italic", "oblique", "slanted", "it", "obl"]
     )
 
     # Determine weight
@@ -231,7 +227,7 @@ def _parse_style_weight(style_name: str) -> Tuple[str, int]:
     return style, weight
 
 
-def detect_font(image_region: any, ocr_result: any = None) -> Optional[Dict[str, any]]:
+def detect_font(image_region: any, ocr_result: any = None) -> dict[str, any] | None:
     """
     Detect font characteristics from image region.
 
@@ -265,7 +261,7 @@ def detect_font(image_region: any, ocr_result: any = None) -> Optional[Dict[str,
         return None
 
 
-def find_similar_font(target_font: str, available_fonts: List[str]) -> Optional[str]:
+def find_similar_font(target_font: str, available_fonts: list[str]) -> str | None:
     """
     Find the most similar font from available fonts.
 
@@ -337,9 +333,7 @@ def calculate_font_similarity(font1: "FontMetadata", font2: "FontMetadata") -> f
         scores = []
 
         # Family name similarity
-        family_sim = _calculate_string_similarity(
-            font1.family.lower(), font2.family.lower()
-        )
+        family_sim = _calculate_string_similarity(font1.family.lower(), font2.family.lower())
         scores.append(family_sim * 0.4)  # 40% weight
 
         # Style similarity
@@ -358,7 +352,7 @@ def calculate_font_similarity(font1: "FontMetadata", font2: "FontMetadata") -> f
         return 0.0
 
 
-def get_font_metrics(font_path: str, size: int = 12) -> Optional[Dict[str, any]]:
+def get_font_metrics(font_path: str, size: int = 12) -> dict[str, any] | None:
     """
     Get font metrics for text rendering.
 
@@ -382,7 +376,7 @@ def get_font_metrics(font_path: str, size: int = 12) -> Optional[Dict[str, any]]
         return None
 
 
-def _get_font_metrics_pil(font_path: str, size: int) -> Optional[Dict[str, any]]:
+def _get_font_metrics_pil(font_path: str, size: int) -> dict[str, any] | None:
     """Get font metrics using PIL."""
     try:
         from PIL import Image, ImageDraw, ImageFont
@@ -416,7 +410,7 @@ def _get_font_metrics_pil(font_path: str, size: int) -> Optional[Dict[str, any]]
         return None
 
 
-def _get_font_metrics_freetype(font_path: str, size: int) -> Optional[Dict[str, any]]:
+def _get_font_metrics_freetype(font_path: str, size: int) -> dict[str, any] | None:
     """Get font metrics using freetype."""
     try:
         import freetype
@@ -442,7 +436,7 @@ def _get_font_metrics_freetype(font_path: str, size: int) -> Optional[Dict[str, 
         return None
 
 
-def _get_font_metrics_fallback(font_path: str, size: int) -> Optional[Dict[str, any]]:
+def _get_font_metrics_fallback(font_path: str, size: int) -> dict[str, any] | None:
     """Fallback font metrics based on font size."""
     try:
         # Approximate metrics based on common font characteristics
@@ -485,9 +479,7 @@ def validate_font_file(font_path: str) -> bool:
         return False
 
 
-def create_font_sample(
-    font_path: str, text: str = "Sample Text", size: int = 24
-) -> Optional[any]:
+def create_font_sample(font_path: str, text: str = "Sample Text", size: int = 24) -> any | None:
     """
     Create a sample image showing the font.
 

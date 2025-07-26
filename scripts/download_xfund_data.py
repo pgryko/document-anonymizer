@@ -15,7 +15,6 @@ import logging
 import tarfile
 import zipfile
 from pathlib import Path
-from typing import Dict, List, Optional
 from urllib.request import urlretrieve
 
 import cv2
@@ -35,13 +34,13 @@ class XFUNDDownloader:
     BASE_URL = "https://github.com/doc-analysis/XFUND/releases/download/v1.0"
     LANGUAGES = ["zh", "ja", "es", "fr", "it", "de", "pt"]
 
-    def __init__(self, download_dir: Path, languages: Optional[List[str]] = None):
+    def __init__(self, download_dir: Path, languages: list[str] | None = None):
         self.download_dir = download_dir
         self.languages = languages or ["zh"]  # Default to Chinese dataset
         self.download_dir.mkdir(parents=True, exist_ok=True)
         self.downloaded_languages = []
 
-    def download_dataset(self) -> Dict[str, Path]:
+    def download_dataset(self) -> dict[str, Path]:
         """Download selected language datasets."""
         downloaded_files = {}
 
@@ -59,9 +58,7 @@ class XFUNDDownloader:
                 else:
                     try:
                         logger.info(f"Downloading from: {url}")
-                        urlretrieve(
-                            url, output_path, reporthook=self._download_progress
-                        )
+                        urlretrieve(url, output_path, reporthook=self._download_progress)
                         logger.info(f"Downloaded: {output_path}")
                     except Exception as e:
                         logger.error(f"Failed to download {filename}: {e}")
@@ -77,9 +74,7 @@ class XFUNDDownloader:
             else:
                 try:
                     logger.info(f"Downloading images from: {img_url}")
-                    urlretrieve(
-                        img_url, img_output_path, reporthook=self._download_progress
-                    )
+                    urlretrieve(img_url, img_output_path, reporthook=self._download_progress)
                     logger.info(f"Downloaded: {img_output_path}")
                 except Exception as e:
                     logger.error(f"Failed to download images for {lang}: {e}")
@@ -135,7 +130,7 @@ class XFUNDProcessor:
 
         self.processed_languages = []
 
-    def process_dataset(self, languages: List[str]):
+    def process_dataset(self, languages: list[str]):
         """Process downloaded datasets for all languages."""
         for lang in languages:
             logger.info(f"Processing {lang} dataset")
@@ -146,7 +141,7 @@ class XFUNDProcessor:
                 logger.error(f"Annotation file not found: {json_path}")
                 continue
 
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             # Process documents
@@ -158,7 +153,7 @@ class XFUNDProcessor:
 
             self.processed_languages.append(lang)
 
-    def _process_document(self, doc: Dict, lang: str):
+    def _process_document(self, doc: dict, lang: str):
         """Process a single document for training."""
         try:
             # Get image path
@@ -175,9 +170,7 @@ class XFUNDProcessor:
                 # Try without subdirectory
                 img_path = self.data_dir / img_fname
                 if not img_path.exists():
-                    logger.debug(
-                        f"Image not found: {img_fname}, creating synthetic data"
-                    )
+                    logger.debug(f"Image not found: {img_fname}, creating synthetic data")
                     # Create synthetic image based on document size
                     width = img_info.get("width", 1000)
                     height = img_info.get("height", 1000)
@@ -201,7 +194,7 @@ class XFUNDProcessor:
         except Exception as e:
             logger.error(f"Failed to process document: {e}")
 
-    def _create_synthetic_image(self, width: int, height: int, doc: Dict) -> np.ndarray:
+    def _create_synthetic_image(self, width: int, height: int, doc: dict) -> np.ndarray:
         """Create a synthetic document image for testing when real images are not available."""
         # Create white background
         image = np.ones((height, width, 3), dtype=np.uint8) * 255
@@ -218,7 +211,7 @@ class XFUNDProcessor:
 
         return image
 
-    def _prepare_vae_data(self, image: np.ndarray, doc: Dict, lang: str):
+    def _prepare_vae_data(self, image: np.ndarray, doc: dict, lang: str):
         """Prepare data for VAE training."""
         # VAE typically needs:
         # 1. Original images
@@ -282,7 +275,7 @@ class XFUNDProcessor:
         with open(metadata_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
 
-    def _prepare_unet_data(self, image: np.ndarray, doc: Dict, lang: str):
+    def _prepare_unet_data(self, image: np.ndarray, doc: dict, lang: str):
         """Prepare data for UNET training."""
         # UNET typically needs:
         # 1. Input images
@@ -361,9 +354,7 @@ class XFUNDProcessor:
             with open(data_dir / "val_files.json", "w") as f:
                 json.dump(val_list, f, indent=2)
 
-            logger.info(
-                f"{data_type.upper()} split: {len(train_list)} train, {len(val_list)} val"
-            )
+            logger.info(f"{data_type.upper()} split: {len(train_list)} train, {len(val_list)} val")
 
 
 def main():
@@ -388,9 +379,7 @@ def main():
         default=Path("data/processed/xfund"),
         help="Directory for processed data",
     )
-    parser.add_argument(
-        "--train-ratio", type=float, default=0.8, help="Ratio of training data"
-    )
+    parser.add_argument("--train-ratio", type=float, default=0.8, help="Ratio of training data")
 
     args = parser.parse_args()
 

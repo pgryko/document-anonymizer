@@ -6,13 +6,14 @@ Quick visual assessment of VAE reconstruction quality for document anonymization
 Shows original vs reconstructed images with loss metrics.
 """
 
-import torch
+import argparse
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
-import argparse
+import torch
 
-from src.anonymizer.core.config import VAEConfig, DatasetConfig
+from src.anonymizer.core.config import DatasetConfig, VAEConfig
 from src.anonymizer.training.datasets import create_dataloaders
 from src.anonymizer.training.vae_trainer import VAETrainer
 
@@ -147,13 +148,9 @@ def main():
     parser = argparse.ArgumentParser(description="Visualize VAE quality")
     parser.add_argument("--config", required=True, help="VAE config file")
     parser.add_argument("--checkpoint", help="Model checkpoint path")
-    parser.add_argument(
-        "--num-samples", type=int, default=8, help="Number of samples to visualize"
-    )
+    parser.add_argument("--num-samples", type=int, default=8, help="Number of samples to visualize")
     parser.add_argument("--save-path", help="Path to save visualization")
-    parser.add_argument(
-        "--analyze-latents", action="store_true", help="Analyze latent space"
-    )
+    parser.add_argument("--analyze-latents", action="store_true", help="Analyze latent space")
 
     args = parser.parse_args()
 

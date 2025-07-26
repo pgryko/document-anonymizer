@@ -3,13 +3,13 @@
 Upload XFUND dataset to Cloudflare R2 storage.
 """
 
-import os
-import boto3
-from pathlib import Path
-from typing import Optional
-from tqdm import tqdm
 import argparse
+import os
+from pathlib import Path
+
+import boto3
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 
 class CloudflareR2Uploader:
@@ -21,7 +21,7 @@ class CloudflareR2Uploader:
         secret_access_key: str,
         endpoint_url: str,
         bucket_name: str,
-        token: Optional[str] = None,
+        token: str | None = None,
     ):
         """Initialize R2 client.
 
@@ -44,9 +44,7 @@ class CloudflareR2Uploader:
             "s3", endpoint_url=endpoint_url, region_name="auto"  # R2 uses 'auto' region
         )
 
-    def upload_file(
-        self, local_path: Path, r2_key: str, extra_args: dict = None
-    ) -> bool:
+    def upload_file(self, local_path: Path, r2_key: str, extra_args: dict = None) -> bool:
         """Upload a single file to R2.
 
         Args:
@@ -70,7 +68,7 @@ class CloudflareR2Uploader:
         self,
         local_dir: Path,
         r2_prefix: str = "",
-        file_extensions: Optional[list] = None,
+        file_extensions: list | None = None,
     ) -> tuple[int, int]:
         """Upload entire directory to R2.
 
@@ -90,10 +88,7 @@ class CloudflareR2Uploader:
         files_to_upload = []
         for file_path in local_dir.rglob("*"):
             if file_path.is_file():
-                if (
-                    file_extensions is None
-                    or file_path.suffix.lower() in file_extensions
-                ):
+                if file_extensions is None or file_path.suffix.lower() in file_extensions:
                     # Create R2 key preserving directory structure
                     relative_path = file_path.relative_to(local_dir)
                     r2_key = f"{r2_prefix}/{relative_path}".strip("/")
@@ -116,9 +111,7 @@ class CloudflareR2Uploader:
     def list_bucket_contents(self, prefix: str = "") -> list:
         """List contents of R2 bucket with optional prefix."""
         try:
-            response = self.s3_client.list_objects_v2(
-                Bucket=self.bucket_name, Prefix=prefix
-            )
+            response = self.s3_client.list_objects_v2(Bucket=self.bucket_name, Prefix=prefix)
             return [obj["Key"] for obj in response.get("Contents", [])]
         except Exception as e:
             print(f"Failed to list bucket contents: {e}")
@@ -155,12 +148,8 @@ def main():
         default=os.getenv("CLOUDFLARE_R2_TOKEN"),
         help="Optional R2 token (or set CLOUDFLARE_R2_TOKEN env var)",
     )
-    parser.add_argument(
-        "--data-dir", default="data/processed/xfund", help="Local data directory"
-    )
-    parser.add_argument(
-        "--r2-prefix", default="xfund-dataset", help="R2 prefix for uploaded files"
-    )
+    parser.add_argument("--data-dir", default="data/processed/xfund", help="Local data directory")
+    parser.add_argument("--r2-prefix", default="xfund-dataset", help="R2 prefix for uploaded files")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -192,9 +181,7 @@ def main():
         )
         return 1
     if not args.bucket_name:
-        print(
-            "❌ R2 Bucket Name is required (--bucket-name or CLOUDFLARE_R2_BUCKET_NAME env var)"
-        )
+        print("❌ R2 Bucket Name is required (--bucket-name or CLOUDFLARE_R2_BUCKET_NAME env var)")
         return 1
 
     # Initialize uploader
@@ -221,6 +208,7 @@ def main():
                 [sys.executable, "scripts/manage_r2_bucket.py", "auto-ensure"],
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             if result.returncode != 0:
@@ -240,7 +228,7 @@ def main():
                 relative_path = file_path.relative_to(data_dir)
                 r2_key = f"{args.r2_prefix}/{relative_path}"
                 print(f"  {file_path} -> {r2_key}")
-        return
+        return None
 
     print(f"Uploading {data_dir} to R2 bucket '{args.bucket_name}'...")
 
@@ -255,9 +243,7 @@ def main():
     unet_dir = data_dir / "unet"
     if unet_dir.exists():
         print("Uploading UNET training data...")
-        successful, failed = uploader.upload_directory(
-            unet_dir, f"{args.r2_prefix}/unet"
-        )
+        successful, failed = uploader.upload_directory(unet_dir, f"{args.r2_prefix}/unet")
         print(f"UNET upload: {successful} successful, {failed} failed")
 
     # Upload raw data if exists

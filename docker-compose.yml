@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  anonymizer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: document-anonymizer:latest
+    container_name: document-anonymizer
+    volumes:
+      - ./data:/data
+      - ./models:/models
+      - ./output:/output
+    environment:
+      - ANONYMIZER_DATA_DIR=/data
+      - ANONYMIZER_MODELS_DIR=/models
+      - ANONYMIZER_CACHE_DIR=/data/cache
+      - ANONYMIZER_LOG_LEVEL=INFO
+    command: python main.py --help
+
+  anonymizer-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    image: document-anonymizer:dev
+    container_name: document-anonymizer-dev
+    volumes:
+      - .:/app
+      - ./data:/data
+      - ./models:/models
+    environment:
+      - ANONYMIZER_DATA_DIR=/data
+      - ANONYMIZER_MODELS_DIR=/models
+      - ANONYMIZER_CACHE_DIR=/data/cache
+      - ANONYMIZER_LOG_LEVEL=DEBUG
+      - PYTHONPATH=/app
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  batch-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: document-anonymizer:latest
+    container_name: batch-processor
+    volumes:
+      - ./data/input:/input:ro
+      - ./data/output:/output
+      - ./models:/models
+    environment:
+      - ANONYMIZER_MODELS_DIR=/models
+      - ANONYMIZER_CACHE_DIR=/data/cache
+    command: >
+      python main.py batch-anonymize
+      --input-dir /input
+      --output-dir /output
+      --max-parallel 4
+      --batch-size 8
+
+  # Future REST API service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: document-anonymizer:latest
+    container_name: anonymizer-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/models
+    environment:
+      - ANONYMIZER_MODELS_DIR=/models
+      - ANONYMIZER_API_HOST=0.0.0.0
+      - ANONYMIZER_API_PORT=8000
+    command: python -m src.api.main
+    profiles:
+      - api

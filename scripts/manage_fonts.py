@@ -15,7 +15,7 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from anonymizer.fonts import FontManager, BundledFontProvider
+from anonymizer.fonts import BundledFontProvider, FontManager
 
 
 def setup_logging(level: str = "INFO") -> None:
@@ -81,9 +81,7 @@ def list_fonts(args) -> None:
         print(f"\n📁 {family_name}:")
         for font in sorted(family_fonts, key=lambda f: f.style):
             status = "📦" if font.is_bundled else "🖥️"
-            print(
-                f"   {status} {font.style} - {font.filename} ({font.size_bytes // 1024}KB)"
-            )
+            print(f"   {status} {font.style} - {font.filename} ({font.size_bytes // 1024}KB)")
 
 
 def list_families(args) -> None:
@@ -96,9 +94,7 @@ def list_families(args) -> None:
 
     for family in families:
         # Count fonts in family
-        family_fonts = [
-            f for f in font_manager.list_available_fonts() if f.family == family
-        ]
+        family_fonts = [f for f in font_manager.list_available_fonts() if f.family == family]
         bundled_count = len([f for f in family_fonts if f.is_bundled])
         system_count = len([f for f in family_fonts if not f.is_bundled])
 
@@ -302,18 +298,12 @@ def main():
 
     # Download bundled fonts
     download_parser = subparsers.add_parser("download", help="Download bundled fonts")
-    download_parser.add_argument(
-        "--force", action="store_true", help="Force re-download"
-    )
+    download_parser.add_argument("--force", action="store_true", help="Force re-download")
 
     # List fonts
     list_parser = subparsers.add_parser("list", help="List available fonts")
-    list_parser.add_argument(
-        "--system-only", action="store_true", help="List only system fonts"
-    )
-    list_parser.add_argument(
-        "--bundled-only", action="store_true", help="List only bundled fonts"
-    )
+    list_parser.add_argument("--system-only", action="store_true", help="List only system fonts")
+    list_parser.add_argument("--bundled-only", action="store_true", help="List only bundled fonts")
 
     # List font families
     families_parser = subparsers.add_parser("families", help="List font families")
@@ -326,9 +316,7 @@ def main():
     # Install font
     install_parser = subparsers.add_parser("install", help="Install font file")
     install_parser.add_argument("font_path", help="Path to font file")
-    install_parser.add_argument(
-        "--system", action="store_true", help="Install to system fonts"
-    )
+    install_parser.add_argument("--system", action="store_true", help="Install to system fonts")
 
     # Create sample
     sample_parser = subparsers.add_parser("sample", help="Create font sample")

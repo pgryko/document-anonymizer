@@ -5,18 +5,19 @@ Performance Tests
 Comprehensive performance and memory tests for the document anonymization pipeline.
 """
 
-import pytest
-import time
 import tempfile
+import time
 from pathlib import Path
+
 import numpy as np
+import pytest
 
 from src.anonymizer.performance import (
-    PerformanceProfiler,
-    MemoryProfiler,
     AnonymizationBenchmark,
+    MemoryProfiler,
     ModelBenchmark,
     PerformanceMonitor,
+    PerformanceProfiler,
 )
 
 
@@ -176,9 +177,7 @@ class TestAnonymizationBenchmark:
 
     def test_document_loading_benchmark(self, benchmark):
         """Test document loading benchmark."""
-        result = benchmark.benchmark_document_loading(
-            image_size=(256, 256), num_documents=3
-        )
+        result = benchmark.benchmark_document_loading(image_size=(256, 256), num_documents=3)
 
         assert result.success
         assert result.benchmark_name == "document_loading"
@@ -347,9 +346,7 @@ class TestPerformanceMonitor:
         assert not violations["cpu_exceeded"]
 
         # Test with very low limits (should exceed)
-        violations = monitor.check_resource_limits(
-            max_memory_mb=1, max_cpu_percent=0.1  # 1MB
-        )
+        violations = monitor.check_resource_limits(max_memory_mb=1, max_cpu_percent=0.1)  # 1MB
 
         # At least one should be exceeded
         assert violations["memory_exceeded"] or violations["cpu_exceeded"]
@@ -369,9 +366,7 @@ class TestPerformanceMonitor:
         assert "recommendations" in report
 
         # Should have some insights or recommendations
-        total_feedback = len(report["performance_insights"]) + len(
-            report["recommendations"]
-        )
+        total_feedback = len(report["performance_insights"]) + len(report["recommendations"])
         assert total_feedback >= 0  # May be 0 for short tests
 
 
@@ -445,9 +440,7 @@ class TestBenchmarkIntegration:
         # Metrics should match the result
         latest_metric = profiler.metrics[-1]
         assert latest_metric.operation == result.benchmark_name
-        assert (
-            abs(latest_metric.duration_ms - result.duration_ms) < 1.0
-        )  # Small tolerance
+        assert abs(latest_metric.duration_ms - result.duration_ms) < 1.0  # Small tolerance
 
     def test_end_to_end_performance_monitoring(self):
         """Test complete performance monitoring of anonymization pipeline."""

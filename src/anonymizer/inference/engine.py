@@ -14,43 +14,42 @@ Key improvements over reference:
 """
 
 import logging
-import time
-import torch
-import numpy as np
-from typing import List, Optional, Tuple
-from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
-import cv2
 import tempfile
-from contextlib import contextmanager
 import threading
+import time
+from contextlib import contextmanager
+from pathlib import Path
 
+import cv2
+import numpy as np
+import torch
 from diffusers import (
-    StableDiffusionInpaintPipeline,
     AutoencoderKL,
+    StableDiffusionInpaintPipeline,
     UNet2DConditionModel,
 )
+from PIL import Image, ImageDraw, ImageFont
 
 from ..core.config import EngineConfig
-from ..core.models import (
-    AnonymizationResult,
-    GeneratedPatch,
-    GenerationMetadata,
-    BoundingBox,
-    TextRegion,
-)
 from ..core.exceptions import (
     InferenceError,
     ModelLoadError,
-    ValidationError,
-    PreprocessingError,
     PostprocessingError,
+    PreprocessingError,
+    ValidationError,
 )
-from ..utils.image_ops import ImageProcessor
-from ..training.datasets import ImageValidator
-from ..utils.metrics import MetricsCollector
-from ..ocr.processor import OCRProcessor
+from ..core.models import (
+    AnonymizationResult,
+    BoundingBox,
+    GeneratedPatch,
+    GenerationMetadata,
+    TextRegion,
+)
 from ..ocr.models import OCRConfig, OCREngine
+from ..ocr.processor import OCRProcessor
+from ..training.datasets import ImageValidator
+from ..utils.image_ops import ImageProcessor
+from ..utils.metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -138,13 +137,11 @@ class NERProcessor:
         except ImportError as e:
             raise ModelLoadError(f"Presidio not available: {e}")
 
-    def detect_pii(self, text: str, image: np.ndarray) -> List[TextRegion]:
+    def detect_pii(self, text: str, image: np.ndarray) -> list[TextRegion]:
         """Detect PII entities and return text regions."""
         try:
             # Use Presidio to analyze text
-            results = self.analyzer.analyze(
-                text=text, entities=self.pii_entities, language="en"
-            )
+            results = self.analyzer.analyze(text=text, entities=self.pii_entities, language="en")
 
             # Convert to TextRegion objects
             # For now, create dummy bounding boxes - in production this would
@@ -195,7 +192,7 @@ class TextRenderer:
                         self.font = ImageFont.truetype(font_path, self.font_size)
                         logger.info(f"Loaded font: {font_path}")
                         break
-                except (OSError, IOError):
+                except OSError:
                     continue
 
             if self.font is None:
@@ -211,8 +208,8 @@ class TextRenderer:
         image: np.ndarray,
         text: str,
         bbox: BoundingBox,
-        background_color: Tuple[int, int, int] = (255, 255, 255),
-        text_color: Tuple[int, int, int] = (0, 0, 0),
+        background_color: tuple[int, int, int] = (255, 255, 255),
+        text_color: tuple[int, int, int] = (0, 0, 0),
     ) -> np.ndarray:
         """Render text onto image at specified bounding box."""
         try:
@@ -221,9 +218,7 @@ class TextRenderer:
             draw = ImageDraw.Draw(pil_image)
 
             # Fill background
-            draw.rectangle(
-                [bbox.left, bbox.top, bbox.right, bbox.bottom], fill=background_color
-            )
+            draw.rectangle([bbox.left, bbox.top, bbox.right, bbox.bottom], fill=background_color)
 
             # Calculate text position (centered in bbox)
             text_bbox = draw.textbbox((0, 0), text, font=self.font)
@@ -264,13 +259,13 @@ class InferenceEngine:
         self.image_validator = ImageValidator()
         self.metrics_collector = MetricsCollector()
         self.text_renderer = TextRenderer()
-        self.ner_processor: Optional[NERProcessor] = None
-        self.ocr_processor: Optional[OCRProcessor] = None
+        self.ner_processor: NERProcessor | None = None
+        self.ocr_processor: OCRProcessor | None = None
 
         # Model components
-        self.pipeline: Optional[StableDiffusionInpaintPipeline] = None
-        self.vae: Optional[AutoencoderKL] = None
-        self.unet: Optional[UNet2DConditionModel] = None
+        self.pipeline: StableDiffusionInpaintPipeline | None = None
+        self.vae: AutoencoderKL | None = None
+        self.unet: UNet2DConditionModel | None = None
 
         # Thread safety
         self._model_lock = threading.Lock()
@@ -376,9 +371,7 @@ class InferenceEngine:
             base_model = "stabilityai/stable-diffusion-2-inpainting"
             pretrained_pipeline = StableDiffusionInpaintPipeline.from_pretrained(
                 base_model,
-                torch_dtype=(
-                    torch.float16 if self.device.type == "cuda" else torch.float32
-                ),
+                torch_dtype=(torch.float16 if self.device.type == "cuda" else torch.float32),
             )
 
             # Replace components
@@ -395,9 +388,7 @@ class InferenceEngine:
             base_model = "stabilityai/stable-diffusion-2-inpainting"
             self.pipeline = StableDiffusionInpaintPipeline.from_pretrained(
                 base_model,
-                torch_dtype=(
-                    torch.float16 if self.device.type == "cuda" else torch.float32
-                ),
+                torch_dtype=(torch.float16 if self.device.type == "cuda" else torch.float32),
                 safety_checker=None,  # Disable for faster inference
                 requires_safety_checker=False,
             )
@@ -429,7 +420,7 @@ class InferenceEngine:
             raise ModelLoadError(f"Failed to configure pipeline: {e}")
 
     def anonymize(
-        self, image_data: bytes, text_regions: Optional[List[TextRegion]] = None
+        self, image_data: bytes, text_regions: list[TextRegion] | None = None
     ) -> AnonymizationResult:
         """
         Main anonymization function with comprehensive error handling.
@@ -477,9 +468,7 @@ class InferenceEngine:
                         generated_patches.append(patch)
 
                         # Apply patch to image
-                        anonymized_image = self._apply_patch(
-                            anonymized_image, patch, region.bbox
-                        )
+                        anonymized_image = self._apply_patch(anonymized_image, patch, region.bbox)
 
                     except Exception as e:
                         error_msg = f"Failed to anonymize region {i}: {e}"
@@ -508,9 +497,7 @@ class InferenceEngine:
 
             # Record failure metrics
             processing_time_ms = (time.time() - start_time) * 1000
-            self.metrics_collector.record_inference_metrics(
-                processing_time_ms, success=False
-            )
+            self.metrics_collector.record_inference_metrics(processing_time_ms, success=False)
 
             raise InferenceError(error_msg)
 
@@ -532,8 +519,7 @@ class InferenceEngine:
                 # Resize if too large
                 h, w = image.shape[:2]
                 max_size = (
-                    preprocessing_config.target_crop_size
-                    * preprocessing_config.max_scale_factor
+                    preprocessing_config.target_crop_size * preprocessing_config.max_scale_factor
                 )
 
                 if w > max_size or h > max_size:
@@ -550,7 +536,7 @@ class InferenceEngine:
         except Exception as e:
             raise PreprocessingError(f"Failed to process input image: {e}")
 
-    def _auto_detect_text_regions(self, image: np.ndarray) -> List[TextRegion]:
+    def _auto_detect_text_regions(self, image: np.ndarray) -> list[TextRegion]:
         """Auto-detect text regions using OCR and NER."""
         try:
             # Step 1: Use OCR to detect text regions
@@ -566,9 +552,7 @@ class InferenceEngine:
                     for detected_text in detected_texts:
                         if self.ner_processor:
                             # Use NER to check if text contains PII
-                            pii_regions = self.ner_processor.detect_pii(
-                                detected_text.text, image
-                            )
+                            pii_regions = self.ner_processor.detect_pii(detected_text.text, image)
 
                             if pii_regions:
                                 # Text contains PII - use original OCR bounding box but update with NER metadata
@@ -600,9 +584,7 @@ class InferenceEngine:
 
             else:
                 # Fallback to dummy detection if OCR unavailable
-                logger.warning(
-                    "OCR processor not available - using dummy text detection"
-                )
+                logger.warning("OCR processor not available - using dummy text detection")
                 if self.ner_processor:
                     dummy_text = "Sample sensitive text with PII"
                     text_regions = self.ner_processor.detect_pii(dummy_text, image)
@@ -615,9 +597,7 @@ class InferenceEngine:
             logger.error(f"Auto-detection failed: {e}")
             return []
 
-    def _anonymize_region(
-        self, image: np.ndarray, region: TextRegion
-    ) -> GeneratedPatch:
+    def _anonymize_region(self, image: np.ndarray, region: TextRegion) -> GeneratedPatch:
         """Anonymize a single text region using diffusion model."""
         try:
             start_time = time.time()
@@ -667,9 +647,7 @@ class InferenceEngine:
         except Exception as e:
             raise InferenceError(f"Region anonymization failed: {e}")
 
-    def _create_mask(
-        self, image_shape: Tuple[int, int], bbox: BoundingBox
-    ) -> np.ndarray:
+    def _create_mask(self, image_shape: tuple[int, int], bbox: BoundingBox) -> np.ndarray:
         """Create binary mask for text region."""
         h, w = image_shape
         mask = np.zeros((h, w), dtype=np.float32)
@@ -718,9 +696,7 @@ class InferenceEngine:
                 patch_y2 = patch_y1 + (y2 - y1)
                 patch_x2 = patch_x1 + (x2 - x1)
 
-                result_image[y1:y2, x1:x2] = resized_patch[
-                    patch_y1:patch_y2, patch_x1:patch_x2
-                ]
+                result_image[y1:y2, x1:x2] = resized_patch[patch_y1:patch_y2, patch_x1:patch_x2]
 
             return result_image
 

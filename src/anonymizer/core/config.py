@@ -1,15 +1,16 @@
 """Configuration management for the document anonymization system."""
 
-from typing import Optional, List, Union
-from pathlib import Path
 import os
+from pathlib import Path
+
 import yaml
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from .exceptions import ConfigurationError, ValidationError
 
 
-def validate_secure_path(path: Union[str, Path], field_name: str = "path") -> Path:
+def validate_secure_path(path: str | Path, field_name: str = "path") -> Path:
     """
     Validate path for security - prevents directory traversal attacks.
 
@@ -43,9 +44,7 @@ def validate_secure_path(path: Union[str, Path], field_name: str = "path") -> Pa
 
         for pattern in dangerous_patterns:
             if pattern in path_str:
-                raise ValidationError(
-                    f"Potentially dangerous path in {field_name}: {path}"
-                )
+                raise ValidationError(f"Potentially dangerous path in {field_name}: {path}")
 
         # Resolve to absolute path and check bounds
         try:
@@ -68,9 +67,7 @@ def validate_secure_path(path: Union[str, Path], field_name: str = "path") -> Pa
         raise ValidationError(f"Invalid path in {field_name}: {e}")
 
 
-def validate_model_path(
-    path: Union[str, Path], field_name: str = "model_path"
-) -> Optional[Path]:
+def validate_model_path(path: str | Path, field_name: str = "model_path") -> Path | None:
     """Validate model file path with additional security checks."""
     if path is None:
         return None
@@ -99,7 +96,7 @@ class OptimizerConfig(BaseSettings):
     type: str = Field("AdamW", description="Optimizer type")
     learning_rate: float = Field(..., gt=0.0, description="Learning rate")
     weight_decay: float = Field(0.01, ge=0.0, description="Weight decay")
-    betas: List[float] = Field([0.9, 0.999], description="Adam betas")
+    betas: list[float] = Field([0.9, 0.999], description="Adam betas")
 
     @field_validator("betas")
     @classmethod
@@ -152,19 +149,13 @@ class VAEConfig(BaseSettings):
 
     model_name: str = Field("document-anonymizer-vae", description="Model name")
     version: str = Field("v1.0", description="Model version")
-    base_model: str = Field(
-        "stabilityai/stable-diffusion-2-1-base", description="Base model"
-    )
+    base_model: str = Field("stabilityai/stable-diffusion-2-1-base", description="Base model")
 
     # Training parameters (FIXED: Increased from reference implementations)
     batch_size: int = Field(16, ge=1, description="Batch size per GPU")
-    learning_rate: float = Field(
-        5e-4, gt=0.0, description="Learning rate (FIXED: was 5e-6)"
-    )
+    learning_rate: float = Field(5e-4, gt=0.0, description="Learning rate (FIXED: was 5e-6)")
     num_epochs: int = Field(100, ge=1, description="Number of epochs")
-    gradient_accumulation_steps: int = Field(
-        2, ge=1, description="Gradient accumulation"
-    )
+    gradient_accumulation_steps: int = Field(2, ge=1, description="Gradient accumulation")
     mixed_precision: str = Field("bf16", description="Mixed precision mode")
     gradient_clipping: float = Field(1.0, gt=0.0, description="Gradient clipping")
 
@@ -172,19 +163,13 @@ class VAEConfig(BaseSettings):
     loss: LossConfig = Field(default_factory=LossConfig)
 
     # Optimizer and scheduler
-    optimizer: OptimizerConfig = Field(
-        default_factory=lambda: OptimizerConfig(learning_rate=5e-4)
-    )
+    optimizer: OptimizerConfig = Field(default_factory=lambda: OptimizerConfig(learning_rate=5e-4))
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
 
     # Storage
-    checkpoint_dir: Path = Field(
-        Path("./checkpoints"), description="Checkpoint directory"
-    )
+    checkpoint_dir: Path = Field(Path("./checkpoints"), description="Checkpoint directory")
     save_every_n_steps: int = Field(5000, ge=1, description="Save frequency")
-    keep_n_checkpoints: int = Field(
-        3, ge=1, description="Number of checkpoints to keep"
-    )
+    keep_n_checkpoints: int = Field(3, ge=1, description="Number of checkpoints to keep")
 
     @field_validator("checkpoint_dir")
     @classmethod
@@ -213,19 +198,13 @@ class UNetConfig(BaseSettings):
 
     model_name: str = Field("document-anonymizer-unet", description="Model name")
     version: str = Field("v1.0", description="Model version")
-    base_model: str = Field(
-        "stabilityai/stable-diffusion-2-inpainting", description="Base model"
-    )
+    base_model: str = Field("stabilityai/stable-diffusion-2-inpainting", description="Base model")
 
     # Training parameters (FIXED: Increased from reference implementations)
     batch_size: int = Field(8, ge=1, description="Batch size per GPU")
-    learning_rate: float = Field(
-        1e-4, gt=0.0, description="Learning rate (FIXED: was 1e-5)"
-    )
+    learning_rate: float = Field(1e-4, gt=0.0, description="Learning rate (FIXED: was 1e-5)")
     num_epochs: int = Field(50, ge=1, description="Number of epochs")
-    gradient_accumulation_steps: int = Field(
-        4, ge=1, description="Gradient accumulation"
-    )
+    gradient_accumulation_steps: int = Field(4, ge=1, description="Gradient accumulation")
     mixed_precision: str = Field("bf16", description="Mixed precision mode")
     gradient_clipping: float = Field(1.0, gt=0.0, description="Gradient clipping")
 
@@ -234,25 +213,17 @@ class UNetConfig(BaseSettings):
     noise_schedule: str = Field("scaled_linear", description="Noise schedule")
 
     # Text conditioning
-    text_encoder_lr_scale: float = Field(
-        0.1, gt=0.0, le=1.0, description="Text encoder LR scale"
-    )
+    text_encoder_lr_scale: float = Field(0.1, gt=0.0, le=1.0, description="Text encoder LR scale")
     freeze_text_encoder: bool = Field(False, description="Freeze text encoder")
 
     # Optimizer and scheduler
-    optimizer: OptimizerConfig = Field(
-        default_factory=lambda: OptimizerConfig(learning_rate=1e-4)
-    )
+    optimizer: OptimizerConfig = Field(default_factory=lambda: OptimizerConfig(learning_rate=1e-4))
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
 
     # Storage
-    checkpoint_dir: Path = Field(
-        Path("./checkpoints"), description="Checkpoint directory"
-    )
+    checkpoint_dir: Path = Field(Path("./checkpoints"), description="Checkpoint directory")
     save_every_n_steps: int = Field(2500, ge=1, description="Save frequency")
-    keep_n_checkpoints: int = Field(
-        3, ge=1, description="Number of checkpoints to keep"
-    )
+    keep_n_checkpoints: int = Field(3, ge=1, description="Number of checkpoints to keep")
 
     @field_validator("checkpoint_dir")
     @classmethod
@@ -272,7 +243,7 @@ class DatasetConfig(BaseSettings):
     """Dataset configuration."""
 
     train_data_path: Path = Field(..., description="Training data path")
-    val_data_path: Optional[Path] = Field(None, description="Validation data path")
+    val_data_path: Path | None = Field(None, description="Validation data path")
     crop_size: int = Field(512, ge=128, description="Crop size")
     num_workers: int = Field(4, ge=0, description="Data loader workers")
 
@@ -291,12 +262,8 @@ class DatasetConfig(BaseSettings):
         return v
 
     # Augmentation (conservative for text preservation)
-    rotation_range: float = Field(
-        5.0, ge=0.0, le=45.0, description="Rotation range in degrees"
-    )
-    brightness_range: float = Field(
-        0.1, ge=0.0, le=0.5, description="Brightness variation"
-    )
+    rotation_range: float = Field(5.0, ge=0.0, le=45.0, description="Rotation range in degrees")
+    brightness_range: float = Field(0.1, ge=0.0, le=0.5, description="Brightness variation")
     contrast_range: float = Field(0.1, ge=0.0, le=0.5, description="Contrast variation")
 
 
@@ -312,9 +279,7 @@ class PreprocessingConfig(BaseSettings):
 
     target_crop_size: int = Field(512, ge=128, description="Target crop size")
     max_scale_factor: float = Field(4.0, gt=1.0, description="Maximum scale factor")
-    max_memory_bytes: int = Field(
-        1024 * 1024 * 1024, gt=0, description="Max memory per image"
-    )
+    max_memory_bytes: int = Field(1024 * 1024 * 1024, gt=0, description="Max memory per image")
     padding_mode: str = Field("reflect", description="Padding mode")
     interpolation: str = Field("lanczos", description="Interpolation method")
 
@@ -330,8 +295,8 @@ class EngineConfig(BaseSettings):
     """Inference engine configuration."""
 
     # Model paths
-    vae_model_path: Optional[str] = Field(None, description="VAE model path")
-    unet_model_path: Optional[str] = Field(None, description="UNet model path")
+    vae_model_path: str | None = Field(None, description="VAE model path")
+    unet_model_path: str | None = Field(None, description="UNet model path")
 
     @field_validator("vae_model_path")
     @classmethod
@@ -363,9 +328,7 @@ class EngineConfig(BaseSettings):
 
     # Quality settings
     enable_quality_check: bool = Field(True, description="Enable quality verification")
-    min_confidence_threshold: float = Field(
-        0.7, ge=0.0, le=1.0, description="Minimum confidence"
-    )
+    min_confidence_threshold: float = Field(0.7, ge=0.0, le=1.0, description="Minimum confidence")
 
     # Preprocessing
     preprocessing: PreprocessingConfig = Field(default_factory=PreprocessingConfig)
@@ -435,22 +398,18 @@ class AppConfig(BaseSettings):
 
     # GPU settings
     device: str = Field("auto", description="Device to use (auto, cpu, cuda, mps)")
-    enable_mixed_precision: bool = Field(
-        True, description="Enable mixed precision training"
-    )
+    enable_mixed_precision: bool = Field(True, description="Enable mixed precision training")
 
     # Configuration file paths (optional)
-    vae_config_path: Optional[Path] = Field(None, description="VAE config YAML path")
-    unet_config_path: Optional[Path] = Field(None, description="UNet config YAML path")
-    engine_config_path: Optional[Path] = Field(
-        None, description="Engine config YAML path"
-    )
+    vae_config_path: Path | None = Field(None, description="VAE config YAML path")
+    unet_config_path: Path | None = Field(None, description="UNet config YAML path")
+    engine_config_path: Path | None = Field(None, description="Engine config YAML path")
 
     # Sub-configurations (will be properly loaded with env vars in post_init)
     vae: VAEConfig = Field(default_factory=VAEConfig)
     unet: UNetConfig = Field(default_factory=UNetConfig)
     engine: EngineConfig = Field(default_factory=EngineConfig)
-    r2: Optional[R2Config] = Field(default_factory=lambda: None)
+    r2: R2Config | None = Field(default_factory=lambda: None)
     metrics: MetricsConfig = Field(default_factory=MetricsConfig)
 
     def model_post_init(self, __context) -> None:
@@ -461,8 +420,7 @@ class AppConfig(BaseSettings):
 
         # Only reload if we have an env file or if env vars might be set
         if any(
-            key.startswith(("VAE_", "UNET_", "ENGINE_", "R2_", "METRICS_"))
-            for key in os.environ
+            key.startswith(("VAE_", "UNET_", "ENGINE_", "R2_", "METRICS_")) for key in os.environ
         ):
             try:
                 self.vae = VAEConfig(
@@ -480,9 +438,7 @@ class AppConfig(BaseSettings):
                 # R2 is optional since it has required fields
                 try:
                     self.r2 = R2Config(
-                        _env_file=(
-                            env_file if env_file and Path(env_file).exists() else None
-                        )
+                        _env_file=(env_file if env_file and Path(env_file).exists() else None)
                     )
                 except Exception:
                     self.r2 = None
@@ -491,7 +447,7 @@ class AppConfig(BaseSettings):
                 pass
 
     @classmethod
-    def load_from_env(cls, env_file: Union[str, Path, None] = ".env") -> "AppConfig":
+    def load_from_env(cls, env_file: str | Path | None = ".env") -> "AppConfig":
         """Load configuration from environment variables and .env file."""
         if env_file:
             env_file = Path(env_file)
@@ -502,10 +458,10 @@ class AppConfig(BaseSettings):
     @classmethod
     def load_with_overrides(
         cls,
-        env_file: Union[str, Path, None] = ".env",
-        vae_yaml: Optional[Union[str, Path]] = None,
-        unet_yaml: Optional[Union[str, Path]] = None,
-        engine_yaml: Optional[Union[str, Path]] = None,
+        env_file: str | Path | None = ".env",
+        vae_yaml: str | Path | None = None,
+        unet_yaml: str | Path | None = None,
+        engine_yaml: str | Path | None = None,
         **kwargs,
     ) -> "AppConfig":
         """Load configuration with YAML overrides for specific components."""
@@ -536,9 +492,7 @@ class AppConfig(BaseSettings):
         return config
 
 
-def load_config_from_yaml(
-    config_path: Union[str, Path], config_class: type
-) -> BaseSettings:
+def load_config_from_yaml(config_path: str | Path, config_class: type) -> BaseSettings:
     """Load configuration from YAML file."""
     config_path = Path(config_path)
 
@@ -546,7 +500,7 @@ def load_config_from_yaml(
         raise ConfigurationError(f"Configuration file not found: {config_path}")
 
     try:
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             config_data = yaml.safe_load(f)
 
         if config_data is None:
@@ -564,8 +518,7 @@ def load_config_from_yaml(
                 )
 
             return TempConfig(**config_data)
-        else:
-            return config_class(**config_data)
+        return config_class(**config_data)
 
     except yaml.YAMLError as e:
         raise ConfigurationError(f"Invalid YAML in {config_path}: {e}")
@@ -578,20 +531,17 @@ def _add_yaml_methods():
     """Add YAML loading methods to configuration classes."""
 
     @classmethod
-    def from_yaml(cls, config_path: Union[str, Path]):
+    def from_yaml(cls, config_path: str | Path):
         """Load configuration from YAML file."""
         return load_config_from_yaml(config_path, cls)
 
     @classmethod
-    def from_env_and_yaml(
-        cls, yaml_path: Optional[Union[str, Path]] = None, env_file: str = ".env"
-    ):
+    def from_env_and_yaml(cls, yaml_path: str | Path | None = None, env_file: str = ".env"):
         """Load configuration from environment variables and optionally override with YAML."""
         if yaml_path and Path(yaml_path).exists():
             return cls.from_yaml(yaml_path)
-        else:
-            # Load from environment variables/.env file
-            return cls(_env_file=env_file if Path(env_file).exists() else None)
+        # Load from environment variables/.env file
+        return cls(_env_file=env_file if Path(env_file).exists() else None)
 
     # Add methods to all config classes
     for config_class in [

@@ -6,16 +6,17 @@ Tools for profiling memory usage and performance characteristics
 of the document anonymization pipeline.
 """
 
-import time
-import logging
-import psutil
-import threading
-from typing import Dict, List, Optional, Any
-from pathlib import Path
-from dataclasses import dataclass, asdict
-from contextlib import contextmanager
-from datetime import datetime
 import json
+import logging
+import threading
+import time
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +32,14 @@ class PerformanceMetrics:
     peak_memory_mb: float
     avg_memory_mb: float
     cpu_percent: float
-    gpu_memory_mb: Optional[float] = None
+    gpu_memory_mb: float | None = None
     timestamp: str = ""
 
     def __post_init__(self):
         if not self.timestamp:
             self.timestamp = datetime.now().isoformat()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return asdict(self)
 
@@ -52,7 +53,7 @@ class MemorySnapshot:
     vms_mb: float  # Virtual Memory Size
     percent: float  # Memory percentage
     available_mb: float
-    gpu_memory_mb: Optional[float] = None
+    gpu_memory_mb: float | None = None
 
 
 class MemoryProfiler:
@@ -69,8 +70,8 @@ class MemoryProfiler:
     def __init__(self, sample_interval: float = 0.1):
         self.sample_interval = sample_interval
         self.is_monitoring = False
-        self.snapshots: List[MemorySnapshot] = []
-        self._monitor_thread: Optional[threading.Thread] = None
+        self.snapshots: list[MemorySnapshot] = []
+        self._monitor_thread: threading.Thread | None = None
 
         # Try to import torch for GPU monitoring
         try:
@@ -84,7 +85,7 @@ class MemoryProfiler:
 
         logger.info(f"MemoryProfiler initialized (GPU available: {self.has_gpu})")
 
-    def _get_gpu_memory_mb(self) -> Optional[float]:
+    def _get_gpu_memory_mb(self) -> float | None:
         """Get current GPU memory usage in MB."""
         if not self.has_gpu or not self._torch:
             return None
@@ -132,7 +133,7 @@ class MemoryProfiler:
         self._monitor_thread.start()
         logger.debug("Started memory monitoring")
 
-    def stop_monitoring(self) -> List[MemorySnapshot]:
+    def stop_monitoring(self) -> list[MemorySnapshot]:
         """Stop monitoring and return collected snapshots."""
         if not self.is_monitoring:
             return self.snapshots
@@ -156,14 +157,12 @@ class MemoryProfiler:
             return 0.0
         return sum(snapshot.rss_mb for snapshot in self.snapshots) / len(self.snapshots)
 
-    def get_peak_gpu_memory(self) -> Optional[float]:
+    def get_peak_gpu_memory(self) -> float | None:
         """Get peak GPU memory usage in MB."""
         if not self.has_gpu or not self.snapshots:
             return None
 
-        gpu_values = [
-            s.gpu_memory_mb for s in self.snapshots if s.gpu_memory_mb is not None
-        ]
+        gpu_values = [s.gpu_memory_mb for s in self.snapshots if s.gpu_memory_mb is not None]
         return max(gpu_values) if gpu_values else None
 
     @contextmanager
@@ -188,18 +187,16 @@ class PerformanceProfiler:
     - Detailed metrics collection
     """
 
-    def __init__(self, auto_save: bool = True, results_dir: Optional[Path] = None):
+    def __init__(self, auto_save: bool = True, results_dir: Path | None = None):
         self.auto_save = auto_save
         self.results_dir = results_dir or Path("./performance_results")
-        self.metrics: List[PerformanceMetrics] = []
+        self.metrics: list[PerformanceMetrics] = []
         self.memory_profiler = MemoryProfiler()
 
         if self.auto_save:
             self.results_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(
-            f"PerformanceProfiler initialized (results_dir: {self.results_dir})"
-        )
+        logger.info(f"PerformanceProfiler initialized (results_dir: {self.results_dir})")
 
     @contextmanager
     def profile_operation(self, operation_name: str):
@@ -259,13 +256,11 @@ class PerformanceProfiler:
             if self.auto_save:
                 self._save_metrics()
 
-    def get_metrics_for_operation(
-        self, operation_name: str
-    ) -> List[PerformanceMetrics]:
+    def get_metrics_for_operation(self, operation_name: str) -> list[PerformanceMetrics]:
         """Get all metrics for a specific operation."""
         return [m for m in self.metrics if m.operation == operation_name]
 
-    def get_average_metrics(self, operation_name: str) -> Optional[Dict[str, float]]:
+    def get_average_metrics(self, operation_name: str) -> dict[str, float] | None:
         """Get average metrics for an operation."""
         operation_metrics = self.get_metrics_for_operation(operation_name)
         if not operation_metrics:
@@ -363,7 +358,7 @@ class PerformanceProfiler:
         self.metrics.clear()
         logger.info("Cleared all performance metrics")
 
-    def get_summary_report(self) -> Dict[str, Any]:
+    def get_summary_report(self) -> dict[str, Any]:
         """Generate a summary report of all collected metrics."""
         if not self.metrics:
             return {"error": "No metrics collected"}
@@ -394,8 +389,7 @@ class PerformanceProfiler:
                     "max": max(memory_peaks),
                     "avg": sum(memory_peaks) / len(memory_peaks),
                 },
-                "cpu_percent_avg": sum(m.cpu_percent for m in op_metrics)
-                / len(op_metrics),
+                "cpu_percent_avg": sum(m.cpu_percent for m in op_metrics) / len(op_metrics),
             }
 
         return {

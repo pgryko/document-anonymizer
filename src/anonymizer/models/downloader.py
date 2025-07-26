@@ -6,21 +6,22 @@ Handles downloading models from various sources with progress tracking,
 validation, and error recovery.
 """
 
-import logging
 import hashlib
+import json
+import logging
 import shutil
+import tempfile
 import time
+from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, Callable
 from urllib.parse import urlparse
+
 import requests
 from tqdm import tqdm
-import tempfile
-import json
-from datetime import datetime
 
-from .config import ModelConfig, ModelSource, ModelMetadata, ModelType, ModelFormat
-from ..core.exceptions import ValidationError, InferenceError
+from ..core.exceptions import InferenceError, ValidationError
+from .config import ModelConfig, ModelFormat, ModelMetadata, ModelSource, ModelType
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +92,8 @@ class ModelDownloader:
     def download_model(
         self,
         source: ModelSource,
-        target_path: Optional[Path] = None,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        target_path: Path | None = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> ModelMetadata:
         """
         Download a model from the specified source.
@@ -132,7 +133,7 @@ class ModelDownloader:
         self,
         source: ModelSource,
         target_path: Path,
-        progress_callback: Optional[Callable[[int, int], None]],
+        progress_callback: Callable[[int, int], None] | None,
         attempt: int,
     ) -> ModelMetadata:
         """Download model with progress tracking."""
@@ -144,9 +145,7 @@ class ModelDownloader:
 
         try:
             # Get file info
-            response = self.session.head(
-                source.url, timeout=self.config.timeout_seconds
-            )
+            response = self.session.head(source.url, timeout=self.config.timeout_seconds)
             response.raise_for_status()
 
             total_size = int(response.headers.get("content-length", 0))
@@ -170,9 +169,7 @@ class ModelDownloader:
 
             try:
                 with open(temp_path, "wb") as f:
-                    for chunk in response.iter_content(
-                        chunk_size=self.config.chunk_size
-                    ):
+                    for chunk in response.iter_content(chunk_size=self.config.chunk_size):
                         if chunk:
                             f.write(chunk)
                             chunk_size = len(chunk)
@@ -286,9 +283,7 @@ class ModelDownloader:
         except Exception as e:
             logger.warning(f"Could not check disk space: {e}")
 
-    def _verify_checksum(
-        self, file_path: Path, expected_checksum: str, checksum_type: str
-    ):
+    def _verify_checksum(self, file_path: Path, expected_checksum: str, checksum_type: str):
         """Verify file checksum."""
         logger.info(f"Verifying {checksum_type} checksum...")
 
@@ -323,16 +318,15 @@ class ModelDownloader:
 
         if "vae" in name_lower:
             return ModelType.VAE
-        elif "unet" in name_lower:
+        if "unet" in name_lower:
             return ModelType.UNET
-        elif "text_encoder" in name_lower:
+        if "text_encoder" in name_lower:
             return ModelType.TEXT_ENCODER
-        elif "tokenizer" in name_lower:
+        if "tokenizer" in name_lower:
             return ModelType.TOKENIZER
-        elif "scheduler" in name_lower:
+        if "scheduler" in name_lower:
             return ModelType.SCHEDULER
-        else:
-            return ModelType.FULL_PIPELINE
+        return ModelType.FULL_PIPELINE
 
     def _save_metadata(self, metadata: ModelMetadata):
         """Save model metadata to disk."""
@@ -348,7 +342,7 @@ class ModelDownloader:
             logger.warning(f"Could not save metadata: {e}")
 
     def download_from_huggingface(
-        self, model_id: str, filename: Optional[str] = None, revision: str = "main"
+        self, model_id: str, filename: str | None = None, revision: str = "main"
     ) -> ModelMetadata:
         """
         Download model from Hugging Face Hub.
@@ -367,9 +361,7 @@ class ModelDownloader:
             if filename:
                 # Download specific file
                 url = hf_hub_url(model_id, filename=filename, revision=revision)
-                local_path = hf_hub_download(
-                    model_id, filename=filename, revision=revision
-                )
+                local_path = hf_hub_download(model_id, filename=filename, revision=revision)
 
                 source = ModelSource(
                     name=f"{model_id.replace('/', '_')}_{filename}",
@@ -399,8 +391,7 @@ class ModelDownloader:
                 logger.info(f"Downloaded {filename} from {model_id}")
                 return metadata
 
-            else:
-                raise NotImplementedError("Full model download not yet implemented")
+            raise NotImplementedError("Full model download not yet implemented")
 
         except ImportError:
             raise InferenceError(

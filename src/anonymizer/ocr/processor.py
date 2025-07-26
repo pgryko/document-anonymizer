@@ -8,13 +8,13 @@ and integration with the document anonymization pipeline.
 
 import logging
 import time
-import numpy as np
-from typing import List, Optional
 
-from .models import DetectedText, OCRConfig, OCRMetrics
-from .engines import create_ocr_engine, BaseOCREngine
-from ..core.models import BoundingBox, TextRegion
+import numpy as np
+
 from ..core.exceptions import InferenceError, ValidationError
+from ..core.models import BoundingBox, TextRegion
+from .engines import BaseOCREngine, create_ocr_engine
+from .models import DetectedText, OCRConfig, OCRMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +33,8 @@ class OCRProcessor:
 
     def __init__(self, config: OCRConfig):
         self.config = config
-        self.primary_engine: Optional[BaseOCREngine] = None
-        self.fallback_engines: List[BaseOCREngine] = []
+        self.primary_engine: BaseOCREngine | None = None
+        self.fallback_engines: list[BaseOCREngine] = []
         self.is_initialized = False
 
         # Performance tracking
@@ -42,17 +42,13 @@ class OCRProcessor:
         self.total_images_processed = 0
         self.successful_detections = 0
 
-        logger.info(
-            f"OCRProcessor initialized with primary engine: {config.primary_engine.value}"
-        )
+        logger.info(f"OCRProcessor initialized with primary engine: {config.primary_engine.value}")
 
     def initialize(self) -> bool:
         """Initialize OCR engines with fallback support."""
         try:
             # Initialize primary engine
-            self.primary_engine = create_ocr_engine(
-                self.config.primary_engine, self.config
-            )
+            self.primary_engine = create_ocr_engine(self.config.primary_engine, self.config)
             primary_success = self.primary_engine.initialize()
 
             if not primary_success:
@@ -68,26 +64,18 @@ class OCRProcessor:
                     if engine.initialize():
                         self.fallback_engines.append(engine)
                         fallback_success_count += 1
-                        logger.info(
-                            f"Fallback engine {engine_type.value} initialized successfully"
-                        )
+                        logger.info(f"Fallback engine {engine_type.value} initialized successfully")
                     else:
-                        logger.warning(
-                            f"Fallback engine {engine_type.value} failed to initialize"
-                        )
+                        logger.warning(f"Fallback engine {engine_type.value} failed to initialize")
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to create fallback engine {engine_type.value}: {e}"
-                    )
+                    logger.warning(f"Failed to create fallback engine {engine_type.value}: {e}")
 
             # Check if we have at least one working engine
             self.is_initialized = primary_success or fallback_success_count > 0
 
             if self.is_initialized:
                 total_engines = (1 if primary_success else 0) + fallback_success_count
-                logger.info(
-                    f"OCR processor initialized with {total_engines} working engines"
-                )
+                logger.info(f"OCR processor initialized with {total_engines} working engines")
             else:
                 logger.error("No OCR engines available - check dependencies")
 
@@ -98,8 +86,8 @@ class OCRProcessor:
             return False
 
     def extract_text_regions(
-        self, image: np.ndarray, min_confidence: Optional[float] = None
-    ) -> List[DetectedText]:
+        self, image: np.ndarray, min_confidence: float | None = None
+    ) -> list[DetectedText]:
         """
         Extract text regions from an image using OCR.
 
@@ -126,18 +114,14 @@ class OCRProcessor:
                 result = self.primary_engine.detect_text(image)
 
                 if result.success and len(result.detected_texts) > 0:
-                    logger.debug(
-                        f"Primary engine {self.config.primary_engine.value} succeeded"
-                    )
+                    logger.debug(f"Primary engine {self.config.primary_engine.value} succeeded")
                 else:
                     logger.warning(
                         f"Primary engine {self.config.primary_engine.value} returned no results"
                     )
 
             except Exception as e:
-                logger.warning(
-                    f"Primary engine {self.config.primary_engine.value} failed: {e}"
-                )
+                logger.warning(f"Primary engine {self.config.primary_engine.value} failed: {e}")
                 result = None
 
         # Try fallback engines if primary failed or returned no results
@@ -151,14 +135,11 @@ class OCRProcessor:
                     result = fallback_engine.detect_text(image)
 
                     if result.success and len(result.detected_texts) > 0:
-                        logger.info(
-                            f"Fallback engine {result.engine_used.value} succeeded"
-                        )
+                        logger.info(f"Fallback engine {result.engine_used.value} succeeded")
                         break
-                    else:
-                        logger.warning(
-                            f"Fallback engine {result.engine_used.value} returned no results"
-                        )
+                    logger.warning(
+                        f"Fallback engine {result.engine_used.value} returned no results"
+                    )
 
                 except Exception as e:
                     logger.warning(f"Fallback engine failed: {e}")
@@ -172,9 +153,7 @@ class OCRProcessor:
         # Apply confidence filtering
         confidence_threshold = min_confidence or self.config.min_confidence_threshold
         filtered_texts = [
-            text
-            for text in result.detected_texts
-            if text.confidence >= confidence_threshold
+            text for text in result.detected_texts if text.confidence >= confidence_threshold
         ]
 
         # Apply additional filtering
@@ -194,8 +173,8 @@ class OCRProcessor:
         return filtered_texts
 
     def convert_to_text_regions(
-        self, detected_texts: List[DetectedText], replacement_strategy: str = "generic"
-    ) -> List[TextRegion]:
+        self, detected_texts: list[DetectedText], replacement_strategy: str = "generic"
+    ) -> list[TextRegion]:
         """
         Convert DetectedText objects to TextRegion objects for anonymization.
 
@@ -232,7 +211,7 @@ class OCRProcessor:
 
     def detect_and_convert(
         self, image: np.ndarray, replacement_strategy: str = "generic"
-    ) -> List[TextRegion]:
+    ) -> list[TextRegion]:
         """
         One-step function to detect text and convert to TextRegion objects.
 
@@ -246,9 +225,7 @@ class OCRProcessor:
         detected_texts = self.extract_text_regions(image)
         return self.convert_to_text_regions(detected_texts, replacement_strategy)
 
-    def _apply_text_filters(
-        self, detected_texts: List[DetectedText]
-    ) -> List[DetectedText]:
+    def _apply_text_filters(self, detected_texts: list[DetectedText]) -> list[DetectedText]:
         """Apply various text filters to improve detection quality."""
         filtered_texts = detected_texts.copy()
 
@@ -257,9 +234,7 @@ class OCRProcessor:
             filtered_texts = [
                 text
                 for text in filtered_texts
-                if self.config.min_text_length
-                <= len(text.text)
-                <= self.config.max_text_length
+                if self.config.min_text_length <= len(text.text) <= self.config.max_text_length
             ]
 
         # Filter by confidence
@@ -279,9 +254,7 @@ class OCRProcessor:
 
         return filtered_texts
 
-    def _merge_nearby_texts(
-        self, detected_texts: List[DetectedText]
-    ) -> List[DetectedText]:
+    def _merge_nearby_texts(self, detected_texts: list[DetectedText]) -> list[DetectedText]:
         """Merge text regions that are close together."""
         if len(detected_texts) <= 1:
             return detected_texts
@@ -329,7 +302,7 @@ class OCRProcessor:
         distance = ((center1_x - center2_x) ** 2 + (center1_y - center2_y) ** 2) ** 0.5
         return distance
 
-    def _merge_detected_texts(self, texts: List[DetectedText]) -> DetectedText:
+    def _merge_detected_texts(self, texts: list[DetectedText]) -> DetectedText:
         """Merge multiple DetectedText objects into one."""
         if len(texts) == 1:
             return texts[0]
@@ -360,9 +333,7 @@ class OCRProcessor:
             language=texts[0].language,  # Use first text's language
         )
 
-    def _remove_duplicate_texts(
-        self, detected_texts: List[DetectedText]
-    ) -> List[DetectedText]:
+    def _remove_duplicate_texts(self, detected_texts: list[DetectedText]) -> list[DetectedText]:
         """Remove duplicate text detections."""
         unique_texts = []
         seen_texts = set()

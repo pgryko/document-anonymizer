@@ -1,7 +1,8 @@
 """Pydantic models for type-safe data structures."""
 
-from typing import List, Dict, Optional, Any
 from pathlib import Path
+from typing import Any
+
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
 
@@ -89,7 +90,9 @@ class AnonymizationRequest(BaseModel):
     """Request for document anonymization."""
 
     image_data: bytes = Field(..., description="Input image data")
-    text_regions: List[TextRegion] = Field(..., min_items=1, max_items=50)
+    text_regions: list[TextRegion] = Field(
+        default_factory=list, max_items=50, description="Text regions to anonymize"
+    )
     preserve_formatting: bool = Field(True, description="Preserve text formatting")
     quality_check: bool = Field(True, description="Enable quality verification")
 
@@ -116,7 +119,7 @@ class GenerationMetadata(BaseModel):
     model_version: str
     num_inference_steps: int = Field(..., ge=1)
     guidance_scale: float = Field(..., gt=0.0)
-    seed: Optional[int] = None
+    seed: int | None = None
 
 
 class GeneratedPatch(BaseModel):
@@ -134,10 +137,10 @@ class AnonymizationResult(BaseModel):
     """Result of document anonymization."""
 
     anonymized_image: np.ndarray = Field(..., description="Final anonymized image")
-    generated_patches: List[GeneratedPatch]
+    generated_patches: list[GeneratedPatch]
     processing_time_ms: float = Field(..., ge=0.0)
     success: bool
-    errors: List[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
 
     class Config:
         arbitrary_types_allowed = True
@@ -150,12 +153,12 @@ class ModelArtifacts(BaseModel):
     version: str = Field(..., min_length=1)
     model_path: Path
     config_path: Path
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     class Config:
         arbitrary_types_allowed = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "model_name": self.model_name,
@@ -207,10 +210,10 @@ class TrainingMetrics(BaseModel):
     total_loss: float
     recon_loss: float
     kl_loss: float
-    perceptual_loss: Optional[float] = None
+    perceptual_loss: float | None = None
     learning_rate: float = Field(..., gt=0.0)
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         """Convert to dictionary for logging."""
         result = {
             "epoch": float(self.epoch),
@@ -229,12 +232,10 @@ class FontInfo(BaseModel):
     """Font information for text rendering."""
 
     family: str = Field(..., min_length=1, description="Font family name")
-    style: str = Field(
-        "normal", description="Font style (normal, bold, italic, bold-italic)"
-    )
+    style: str = Field("normal", description="Font style (normal, bold, italic, bold-italic)")
     weight: int = Field(400, ge=100, le=900, description="Font weight")
     size: float = Field(12.0, gt=0.0, description="Font size in points")
-    path: Optional[str] = Field(None, description="Path to font file")
+    path: str | None = Field(None, description="Path to font file")
     is_bundled: bool = Field(False, description="Whether font is bundled")
     confidence: float = Field(1.0, ge=0.0, le=1.0, description="Detection confidence")
 
@@ -246,7 +247,7 @@ class FontInfo(BaseModel):
             raise ValueError(f"Style must be one of {valid_styles}")
         return v
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "family": self.family,
@@ -257,3 +258,76 @@ class FontInfo(BaseModel):
             "is_bundled": self.is_bundled,
             "confidence": self.confidence,
         }
+
+
+class BatchItem(BaseModel):
+    """Single item in a batch processing request."""
+
+    item_id: str = Field(..., min_length=1, description="Unique identifier for this item")
+    image_path: Path = Field(..., description="Path to input image file")
+    text_regions: list[TextRegion] = Field(
+        default_factory=list, max_items=50, description="Text regions to anonymize"
+    )
+    output_path: Path | None = Field(None, description="Optional output path for this item")
+    preserve_formatting: bool = Field(True, description="Preserve text formatting")
+    quality_check: bool = Field(True, description="Enable quality verification")
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class BatchAnonymizationRequest(BaseModel):
+    """Request for batch document anonymization."""
+
+    items: list[BatchItem] = Field(..., max_items=100, description="Items to process")
+    output_directory: Path = Field(..., description="Base output directory")
+    preserve_structure: bool = Field(True, description="Preserve input directory structure")
+    max_parallel: int = Field(4, ge=1, le=16, description="Maximum parallel processes")
+    batch_size: int = Field(8, ge=1, le=32, description="Batch size for memory management")
+    continue_on_error: bool = Field(True, description="Continue processing other items on error")
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class BatchItemResult(BaseModel):
+    """Result for a single batch item."""
+
+    item_id: str = Field(..., description="Item identifier")
+    success: bool = Field(..., description="Whether processing succeeded")
+    output_path: Path | None = Field(None, description="Path to output file")
+    processing_time_ms: float = Field(..., ge=0.0, description="Processing time in milliseconds")
+    generated_patches: list[GeneratedPatch] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list, description="Error messages if any")
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class BatchAnonymizationResult(BaseModel):
+    """Result of batch document anonymization."""
+
+    results: list[BatchItemResult] = Field(..., description="Results for each item")
+    total_items: int = Field(..., ge=0, description="Total number of items processed")
+    successful_items: int = Field(..., ge=0, description="Number of successfully processed items")
+    failed_items: int = Field(..., ge=0, description="Number of failed items")
+    total_processing_time_ms: float = Field(..., ge=0.0, description="Total processing time")
+    output_directory: Path = Field(..., description="Output directory used")
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    @property
+    def success_rate(self) -> float:
+        """Calculate success rate as percentage."""
+        if self.total_items == 0:
+            return 0.0
+        return (self.successful_items / self.total_items) * 100.0
+
+    def get_failed_items(self) -> list[BatchItemResult]:
+        """Get list of failed items."""
+        return [result for result in self.results if not result.success]
+
+    def get_successful_items(self) -> list[BatchItemResult]:
+        """Get list of successful items."""
+        return [result for result in self.results if result.success]

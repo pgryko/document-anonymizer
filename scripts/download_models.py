@@ -7,17 +7,17 @@ Command-line utility for downloading and managing diffusion models
 for document anonymization.
 """
 
-import click
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
+
+import click
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.anonymizer.models import ModelManager, ModelConfig
-from src.anonymizer.core.exceptions import ValidationError, InferenceError
+from src.anonymizer.core.exceptions import InferenceError, ValidationError
+from src.anonymizer.models import ModelConfig, ModelManager
 
 # Setup logging
 logging.basicConfig(
@@ -27,12 +27,10 @@ logger = logging.getLogger(__name__)
 
 
 @click.group()
-@click.option(
-    "--models-dir", type=click.Path(path_type=Path), help="Directory to store models"
-)
+@click.option("--models-dir", type=click.Path(path_type=Path), help="Directory to store models")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
 @click.pass_context
-def cli(ctx, models_dir: Optional[Path], verbose: bool):
+def cli(ctx, models_dir: Path | None, verbose: bool):
     """Document Anonymization Model Manager."""
     if verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -138,7 +136,7 @@ def download(ctx, model_name: str, no_validate: bool):
 @click.option("--filename", help="Specific file to download")
 @click.option("--no-validate", is_flag=True, help="Skip validation after download")
 @click.pass_context
-def download_hf(ctx, model_id: str, filename: Optional[str], no_validate: bool):
+def download_hf(ctx, model_id: str, filename: str | None, no_validate: bool):
     """Download model from Hugging Face Hub."""
     manager = ctx.obj["manager"]
 

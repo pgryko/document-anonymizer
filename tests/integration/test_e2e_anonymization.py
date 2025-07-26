@@ -6,18 +6,19 @@ Tests the complete anonymization workflow from image input to anonymized output.
 Validates the integration between NER, diffusion models, and image processing.
 """
 
-import pytest
-import numpy as np
+import logging
 import tempfile
 import time
 from pathlib import Path
+
+import numpy as np
+import pytest
 from PIL import Image, ImageDraw, ImageFont
-import logging
 
 from src.anonymizer.core.config import EngineConfig
+from src.anonymizer.core.exceptions import InferenceError
 from src.anonymizer.core.models import AnonymizationResult, BoundingBox, TextRegion
 from src.anonymizer.inference.engine import InferenceEngine
-from src.anonymizer.core.exceptions import InferenceError
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +51,11 @@ class TestE2EAnonymization:
 
         # Try to use a system font, fallback to default
         try:
-            font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24
-            )
-        except (OSError, IOError):
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
+        except OSError:
             try:
                 font = ImageFont.truetype("arial.ttf", 24)
-            except (OSError, IOError):
+            except OSError:
                 font = ImageFont.load_default()
 
         # Add various types of text that should be detected as PII
@@ -149,9 +148,7 @@ class TestE2EAnonymization:
                 assert region.original_text
                 assert region.replacement_text
 
-        logger.info(
-            f"✅ Text region detection test passed - found {len(text_regions)} regions"
-        )
+        logger.info(f"✅ Text region detection test passed - found {len(text_regions)} regions")
 
     def test_mask_creation(self, engine_config):
         """Test mask creation for text regions."""
@@ -209,9 +206,7 @@ class TestE2EAnonymization:
             assert result.anonymized_image.dtype == sample_document_image.dtype
 
             processing_time = time.time() - start_time
-            logger.info(
-                f"✅ Anonymization test passed - processed in {processing_time:.2f}s"
-            )
+            logger.info(f"✅ Anonymization test passed - processed in {processing_time:.2f}s")
 
         except (InferenceError, Exception) as e:
             # Expected if diffusion models are not available
@@ -223,9 +218,7 @@ class TestE2EAnonymization:
             Path(tmp_file.name).unlink(missing_ok=True)
 
     @pytest.mark.slow
-    def test_complete_anonymization_workflow(
-        self, engine_config, sample_document_image
-    ):
+    def test_complete_anonymization_workflow(self, engine_config, sample_document_image):
         """Test the complete end-to-end anonymization workflow."""
         engine = InferenceEngine(engine_config)
 
@@ -253,9 +246,7 @@ class TestE2EAnonymization:
             else:
                 # If regions were detected and processed
                 assert len(result.generated_patches) > 0
-                logger.info(
-                    f"✅ Processed {len(result.generated_patches)} text regions"
-                )
+                logger.info(f"✅ Processed {len(result.generated_patches)} text regions")
 
             processing_time = time.time() - start_time
             logger.info(f"✅ Complete workflow test passed - {processing_time:.2f}s")
@@ -293,8 +284,9 @@ class TestE2EAnonymization:
     def test_memory_cleanup(self, engine_config, sample_document_image):
         """Test that memory is properly cleaned up after processing."""
         import gc
-        import psutil
         import os
+
+        import psutil
 
         engine = InferenceEngine(engine_config)
 
@@ -327,13 +319,9 @@ class TestE2EAnonymization:
             memory_increase = final_memory - initial_memory
 
             # Allow some memory increase but not excessive
-            assert (
-                memory_increase < 1000
-            ), f"Memory increased by {memory_increase:.1f}MB"
+            assert memory_increase < 1000, f"Memory increased by {memory_increase:.1f}MB"
 
-            logger.info(
-                f"✅ Memory cleanup test passed - memory increase: {memory_increase:.1f}MB"
-            )
+            logger.info(f"✅ Memory cleanup test passed - memory increase: {memory_increase:.1f}MB")
 
         finally:
             Path(tmp_file.name).unlink(missing_ok=True)

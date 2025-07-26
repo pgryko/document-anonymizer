@@ -3,9 +3,9 @@
 Reorganize XFUND data into a cleaner directory structure
 """
 
+import json
 import shutil
 from pathlib import Path
-import json
 
 
 def reorganize_data():
@@ -25,9 +25,9 @@ def reorganize_data():
         (vae_target / "val").mkdir(parents=True, exist_ok=True)
 
         # Load split files
-        with open(vae_source / "train_files.json", "r") as f:
+        with open(vae_source / "train_files.json") as f:
             train_files = json.load(f)
-        with open(vae_source / "val_files.json", "r") as f:
+        with open(vae_source / "val_files.json") as f:
             val_files = json.load(f)
 
         # Move train files
@@ -35,9 +35,7 @@ def reorganize_data():
             base_name = metadata_file.replace("_metadata.json", "")
 
             # Move metadata
-            shutil.copy2(
-                vae_source / metadata_file, vae_target / "train" / metadata_file
-            )
+            shutil.copy2(vae_source / metadata_file, vae_target / "train" / metadata_file)
 
             # Move associated images
             for suffix in ["_original.png", "_masked.png"]:
@@ -74,9 +72,9 @@ def reorganize_data():
         (unet_target / "val").mkdir(parents=True, exist_ok=True)
 
         # Load split files
-        with open(unet_source / "train_files.json", "r") as f:
+        with open(unet_source / "train_files.json") as f:
             train_files = json.load(f)
-        with open(unet_source / "val_files.json", "r") as f:
+        with open(unet_source / "val_files.json") as f:
             val_files = json.load(f)
 
         # Move train files
@@ -84,26 +82,20 @@ def reorganize_data():
             base_name = metadata_file.replace("_metadata.json", "")
 
             # Move metadata
-            shutil.copy2(
-                unet_source / metadata_file, unet_target / "train" / metadata_file
-            )
+            shutil.copy2(unet_source / metadata_file, unet_target / "train" / metadata_file)
 
             # Move associated images
             for suffix in ["_input.png", "_mask.png"]:
                 img_file = base_name + suffix
                 if (unet_source / img_file).exists():
-                    shutil.copy2(
-                        unet_source / img_file, unet_target / "train" / img_file
-                    )
+                    shutil.copy2(unet_source / img_file, unet_target / "train" / img_file)
 
         # Move val files
         for metadata_file in val_files:
             base_name = metadata_file.replace("_metadata.json", "")
 
             # Move metadata
-            shutil.copy2(
-                unet_source / metadata_file, unet_target / "val" / metadata_file
-            )
+            shutil.copy2(unet_source / metadata_file, unet_target / "val" / metadata_file)
 
             # Move associated images
             for suffix in ["_input.png", "_mask.png"]:

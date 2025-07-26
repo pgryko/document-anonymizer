@@ -4,13 +4,14 @@ Unit tests for image operations utilities - Imperative style.
 Tests safe image processing with bounds checking and error handling.
 """
 
-import pytest
-import numpy as np
-import cv2
 from unittest.mock import patch
 
-from src.anonymizer.utils.image_ops import ImageProcessor, safe_resize, safe_crop
-from src.anonymizer.core.exceptions import ValidationError, PreprocessingError
+import cv2
+import numpy as np
+import pytest
+
+from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
+from src.anonymizer.utils.image_ops import ImageProcessor, safe_crop, safe_resize
 
 
 class TestImageProcessor:
@@ -74,9 +75,7 @@ class TestImageProcessor:
         # Create image larger than MAX_DIMENSION (8192)
         with pytest.raises(ValidationError, match="Image too large"):
             # Don't actually create the large array to save memory
-            ImageProcessor.validate_image_array(
-                np.zeros((10000, 10000, 3), dtype=np.uint8)
-            )
+            ImageProcessor.validate_image_array(np.zeros((10000, 10000, 3), dtype=np.uint8))
 
     def test_validate_image_array_too_much_memory(self):
         """Test validation fails for images requiring too much memory."""
@@ -195,15 +194,11 @@ class TestImageProcessor:
         image = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
 
         # Zero width
-        with pytest.raises(
-            (ValidationError, PreprocessingError), match="Invalid crop size"
-        ):
+        with pytest.raises((ValidationError, PreprocessingError), match="Invalid crop size"):
             ImageProcessor.safe_crop(image, 50, 50, 0, 100)
 
         # Negative height
-        with pytest.raises(
-            (ValidationError, PreprocessingError), match="Invalid crop size"
-        ):
+        with pytest.raises((ValidationError, PreprocessingError), match="Invalid crop size"):
             ImageProcessor.safe_crop(image, 50, 50, 100, -50)
 
     def test_safe_crop_bounds_checking(self):
@@ -212,9 +207,7 @@ class TestImageProcessor:
 
         # Crop completely outside image bounds - should still work with padding
         # Use constant padding mode to avoid empty axis issues
-        crop = ImageProcessor.safe_crop(
-            image, 150, 150, 50, 50, padding_mode="constant"
-        )
+        crop = ImageProcessor.safe_crop(image, 150, 150, 50, 50, padding_mode="constant")
 
         assert crop.shape == (50, 50, 3)
 
@@ -345,18 +338,14 @@ class TestImageProcessor:
         # Try to convert grayscale with RGB conversion
         gray_image = np.random.randint(0, 255, (100, 100), dtype=np.uint8)
 
-        with pytest.raises(
-            ValidationError, match="Color conversion requires 3-channel image"
-        ):
+        with pytest.raises(ValidationError, match="Color conversion requires 3-channel image"):
             ImageProcessor.convert_color_space(gray_image, "BGR", "RGB")
 
     def test_convert_color_space_unsupported_conversion(self):
         """Test unsupported color space conversion."""
         rgb_image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
 
-        with pytest.raises(
-            (ValidationError, PreprocessingError), match="Unsupported conversion"
-        ):
+        with pytest.raises((ValidationError, PreprocessingError), match="Unsupported conversion"):
             ImageProcessor.convert_color_space(rgb_image, "RGB", "XYZ")
 
     def test_convert_color_space_opencv_error(self):

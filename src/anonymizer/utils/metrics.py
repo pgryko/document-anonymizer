@@ -2,8 +2,8 @@
 
 import logging
 import time
-from typing import Dict, Any, Optional
 from contextlib import contextmanager
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class MetricsCollector:
             logger.info("DataDog not available, using logging backend")
             self._metrics_backend = "logging"
 
-    def record_training_metrics(self, metrics: Dict[str, float], step: int):
+    def record_training_metrics(self, metrics: dict[str, float], step: int):
         """Record training metrics."""
         if not self.enabled:
             return
@@ -81,10 +81,10 @@ class MetricsCollector:
 
     def _record_datadog_metrics(
         self,
-        metrics: Dict[str, float],
-        step: Optional[int] = None,
+        metrics: dict[str, float],
+        step: int | None = None,
         prefix: str = "",
-        tags: Optional[list] = None,
+        tags: list | None = None,
     ):
         """Record metrics to DataDog."""
         try:
@@ -105,7 +105,7 @@ class MetricsCollector:
             logger.warning(f"DataDog metrics failed: {e}")
 
     def _record_logging_metrics(
-        self, metrics: Dict[str, float], step: Optional[int] = None, prefix: str = ""
+        self, metrics: dict[str, float], step: int | None = None, prefix: str = ""
     ):
         """Record metrics via logging."""
         prefix_str = f"{prefix}." if prefix else ""
@@ -127,7 +127,7 @@ def timer():
         logger.debug(f"Operation took {duration_ms:.2f}ms")
 
 
-def calculate_similarity_metrics(pred: Any, target: Any) -> Dict[str, float]:
+def calculate_similarity_metrics(pred: Any, target: Any) -> dict[str, float]:
     """Calculate similarity metrics between prediction and target."""
     try:
         import torch
@@ -144,8 +144,7 @@ def calculate_similarity_metrics(pred: Any, target: Any) -> Dict[str, float]:
             # For full SSIM, would need additional implementation
 
             return {"mse": mse, "psnr": psnr}
-        else:
-            return {"mse": 0.0, "psnr": 0.0}
+        return {"mse": 0.0, "psnr": 0.0}
 
     except Exception as e:
         logger.warning(f"Failed to calculate similarity metrics: {e}")
