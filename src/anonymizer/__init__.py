@@ -21,19 +21,24 @@ from .core.models import (
     AnonymizationResult,
     ProcessedImage,
     GeneratedPatch,
+    FontInfo,
 )
 from .core.config import VAEConfig, UNetConfig, EngineConfig
 from .core.exceptions import AnonymizerError, TrainingError, InferenceError
+from .fonts import FontManager, FontMetadata
 
 __all__ = [
     "AnonymizationRequest",
     "AnonymizationResult",
     "ProcessedImage",
     "GeneratedPatch",
+    "FontInfo",
     "VAEConfig",
     "UNetConfig",
     "EngineConfig",
     "AnonymizerError",
     "TrainingError",
     "InferenceError",
+    "FontManager",
+    "FontMetadata",
 ]

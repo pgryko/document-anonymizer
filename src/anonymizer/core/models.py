@@ -223,3 +223,37 @@ class TrainingMetrics(BaseModel):
         if self.perceptual_loss is not None:
             result["perceptual_loss"] = self.perceptual_loss
         return result
+
+
+class FontInfo(BaseModel):
+    """Font information for text rendering."""
+
+    family: str = Field(..., min_length=1, description="Font family name")
+    style: str = Field(
+        "normal", description="Font style (normal, bold, italic, bold-italic)"
+    )
+    weight: int = Field(400, ge=100, le=900, description="Font weight")
+    size: float = Field(12.0, gt=0.0, description="Font size in points")
+    path: Optional[str] = Field(None, description="Path to font file")
+    is_bundled: bool = Field(False, description="Whether font is bundled")
+    confidence: float = Field(1.0, ge=0.0, le=1.0, description="Detection confidence")
+
+    @field_validator("style")
+    @classmethod
+    def validate_style(cls, v):
+        valid_styles = {"normal", "bold", "italic", "bold-italic"}
+        if v not in valid_styles:
+            raise ValueError(f"Style must be one of {valid_styles}")
+        return v
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "family": self.family,
+            "style": self.style,
+            "weight": self.weight,
+            "size": self.size,
+            "path": self.path,
+            "is_bundled": self.is_bundled,
+            "confidence": self.confidence,
+        }
