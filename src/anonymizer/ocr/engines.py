@@ -58,8 +58,9 @@ class BaseOCREngine(ABC):
         # Resize if needed
         if self.config.resize_factor != 1.0:
             h, w = processed.shape[:2]
-            new_h, new_w = int(h * self.config.resize_factor), int(
-                w * self.config.resize_factor
+            new_h, new_w = (
+                int(h * self.config.resize_factor),
+                int(w * self.config.resize_factor),
             )
             processed = cv2.resize(
                 processed, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4
@@ -177,7 +178,6 @@ class PaddleOCREngine(BaseOCREngine):
                                 <= len(text)
                                 <= self.config.max_text_length
                             ):
-
                                 detected_text = DetectedText(
                                     text=text,
                                     bbox=bbox,
@@ -296,7 +296,6 @@ class EasyOCREngine(BaseOCREngine):
                     <= len(text)
                     <= self.config.max_text_length
                 ):
-
                     detected_text = DetectedText(
                         text=text,
                         bbox=bbox,
@@ -579,7 +578,6 @@ class TesseractEngine(BaseOCREngine):
                     <= len(text)
                     <= self.config.max_text_length
                 ):
-
                     # Create bounding box
                     bbox = BoundingBox(
                         left=data["left"][i],
