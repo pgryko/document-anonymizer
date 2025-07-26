@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from ..core.models import BoundingBox
+from src.anonymizer.core.models import BoundingBox
 
 
 class OCREngine(Enum):

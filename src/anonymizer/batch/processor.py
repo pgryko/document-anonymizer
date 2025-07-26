@@ -13,14 +13,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..core.models import (
+from src.anonymizer.core.models import (
     AnonymizationRequest,
     BatchAnonymizationRequest,
     BatchAnonymizationResult,
     BatchItem,
     BatchItemResult,
 )
-from ..inference.engine import InferenceEngine
+from src.anonymizer.inference.engine import InferenceEngine
 
 logger = logging.getLogger(__name__)
 
@@ -238,7 +238,7 @@ class BatchProcessor:
                     self._cleanup_memory()
 
         except Exception as e:
-            logger.error(f"Batch processing failed: {e}")
+            logger.exception(f"Batch processing failed: {e}")
             progress_callback.on_error("batch", e)
             raise
 
@@ -335,7 +335,7 @@ class BatchProcessor:
             text_regions = item.text_regions
             if not text_regions:
                 try:
-                    from ..ocr.processor import OCRProcessor
+                    from src.anonymizer.ocr.processor import OCRProcessor
 
                     ocr_processor = OCRProcessor()
                     detected_regions = ocr_processor.detect_text_regions(image_data)

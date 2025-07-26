@@ -40,10 +40,10 @@ except ImportError:
     vutils = None
     HAS_TORCHVISION = False
 
-from ..core.config import VAEConfig
-from ..core.exceptions import ModelLoadError, TrainingError, ValidationError
-from ..core.models import ModelArtifacts, TrainingMetrics
-from ..utils.metrics import MetricsCollector
+from src.anonymizer.core.config import VAEConfig
+from src.anonymizer.core.exceptions import ModelLoadError, TrainingError, ValidationError
+from src.anonymizer.core.models import ModelArtifacts, TrainingMetrics
+from src.anonymizer.utils.metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -285,7 +285,7 @@ class VAETrainer:
 
             # Create metrics
             current_lr = self.optimizer.param_groups[0]["lr"]
-            metrics = TrainingMetrics(
+            return TrainingMetrics(
                 epoch=self.current_epoch,
                 step=self.global_step,
                 total_loss=losses["total_loss"].item(),
@@ -297,7 +297,6 @@ class VAETrainer:
                 learning_rate=current_lr,
             )
 
-            return metrics
 
         except Exception as e:
             raise TrainingError(f"Training step failed: {e}")
@@ -510,7 +509,7 @@ class VAETrainer:
                 self.vae.train()
                 epoch_metrics = []
 
-                for batch_idx, batch in enumerate(train_dataloader):
+                for _batch_idx, batch in enumerate(train_dataloader):
                     try:
                         metrics = self.train_step(batch)
                         epoch_metrics.append(metrics)
@@ -530,7 +529,7 @@ class VAETrainer:
                             self.save_checkpoint()
 
                     except Exception as e:
-                        logger.error(f"Training step failed at step {self.global_step}: {e}")
+                        logger.exception(f"Training step failed at step {self.global_step}: {e}")
                         continue
 
                 # Validation phase
@@ -547,12 +546,12 @@ class VAETrainer:
                             logger.info(f"New best model saved with loss: {self.best_loss:.4f}")
 
                     except Exception as e:
-                        logger.error(f"Validation failed: {e}")
+                        logger.exception(f"Validation failed: {e}")
 
             logger.info("Training completed successfully")
 
         except Exception as e:
-            logger.error(f"Training failed: {e}")
+            logger.exception(f"Training failed: {e}")
             raise TrainingError(f"VAE training failed: {e}")
 
         finally:

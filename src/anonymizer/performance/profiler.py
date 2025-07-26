@@ -331,7 +331,7 @@ class PerformanceProfiler:
             logger.debug(f"Saved {len(self.metrics)} metrics to {filepath}")
 
         except Exception as e:
-            logger.error(f"Failed to save metrics: {e}")
+            logger.exception(f"Failed to save metrics: {e}")
 
     def export_metrics(self, filepath: Path) -> bool:
         """Export all metrics to a JSON file."""
@@ -350,7 +350,7 @@ class PerformanceProfiler:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to export metrics: {e}")
+            logger.exception(f"Failed to export metrics: {e}")
             return False
 
     def clear_metrics(self):

@@ -12,7 +12,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from ..core.exceptions import ValidationError
+from src.anonymizer.core.exceptions import ValidationError
+
 from .config import ModelConfig, ModelMetadata, ModelSource, ModelType, ValidationResult
 from .downloader import ModelDownloader
 from .registry import ModelRegistry
@@ -108,7 +109,7 @@ class ModelManager:
             return metadata
 
         except Exception as e:
-            logger.error(f"Failed to download model '{model_name}': {e}")
+            logger.exception(f"Failed to download model '{model_name}': {e}")
             raise
 
     def download_from_huggingface(
@@ -156,7 +157,7 @@ class ModelManager:
             return metadata
 
         except Exception as e:
-            logger.error(f"Failed to download from Hugging Face '{model_id}': {e}")
+            logger.exception(f"Failed to download from Hugging Face '{model_id}': {e}")
             raise
 
     def validate_model(self, model_path: Path) -> ValidationResult:
@@ -171,7 +172,7 @@ class ModelManager:
         """List models that have been downloaded locally."""
         downloaded = []
 
-        for model_name in self.registry._metadata.keys():
+        for model_name in self.registry._metadata:
             metadata = self.registry.get_metadata(model_name)
             if metadata and metadata.local_path.exists():
                 downloaded.append(metadata)
@@ -230,7 +231,7 @@ class ModelManager:
         recommended_sources = self.registry.get_recommended_models(use_case)
         all_available = True
 
-        for component, source in recommended_sources.items():
+        for _component, source in recommended_sources.items():
             metadata = self.registry.get_metadata(source.name)
 
             if not metadata or not metadata.local_path.exists():
@@ -238,7 +239,7 @@ class ModelManager:
                 try:
                     self.download_model(source.name)
                 except Exception as e:
-                    logger.error(f"Failed to download {source.name}: {e}")
+                    logger.exception(f"Failed to download {source.name}: {e}")
                     all_available = False
 
         return all_available
@@ -362,7 +363,7 @@ class ModelManager:
             }
 
         except Exception as e:
-            logger.error(f"Failed to get storage stats: {e}")
+            logger.exception(f"Failed to get storage stats: {e}")
             return {"error": str(e)}
 
     def export_model_list(self, export_path: Path) -> bool:

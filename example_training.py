@@ -40,12 +40,12 @@ try:
     from src.anonymizer.training.unet_trainer import UNetTrainer
     from src.anonymizer.training.vae_trainer import VAETrainer
 except ImportError as e:
-    logger.error(f"Import failed: {e}")
-    logger.error("Make sure you have all dependencies installed and the project is properly set up")
+    logger.exception(f"Import failed: {e}")
+    logger.exception("Make sure you have all dependencies installed and the project is properly set up")
     sys.exit(1)
 
 
-def _train_vae_impl(config_path: Path, data_path: Path = None, output_dir: Path = None):
+def _train_vae_impl(config_path: Path, data_path: Path | None = None, output_dir: Path | None = None):
     """
     Train VAE with critical bug fixes.
 
@@ -90,11 +90,11 @@ def _train_vae_impl(config_path: Path, data_path: Path = None, output_dir: Path 
         logger.info("   - Error handling: COMPREHENSIVE")
 
     except Exception as e:
-        logger.error(f"❌ VAE training failed: {e}")
+        logger.exception(f"❌ VAE training failed: {e}")
         raise TrainingError(f"VAE training failed: {e}")
 
 
-def _train_unet_impl(config_path: Path, data_path: Path = None, output_dir: Path = None):
+def _train_unet_impl(config_path: Path, data_path: Path | None = None, output_dir: Path | None = None):
     """
     Train UNet with critical bug fixes.
 
@@ -133,7 +133,7 @@ def _train_unet_impl(config_path: Path, data_path: Path = None, output_dir: Path
         logger.info("   - Memory management: Proper GPU cleanup")
 
     except Exception as e:
-        logger.error(f"❌ UNet training failed: {e}")
+        logger.exception(f"❌ UNet training failed: {e}")
         raise TrainingError(f"UNet training failed: {e}")
 
 
@@ -224,9 +224,9 @@ def train_vae(config, data_path, output_dir, env_file):
         _train_vae_impl(config, data_path, output_dir)
         _print_success()
     except Exception as e:
-        logger.error("=" * 80)
-        logger.error(f"❌ VAE TRAINING FAILED: {e}")
-        logger.error("=" * 80)
+        logger.exception("=" * 80)
+        logger.exception(f"❌ VAE TRAINING FAILED: {e}")
+        logger.exception("=" * 80)
         sys.exit(1)
 
 
@@ -279,9 +279,9 @@ def train_unet(config, data_path, output_dir, env_file):
         _train_unet_impl(config, data_path, output_dir)
         _print_success()
     except Exception as e:
-        logger.error("=" * 80)
-        logger.error(f"❌ UNET TRAINING FAILED: {e}")
-        logger.error("=" * 80)
+        logger.exception("=" * 80)
+        logger.exception(f"❌ UNET TRAINING FAILED: {e}")
+        logger.exception("=" * 80)
         sys.exit(1)
 
 
@@ -356,9 +356,9 @@ def train_both(vae_config, unet_config, data_path, output_dir, env_file, sequent
 
         _print_success()
     except Exception as e:
-        logger.error("=" * 80)
-        logger.error(f"❌ TRAINING FAILED: {e}")
-        logger.error("=" * 80)
+        logger.exception("=" * 80)
+        logger.exception(f"❌ TRAINING FAILED: {e}")
+        logger.exception("=" * 80)
         sys.exit(1)
 
 
@@ -426,7 +426,7 @@ def validate_config(config, model_type, env_file):
         logger.info("🎉 Configuration validation successful!")
 
     except Exception as e:
-        logger.error(f"❌ Configuration validation failed: {e}")
+        logger.exception(f"❌ Configuration validation failed: {e}")
         sys.exit(1)
 
 

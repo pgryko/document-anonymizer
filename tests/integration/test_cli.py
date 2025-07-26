@@ -6,6 +6,7 @@ Tests the complete CLI interface including command parsing, configuration loadin
 and basic functionality verification.
 """
 
+import contextlib
 import tempfile
 from pathlib import Path
 
@@ -385,10 +386,8 @@ class TestCLIIntegration:
             pytest.skip("Cannot modify file permissions on this system")
         finally:
             # Restore permissions for cleanup
-            try:
+            with contextlib.suppress(OSError, PermissionError):
                 config_path.chmod(0o644)
-            except (OSError, PermissionError):
-                pass
 
     def test_output_directory_creation(
         self, runner, sample_app_config, sample_image, temp_config_dir

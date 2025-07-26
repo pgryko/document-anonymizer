@@ -210,7 +210,7 @@ if HAS_MODAL:
             return str(final_checkpoint_path)
 
         except Exception as e:
-            logger.error(f"VAE training failed: {e}")
+            logger.exception(f"VAE training failed: {e}")
             if "wandb_logger" in locals():
                 wandb_logger.finish()
             raise
@@ -345,7 +345,7 @@ if HAS_MODAL:
             return str(final_checkpoint_path)
 
         except Exception as e:
-            logger.error(f"UNet training failed: {e}")
+            logger.exception(f"UNet training failed: {e}")
             if "wandb_logger" in locals():
                 wandb_logger.finish()
             raise

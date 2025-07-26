@@ -200,7 +200,7 @@ class TextRenderer:
                 logger.warning("Using default font - rendering may be inconsistent")
 
         except Exception as e:
-            logger.error(f"Font loading failed: {e}")
+            logger.exception(f"Font loading failed: {e}")
             self.font = ImageFont.load_default()
 
     def render_text_on_image(
@@ -472,7 +472,7 @@ class InferenceEngine:
 
                     except Exception as e:
                         error_msg = f"Failed to anonymize region {i}: {e}"
-                        logger.error(error_msg)
+                        logger.exception(error_msg)
                         errors.append(error_msg)
                         continue
 
@@ -492,7 +492,7 @@ class InferenceEngine:
 
         except Exception as e:
             error_msg = f"Anonymization failed: {e}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             errors.append(error_msg)
 
             # Record failure metrics
@@ -594,7 +594,7 @@ class InferenceEngine:
             return text_regions
 
         except Exception as e:
-            logger.error(f"Auto-detection failed: {e}")
+            logger.exception(f"Auto-detection failed: {e}")
             return []
 
     def _anonymize_region(self, image: np.ndarray, region: TextRegion) -> GeneratedPatch:

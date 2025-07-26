@@ -44,7 +44,7 @@ class CloudflareR2Uploader:
             "s3", endpoint_url=endpoint_url, region_name="auto"  # R2 uses 'auto' region
         )
 
-    def upload_file(self, local_path: Path, r2_key: str, extra_args: dict = None) -> bool:
+    def upload_file(self, local_path: Path, r2_key: str, extra_args: dict | None = None) -> bool:
         """Upload a single file to R2.
 
         Args:
@@ -258,6 +258,7 @@ def main():
         print(f"Raw data upload: {successful} successful, {failed} failed")
 
     print("Upload completed!")
+    return None
 
 
 if __name__ == "__main__":

@@ -306,7 +306,7 @@ def main():
     list_parser.add_argument("--bundled-only", action="store_true", help="List only bundled fonts")
 
     # List font families
-    families_parser = subparsers.add_parser("families", help="List font families")
+    subparsers.add_parser("families", help="List font families")
 
     # Font information
     info_parser = subparsers.add_parser("info", help="Show font information")
@@ -327,7 +327,7 @@ def main():
     sample_parser.add_argument("--output", help="Output file path")
 
     # Font statistics
-    stats_parser = subparsers.add_parser("stats", help="Show font statistics")
+    subparsers.add_parser("stats", help="Show font statistics")
 
     # Cleanup fonts
     cleanup_parser = subparsers.add_parser("cleanup", help="Clean up font cache")

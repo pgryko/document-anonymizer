@@ -185,7 +185,7 @@ class AdvancedDocumentProcessor:
                     "entities": result.entities_anonymized,
                 }
         except Exception as e:
-            self.logger.error(f"Balanced processing failed: {e}")
+            self.logger.exception(f"Balanced processing failed: {e}")
 
         # Strategy 3: Last resort - simple redaction
         try:
@@ -202,7 +202,7 @@ class AdvancedDocumentProcessor:
                 "entities": result.entities_anonymized if result.success else 0,
             }
         except Exception as e:
-            self.logger.error(f"All processing strategies failed: {e}")
+            self.logger.exception(f"All processing strategies failed: {e}")
             return {"strategy": "failed", "success": False, "error": str(e)}
 
 
@@ -557,7 +557,7 @@ class QualityAssuranceFramework:
         """Calculate overall quality score based on individual checks."""
         scores = []
 
-        for check_name, check_result in checks.items():
+        for _check_name, check_result in checks.items():
             if check_result.get("status") == "pass":
                 scores.append(1.0)
             else:

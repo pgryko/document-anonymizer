@@ -860,7 +860,7 @@ class TestBoundingBoxFixes:
     def test_bbox_clamp_to_bounds(self):
         """Test bounding box clamping to image bounds."""
         # Bbox that exceeds image bounds
-        bbox = BoundingBox(left=-5, top=-10, right=600, bottom=700)
+        bbox = BoundingBox.create_unchecked(left=-5, top=-10, right=600, bottom=700)
 
         # Clamp to 512x512 image
         clamped = bbox.clamp_to_bounds(512, 512)
@@ -898,8 +898,19 @@ class TestBoundingBoxFixes:
 class TestDatasetPreprocessingFixes:
     """Test fixes for dataset preprocessing issues."""
 
-    def test_out_of_bounds_bbox_handling(self, mock_dataset_config, temp_dir):
+    def test_out_of_bounds_bbox_handling(self, temp_dir):
         """Test that out-of-bounds bounding boxes are handled gracefully."""
+        # Create custom config for this test using temp_dir
+        config = DatasetConfig(
+            train_data_path=temp_dir,
+            val_data_path=None,
+            crop_size=256,
+            num_workers=0,
+            rotation_range=0.0,
+            brightness_range=0.0,
+            contrast_range=0.0,
+        )
+
         # Create image
         image = np.ones((256, 256, 3), dtype=np.uint8) * 255
         image_path = temp_dir / "test_image.png"
@@ -937,7 +948,7 @@ class TestDatasetPreprocessingFixes:
             json.dump(annotation_data, f)
 
         # Create dataset - should handle out-of-bounds gracefully
-        dataset = AnonymizerDataset(data_dir=temp_dir, config=mock_dataset_config, split="train")
+        dataset = AnonymizerDataset(data_dir=temp_dir, config=config, split="train")
 
         # Should successfully create dataset
         assert len(dataset) == 1
@@ -950,18 +961,31 @@ class TestDatasetPreprocessingFixes:
 
         # Masks should be valid (not out of bounds)
         masks = item["masks"]
-        assert masks.shape[1] == mock_dataset_config.crop_size
-        assert masks.shape[2] == mock_dataset_config.crop_size
+        assert masks.shape[1] == config.crop_size
+        assert masks.shape[2] == config.crop_size
 
-    def test_very_small_bbox_handling(self, mock_dataset_config, temp_dir):
+    def test_very_small_bbox_handling(self, temp_dir):
         """Test handling of bounding boxes that become too small after scaling."""
+        # Create custom config with small crop size to force downscaling
+        config = DatasetConfig(
+            train_data_path=temp_dir,
+            val_data_path=None,
+            crop_size=128,  # This will cause significant downscaling
+            num_workers=0,
+            rotation_range=0.0,
+            brightness_range=0.0,
+            contrast_range=0.0,
+        )
+
         # Create image
         image = np.ones((512, 512, 3), dtype=np.uint8) * 255
         image_path = temp_dir / "test_image.png"
         Image.fromarray(image).save(image_path)
 
-        # Create very small bbox that might disappear after scaling down
-        tiny_bbox = BoundingBox(left=100, top=100, right=102, bottom=102)  # 2x2 pixels
+        # Create small bbox that will be valid but small after scaling down
+        tiny_bbox = BoundingBox(
+            left=100, top=100, right=115, bottom=115
+        )  # 15x15 pixels (larger than MIN_BBOX_SIZE)
         text_region = TextRegion(
             bbox=tiny_bbox,
             original_text="X",
@@ -990,10 +1014,6 @@ class TestDatasetPreprocessingFixes:
         annotation_path = temp_dir / "test_annotation.json"
         with open(annotation_path, "w") as f:
             json.dump(annotation_data, f)
-
-        # Create dataset with small crop size to force downscaling
-        config = mock_dataset_config
-        config.crop_size = 128  # This will cause significant downscaling
 
         dataset = AnonymizerDataset(data_dir=temp_dir, config=config, split="train")
 
@@ -1121,8 +1141,19 @@ class TestCollateFunctionFixes:
 class TestDatasetErrorHandling:
     """Test improved error handling in dataset."""
 
-    def test_getitem_retry_mechanism(self, mock_dataset_config, temp_dir):
+    def test_getitem_retry_mechanism(self, temp_dir):
         """Test that __getitem__ retries on failures."""
+        # Create custom config for this test
+        config = DatasetConfig(
+            train_data_path=temp_dir,
+            val_data_path=None,
+            crop_size=256,
+            num_workers=0,
+            rotation_range=0.0,
+            brightness_range=0.0,
+            contrast_range=0.0,
+        )
+
         # Create one valid sample
         image = np.ones((256, 256, 3), dtype=np.uint8) * 255
         image_path = temp_dir / "valid_image.png"
@@ -1156,21 +1187,30 @@ class TestDatasetErrorHandling:
         with open(annotation_path, "w") as f:
             json.dump(annotation_data, f)
 
-        dataset = AnonymizerDataset(data_dir=temp_dir, config=mock_dataset_config, split="train")
+        dataset = AnonymizerDataset(data_dir=temp_dir, config=config, split="train")
 
         # Test that out-of-bounds indices are handled with modulo
         item = dataset[100]  # Way beyond dataset size
         assert item  # Should still return valid item due to modulo indexing
 
-    def test_getitem_handles_all_failures(self, mock_dataset_config, temp_dir):
+    def test_getitem_handles_all_failures(self, temp_dir):
         """Test __getitem__ returns empty dict when all retries fail."""
-        # Create dataset with problematic data that will cause preprocessing to fail
-        # This is harder to test directly, so we'll mock the _prepare_training_data method
+        # Create custom config for this test
+        config = DatasetConfig(
+            train_data_path=temp_dir,
+            val_data_path=None,
+            crop_size=256,
+            num_workers=0,
+            rotation_range=0.0,
+            brightness_range=0.0,
+            contrast_range=0.0,
+        )
 
-        dataset = AnonymizerDataset(data_dir=temp_dir, config=mock_dataset_config, split="train")
-
-        # Add a dummy sample to avoid empty dataset
+        # Create a dummy annotation file so dataset can initialize
         dummy_image = np.ones((256, 256, 3), dtype=np.uint8) * 255
+        image_path = temp_dir / "dummy.png"
+        Image.fromarray(dummy_image).save(image_path)
+
         dummy_region = TextRegion(
             bbox=BoundingBox(left=50, top=50, right=100, bottom=100),
             original_text="Test",
@@ -1178,14 +1218,29 @@ class TestDatasetErrorHandling:
             confidence=1.0,
         )
 
-        from src.anonymizer.training.datasets import DatasetSample
+        annotation_data = {
+            "image_name": "dummy.png",
+            "text_regions": [
+                {
+                    "bbox": {
+                        "left": dummy_region.bbox.left,
+                        "top": dummy_region.bbox.top,
+                        "right": dummy_region.bbox.right,
+                        "bottom": dummy_region.bbox.bottom,
+                    },
+                    "original_text": dummy_region.original_text,
+                    "replacement_text": dummy_region.replacement_text,
+                    "confidence": dummy_region.confidence,
+                }
+            ],
+        }
 
-        dummy_sample = DatasetSample(
-            image_path=temp_dir / "dummy.png",
-            image=dummy_image,
-            text_regions=[dummy_region],
-        )
-        dataset.samples = [dummy_sample]
+        annotation_path = temp_dir / "dummy.json"
+        with open(annotation_path, "w") as f:
+            json.dump(annotation_data, f)
+
+        # Now create dataset
+        dataset = AnonymizerDataset(data_dir=temp_dir, config=config, split="train")
 
         # Mock _prepare_training_data to always fail
         original_method = dataset._prepare_training_data

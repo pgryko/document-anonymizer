@@ -68,7 +68,7 @@ class WandbLogger:
             return self.run
 
         except Exception as e:
-            logger.error(f"Failed to initialize W&B: {e}")
+            logger.exception(f"Failed to initialize W&B: {e}")
             self.enabled = False
             return None
 
@@ -80,7 +80,7 @@ class WandbLogger:
         try:
             wandb.log(metrics, step=step)
         except Exception as e:
-            logger.error(f"Failed to log to W&B: {e}")
+            logger.exception(f"Failed to log to W&B: {e}")
 
     def log_model(
         self,
@@ -101,7 +101,7 @@ class WandbLogger:
             self.run.log_artifact(artifact, aliases=aliases)
             logger.info(f"Model logged to W&B: {model_path}")
         except Exception as e:
-            logger.error(f"Failed to log model to W&B: {e}")
+            logger.exception(f"Failed to log model to W&B: {e}")
 
     def log_config(self, config: dict[str, Any]) -> None:
         """Update run configuration."""
@@ -111,7 +111,7 @@ class WandbLogger:
         try:
             wandb.config.update(config)
         except Exception as e:
-            logger.error(f"Failed to update W&B config: {e}")
+            logger.exception(f"Failed to update W&B config: {e}")
 
     def finish(self) -> None:
         """Finish W&B run."""
@@ -122,7 +122,7 @@ class WandbLogger:
             wandb.finish()
             logger.info("W&B run finished")
         except Exception as e:
-            logger.error(f"Failed to finish W&B run: {e}")
+            logger.exception(f"Failed to finish W&B run: {e}")
 
     def watch(self, model, log: str = "all", log_freq: int = 100) -> None:
         """Watch model for gradient and parameter logging."""
@@ -132,7 +132,7 @@ class WandbLogger:
         try:
             wandb.watch(model, log=log, log_freq=log_freq)
         except Exception as e:
-            logger.error(f"Failed to watch model: {e}")
+            logger.exception(f"Failed to watch model: {e}")
 
 
 def setup_wandb(
@@ -155,16 +155,15 @@ def setup_wandb(
     }
 
     # Create logger
-    logger_instance = WandbLogger(
+    return WandbLogger(
         project=training_config.wandb_project,
         entity=training_config.wandb_entity,
         name=run_name,
-        tags=training_config.wandb_tags + [model_type, platform],
+        tags=[*training_config.wandb_tags, model_type, platform],
         config=config,
         enabled=training_config.wandb_entity is not None,
     )
 
-    return logger_instance
 
 
 def log_training_metrics(

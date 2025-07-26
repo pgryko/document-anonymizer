@@ -74,7 +74,7 @@ def _get_font_name(name_table, name_id: int) -> str | None:
         for record in name_table.names:
             if record.nameID == name_id:
                 # Prefer English (language ID 1033 for US English)
-                if record.langID == 1033 or record.langID == 0:
+                if record.langID in {1033, 0}:
                     return str(record)
 
         # Fallback to any available name
@@ -227,7 +227,7 @@ def _parse_style_weight(style_name: str) -> tuple[str, int]:
     return style, weight
 
 
-def detect_font(image_region: any, ocr_result: any = None) -> dict[str, any] | None:
+def detect_font(image_region: any, ocr_result: any | None = None) -> dict[str, any] | None:
     """
     Detect font characteristics from image region.
 
@@ -246,7 +246,7 @@ def detect_font(image_region: any, ocr_result: any = None) -> dict[str, any] | N
         # - Font weight and style
         # - Font size
 
-        font_info = {
+        return {
             "family": "Arial",  # Detected family
             "style": "normal",  # Detected style
             "weight": 400,  # Detected weight
@@ -254,7 +254,6 @@ def detect_font(image_region: any, ocr_result: any = None) -> dict[str, any] | N
             "confidence": 0.7,  # Detection confidence
         }
 
-        return font_info
 
     except Exception as e:
         logger.debug(f"Font detection failed: {e}")

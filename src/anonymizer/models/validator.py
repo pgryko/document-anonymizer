@@ -79,7 +79,7 @@ class ModelValidator:
 
         except Exception as e:
             result.add_error(f"Validation failed with exception: {e}")
-            logger.error(f"Model validation failed: {e}")
+            logger.exception(f"Model validation failed: {e}")
 
         return result
 
@@ -324,10 +324,7 @@ class ModelValidator:
             checkpoint = torch.load(model_path, map_location="cpu")
 
             if isinstance(checkpoint, dict):
-                if "state_dict" in checkpoint:
-                    state_dict = checkpoint["state_dict"]
-                else:
-                    state_dict = checkpoint
+                state_dict = checkpoint.get("state_dict", checkpoint)
 
                 tensor_names = list(state_dict.keys())
                 if not tensor_names:

@@ -422,7 +422,7 @@ class TestTrainingPipelineIntegration:
             trainer.optimizer = trainer._setup_optimizer()
 
             # Create multiple batches to test memory usage
-            for i in range(3):
+            for _i in range(3):
                 batch = {"images": torch.randn(1, 3, 256, 256)}
                 try:
                     metrics = trainer.train_step(batch)

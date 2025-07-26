@@ -34,7 +34,7 @@ def load_vae_model(checkpoint_path: str, config_path: str) -> VAETrainer:
 
 
 def visualize_reconstructions(
-    trainer: VAETrainer, dataloader, num_samples: int = 8, save_path: str = None
+    trainer: VAETrainer, dataloader, num_samples: int = 8, save_path: str | None = None
 ) -> None:
     """Visualize original vs reconstructed images."""
 

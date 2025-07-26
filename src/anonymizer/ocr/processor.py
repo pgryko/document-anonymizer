@@ -11,8 +11,9 @@ import time
 
 import numpy as np
 
-from ..core.exceptions import InferenceError, ValidationError
-from ..core.models import BoundingBox, TextRegion
+from src.anonymizer.core.exceptions import InferenceError, ValidationError
+from src.anonymizer.core.models import BoundingBox, TextRegion
+
 from .engines import BaseOCREngine, create_ocr_engine
 from .models import DetectedText, OCRConfig, OCRMetrics
 
@@ -82,7 +83,7 @@ class OCRProcessor:
             return self.is_initialized
 
         except Exception as e:
-            logger.error(f"Failed to initialize OCR processor: {e}")
+            logger.exception(f"Failed to initialize OCR processor: {e}")
             return False
 
     def extract_text_regions(
@@ -250,9 +251,8 @@ class OCRProcessor:
             filtered_texts = self._merge_nearby_texts(filtered_texts)
 
         # Remove duplicates
-        filtered_texts = self._remove_duplicate_texts(filtered_texts)
+        return self._remove_duplicate_texts(filtered_texts)
 
-        return filtered_texts
 
     def _merge_nearby_texts(self, detected_texts: list[DetectedText]) -> list[DetectedText]:
         """Merge text regions that are close together."""
@@ -299,8 +299,7 @@ class OCRProcessor:
         center2_y = (bbox2.top + bbox2.bottom) / 2
 
         # Euclidean distance
-        distance = ((center1_x - center2_x) ** 2 + (center1_y - center2_y) ** 2) ** 0.5
-        return distance
+        return ((center1_x - center2_x) ** 2 + (center1_y - center2_y) ** 2) ** 0.5
 
     def _merge_detected_texts(self, texts: list[DetectedText]) -> DetectedText:
         """Merge multiple DetectedText objects into one."""

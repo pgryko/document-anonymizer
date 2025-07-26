@@ -15,7 +15,8 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
-from ..core.models import BoundingBox
+from src.anonymizer.core.models import BoundingBox
+
 from .profiler import PerformanceProfiler
 
 logger = logging.getLogger(__name__)
@@ -71,7 +72,7 @@ class ModelBenchmark:
         except Exception as e:
             success = False
             error_message = str(e)
-            logger.error(f"Model loading benchmark failed: {e}")
+            logger.exception(f"Model loading benchmark failed: {e}")
 
         # Get the latest metrics
         if not self.profiler.metrics:
@@ -122,7 +123,7 @@ class ModelBenchmark:
         try:
             with self.profiler.profile_operation(benchmark_name):
                 # Simulate inference iterations
-                for i in range(num_iterations):
+                for _i in range(num_iterations):
                     # In real implementation, this would:
                     # - Create input tensors of specified size
                     # - Run model inference
@@ -147,7 +148,7 @@ class ModelBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.error(f"Inference speed benchmark failed: {e}")
+            logger.exception(f"Inference speed benchmark failed: {e}")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -196,7 +197,7 @@ class AnonymizationBenchmark:
     ) -> Image.Image:
         """Create a synthetic test document image."""
         # Create a white background
-        img = Image.new(format, size, color="white")
+        return Image.new(format, size, color="white")
 
         # In a real implementation, this could:
         # - Add realistic text content
@@ -204,7 +205,6 @@ class AnonymizationBenchmark:
         # - Add synthetic PII data for testing
         # - Include different document types (invoices, forms, etc.)
 
-        return img
 
     def benchmark_document_loading(
         self, image_size: tuple[int, int] = (1024, 768), num_documents: int = 5
@@ -214,7 +214,7 @@ class AnonymizationBenchmark:
 
         try:
             with self.profiler.profile_operation(benchmark_name):
-                for i in range(num_documents):
+                for _i in range(num_documents):
                     # Create and process test document
                     self.create_test_document(image_size)
 
@@ -242,7 +242,7 @@ class AnonymizationBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.error(f"Document loading benchmark failed: {e}")
+            logger.exception(f"Document loading benchmark failed: {e}")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -278,7 +278,7 @@ class AnonymizationBenchmark:
 
         try:
             with self.profiler.profile_operation(benchmark_name):
-                for i in range(num_images):
+                for _i in range(num_images):
                     # Create test image
                     self.create_test_document(image_size)
 
@@ -305,7 +305,7 @@ class AnonymizationBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.error(f"Text detection benchmark failed: {e}")
+            logger.exception(f"Text detection benchmark failed: {e}")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -375,7 +375,7 @@ class AnonymizationBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.error(f"PII detection benchmark failed: {e}")
+            logger.exception(f"PII detection benchmark failed: {e}")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -414,13 +414,13 @@ class AnonymizationBenchmark:
 
         try:
             with self.profiler.profile_operation(benchmark_name):
-                for i in range(num_iterations):
+                for _i in range(num_iterations):
                     # Create test image and mask
                     self.create_test_document(image_size)
 
                     # Create random mask regions (simulating PII areas)
                     mask_regions = []
-                    for j in range(num_regions):
+                    for _j in range(num_regions):
                         left = np.random.randint(0, image_size[0] - 100)
                         top = np.random.randint(0, image_size[1] - 50)
                         width = np.random.randint(50, 100)
@@ -456,7 +456,7 @@ class AnonymizationBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.error(f"Inpainting benchmark failed: {e}")
+            logger.exception(f"Inpainting benchmark failed: {e}")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -492,7 +492,7 @@ class AnonymizationBenchmark:
 
         try:
             with self.profiler.profile_operation(benchmark_name):
-                for i in range(num_documents):
+                for _i in range(num_documents):
                     # 1. Document loading
                     self.create_test_document(image_size)
 
@@ -536,7 +536,7 @@ class AnonymizationBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.error(f"End-to-end benchmark failed: {e}")
+            logger.exception(f"End-to-end benchmark failed: {e}")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -597,5 +597,5 @@ class AnonymizationBenchmark:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to save benchmark results: {e}")
+            logger.exception(f"Failed to save benchmark results: {e}")
             return False

@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from ..core.exceptions import PreprocessingError, ValidationError
+from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class FontManager:
             return ImageFont.load_default()
 
         except Exception as e:
-            logger.error(f"Font loading failed: {e}")
+            logger.exception(f"Font loading failed: {e}")
             return ImageFont.load_default()
 
     def _try_load_font(self, font_path: str, size: int) -> ImageFont.ImageFont | None:

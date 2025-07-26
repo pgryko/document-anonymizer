@@ -61,7 +61,7 @@ class XFUNDDownloader:
                         urlretrieve(url, output_path, reporthook=self._download_progress)
                         logger.info(f"Downloaded: {output_path}")
                     except Exception as e:
-                        logger.error(f"Failed to download {filename}: {e}")
+                        logger.exception(f"Failed to download {filename}: {e}")
                         continue
 
             # Download images (zip file)
@@ -77,7 +77,7 @@ class XFUNDDownloader:
                     urlretrieve(img_url, img_output_path, reporthook=self._download_progress)
                     logger.info(f"Downloaded: {img_output_path}")
                 except Exception as e:
-                    logger.error(f"Failed to download images for {lang}: {e}")
+                    logger.exception(f"Failed to download images for {lang}: {e}")
                     continue
 
             # Extract images
@@ -102,7 +102,7 @@ class XFUNDDownloader:
                     tar.extractall(extract_dir)
             logger.info(f"Extracted images to: {extract_dir}")
         except Exception as e:
-            logger.error(f"Failed to extract {archive_path}: {e}")
+            logger.exception(f"Failed to extract {archive_path}: {e}")
 
     def _download_progress(self, block_num: int, block_size: int, total_size: int):
         """Show download progress."""
@@ -192,7 +192,7 @@ class XFUNDProcessor:
             self._prepare_unet_data(image, doc, lang)
 
         except Exception as e:
-            logger.error(f"Failed to process document: {e}")
+            logger.exception(f"Failed to process document: {e}")
 
     def _create_synthetic_image(self, width: int, height: int, doc: dict) -> np.ndarray:
         """Create a synthetic document image for testing when real images are not available."""

@@ -7,8 +7,8 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from transformers import get_scheduler as get_hf_scheduler
 
-from ..core.config import SchedulerConfig
-from ..core.exceptions import ConfigurationError
+from src.anonymizer.core.config import SchedulerConfig
+from src.anonymizer.core.exceptions import ConfigurationError
 
 
 class CosineAnnealingWithRestartsLR(_LRScheduler):

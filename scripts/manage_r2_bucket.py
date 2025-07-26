@@ -105,8 +105,8 @@ class CloudflareR2Manager:
     def create_token(
         self,
         token_name: str,
-        permissions: list[str] = None,
-        bucket_names: list[str] = None,
+        permissions: list[str] | None = None,
+        bucket_names: list[str] | None = None,
         ttl_days: int | None = None,
     ) -> dict:
         """Create a new R2 token.

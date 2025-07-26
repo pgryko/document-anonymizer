@@ -181,7 +181,7 @@ class ModelRegistry:
             logger.debug(f"Registry saved to {self.registry_path}")
 
         except Exception as e:
-            logger.error(f"Failed to save registry: {e}")
+            logger.exception(f"Failed to save registry: {e}")
 
     def register_model(self, source: ModelSource) -> bool:
         """Register a custom model."""
@@ -191,7 +191,7 @@ class ModelRegistry:
             logger.info(f"Registered model: {source.name}")
             return True
         except Exception as e:
-            logger.error(f"Failed to register model {source.name}: {e}")
+            logger.exception(f"Failed to register model {source.name}: {e}")
             return False
 
     def register_metadata(self, metadata: ModelMetadata) -> bool:
@@ -202,7 +202,7 @@ class ModelRegistry:
             logger.info(f"Registered metadata for: {metadata.name}")
             return True
         except Exception as e:
-            logger.error(f"Failed to register metadata for {metadata.name}: {e}")
+            logger.exception(f"Failed to register metadata for {metadata.name}: {e}")
             return False
 
     def get_model(self, name: str) -> ModelSource | None:
@@ -363,5 +363,5 @@ class ModelRegistry:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to export registry: {e}")
+            logger.exception(f"Failed to export registry: {e}")
             return False

@@ -303,7 +303,7 @@ class TestE2EAnonymization:
 
         try:
             # Process multiple times to check for memory leaks
-            for i in range(3):
+            for _i in range(3):
                 try:
                     result = engine.anonymize(image_data)
                     del result  # Explicit cleanup

@@ -14,8 +14,9 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from ..core.exceptions import InferenceError, ValidationError
-from ..core.models import BoundingBox
+from src.anonymizer.core.exceptions import InferenceError, ValidationError
+from src.anonymizer.core.models import BoundingBox
+
 from .models import DetectedText, OCRConfig, OCREngine, OCRResult
 
 logger = logging.getLogger(__name__)
@@ -76,12 +77,8 @@ class BaseOCREngine(ABC):
             gray = cv2.medianBlur(gray, 3)
 
         # Convert back to RGB if original was color
-        if len(image.shape) == 3:
-            processed = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
-        else:
-            processed = gray
+        return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB) if len(image.shape) == 3 else gray
 
-        return processed
 
     def validate_image(self, image: np.ndarray) -> bool:
         """Validate input image."""
@@ -129,7 +126,7 @@ class PaddleOCREngine(BaseOCREngine):
             self.logger.warning("PaddleOCR not available - install with: pip install paddleocr")
             return False
         except Exception as e:
-            self.logger.error(f"Failed to initialize PaddleOCR: {e}")
+            self.logger.exception(f"Failed to initialize PaddleOCR: {e}")
             return False
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
@@ -191,7 +188,7 @@ class PaddleOCREngine(BaseOCREngine):
 
         except Exception as e:
             processing_time = (time.time() - start_time) * 1000
-            self.logger.error(f"PaddleOCR detection failed: {e}")
+            self.logger.exception(f"PaddleOCR detection failed: {e}")
             return OCRResult(
                 detected_texts=[],
                 processing_time_ms=processing_time,
@@ -246,7 +243,7 @@ class EasyOCREngine(BaseOCREngine):
             self.logger.warning("EasyOCR not available - install with: pip install easyocr")
             return False
         except Exception as e:
-            self.logger.error(f"Failed to initialize EasyOCR: {e}")
+            self.logger.exception(f"Failed to initialize EasyOCR: {e}")
             return False
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
@@ -301,7 +298,7 @@ class EasyOCREngine(BaseOCREngine):
 
         except Exception as e:
             processing_time = (time.time() - start_time) * 1000
-            self.logger.error(f"EasyOCR detection failed: {e}")
+            self.logger.exception(f"EasyOCR detection failed: {e}")
             return OCRResult(
                 detected_texts=[],
                 processing_time_ms=processing_time,
@@ -365,7 +362,7 @@ class TrOCREngine(BaseOCREngine):
             )
             return False
         except Exception as e:
-            self.logger.error(f"Failed to initialize TrOCR: {e}")
+            self.logger.exception(f"Failed to initialize TrOCR: {e}")
             return False
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
@@ -426,7 +423,7 @@ class TrOCREngine(BaseOCREngine):
 
         except Exception as e:
             processing_time = (time.time() - start_time) * 1000
-            self.logger.error(f"TrOCR detection failed: {e}")
+            self.logger.exception(f"TrOCR detection failed: {e}")
             return OCRResult(
                 detected_texts=[],
                 processing_time_ms=processing_time,
@@ -439,10 +436,7 @@ class TrOCREngine(BaseOCREngine):
     def _detect_text_regions(self, image: np.ndarray) -> list[tuple[BoundingBox, np.ndarray]]:
         """Simple text region detection using OpenCV (for TrOCR preprocessing)."""
         # Convert to grayscale
-        if len(image.shape) == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        else:
-            gray = image.copy()
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY) if len(image.shape) == 3 else image.copy()
 
         # Apply morphological operations to find text regions
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (17, 7))
@@ -504,7 +498,7 @@ class TesseractEngine(BaseOCREngine):
             self.logger.warning("Tesseract not available - install with: pip install pytesseract")
             return False
         except Exception as e:
-            self.logger.error(f"Failed to initialize Tesseract: {e}")
+            self.logger.exception(f"Failed to initialize Tesseract: {e}")
             return False
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
@@ -574,7 +568,7 @@ class TesseractEngine(BaseOCREngine):
 
         except Exception as e:
             processing_time = (time.time() - start_time) * 1000
-            self.logger.error(f"Tesseract detection failed: {e}")
+            self.logger.exception(f"Tesseract detection failed: {e}")
             return OCRResult(
                 detected_texts=[],
                 processing_time_ms=processing_time,

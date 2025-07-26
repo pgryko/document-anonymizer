@@ -20,7 +20,8 @@ from urllib.parse import urlparse
 import requests
 from tqdm import tqdm
 
-from ..core.exceptions import InferenceError, ValidationError
+from src.anonymizer.core.exceptions import InferenceError, ValidationError
+
 from .config import ModelConfig, ModelFormat, ModelMetadata, ModelSource, ModelType
 
 logger = logging.getLogger(__name__)
@@ -128,6 +129,7 @@ class ModelDownloader:
                         f"Download failed after {self.config.max_retries} attempts: {e}"
                     )
                 time.sleep(2**attempt)  # Exponential backoff
+        return None
 
     def _download_with_progress(
         self,
@@ -185,9 +187,9 @@ class ModelDownloader:
                     f"Download completed: {downloaded_size} bytes in {progress.elapsed_time:.2f}s"
                 )
 
-            except Exception as e:
+            except Exception:
                 progress.close()
-                raise e
+                raise
 
             # Verify download
             if total_size > 0 and downloaded_size != total_size:
@@ -224,11 +226,11 @@ class ModelDownloader:
 
             return metadata
 
-        except Exception as e:
+        except Exception:
             # Cleanup temp file on error
             if temp_path.exists():
                 temp_path.unlink()
-            raise e
+            raise
 
     def _is_url_allowed(self, url: str) -> bool:
         """Check if URL is allowed based on security settings."""
@@ -248,7 +250,7 @@ class ModelDownloader:
             return False
 
         except Exception as e:
-            logger.error(f"Error parsing URL {url}: {e}")
+            logger.exception(f"Error parsing URL {url}: {e}")
             return False
 
     def _get_default_path(self, source: ModelSource) -> Path:

@@ -50,8 +50,7 @@ def sample_image():
 @pytest.fixture
 def sample_image_pil():
     """Create sample PIL image."""
-    image = Image.new("RGB", (256, 256), color="white")
-    return image
+    return Image.new("RGB", (256, 256), color="white")
 
 
 @pytest.fixture

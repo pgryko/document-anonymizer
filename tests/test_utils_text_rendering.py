@@ -113,15 +113,14 @@ class TestFontManager:
 
         with patch.object(
             font_manager, "_try_load_font", side_effect=Exception("Unexpected error")
-        ):
-            with patch("PIL.ImageFont.load_default") as mock_default:
-                mock_default_font = Mock()
-                mock_default.return_value = mock_default_font
+        ), patch("PIL.ImageFont.load_default") as mock_default:
+            mock_default_font = Mock()
+            mock_default.return_value = mock_default_font
 
-                font = font_manager._load_font("Problem.ttf", 32)
+            font = font_manager._load_font("Problem.ttf", 32)
 
-                assert font == mock_default_font
-                mock_default.assert_called_once()
+            assert font == mock_default_font
+            mock_default.assert_called_once()
 
 
 class TestTextRenderer:

@@ -172,7 +172,7 @@ class FontManager:
             return self.fonts_cache[full_name]
 
         # Try family name match
-        for name, font in self.fonts_cache.items():
+        for _name, font in self.fonts_cache.items():
             if font.family.lower() == font_name.lower() and font.style == style:
                 return font
 
@@ -247,7 +247,7 @@ class FontManager:
             return False
 
         except Exception as e:
-            logger.error(f"Failed to install font {font_path}: {e}")
+            logger.exception(f"Failed to install font {font_path}: {e}")
             return False
 
     def _create_font_metadata(
@@ -282,7 +282,7 @@ class FontManager:
             )
 
         except Exception as e:
-            logger.error(f"Failed to create metadata for {font_path}: {e}")
+            logger.exception(f"Failed to create metadata for {font_path}: {e}")
             return None
 
     def find_similar_fonts(self, target_font: str, max_results: int = 5) -> list[FontMetadata]:
@@ -351,6 +351,7 @@ class FontManager:
         # Find duplicates by checksum
         checksums = {}
         duplicates = []
+        missing_files = []
 
         for font in self.fonts_cache.values():
             stats["fonts_checked"] += 1
@@ -358,8 +359,7 @@ class FontManager:
             # Check if file exists
             if not os.path.exists(font.path):
                 stats["missing_files"] += 1
-                if not dry_run:
-                    del self.fonts_cache[font.name]
+                missing_files.append(font.name)
                 continue
 
             # Check for duplicates
@@ -368,6 +368,12 @@ class FontManager:
                 stats["duplicates_found"] += 1
             else:
                 checksums[font.checksum] = font
+
+        # Remove missing files
+        if not dry_run:
+            for font_name in missing_files:
+                if font_name in self.fonts_cache:
+                    del self.fonts_cache[font_name]
 
         # Remove duplicates (keep bundled fonts over system fonts)
         if not dry_run:
@@ -420,5 +426,5 @@ class FontManager:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to export font list: {e}")
+            logger.exception(f"Failed to export font list: {e}")
             return False

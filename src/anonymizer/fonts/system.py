@@ -234,7 +234,7 @@ class SystemFontProvider:
             )
 
             if result.returncode == 0:
-                data = json.loads(result.stdout)
+                json.loads(result.stdout)
                 # Parse font data and find matching font
                 # This is a simplified implementation
 
@@ -352,5 +352,5 @@ class SystemFontProvider:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to install system font {font_path}: {e}")
+            logger.exception(f"Failed to install system font {font_path}: {e}")
             return False

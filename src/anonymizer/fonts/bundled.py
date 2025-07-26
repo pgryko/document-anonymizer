@@ -192,7 +192,7 @@ class BundledFontProvider:
                 actual_checksum = hashlib.sha256(f.read()).hexdigest()
             return actual_checksum == expected_checksum
         except Exception as e:
-            logger.error(f"Failed to verify checksum for {file_path}: {e}")
+            logger.exception(f"Failed to verify checksum for {file_path}: {e}")
             return False
 
     def list_fonts(self) -> list[FontMetadata]:
@@ -245,7 +245,7 @@ class BundledFontProvider:
             )
 
         except Exception as e:
-            logger.error(f"Failed to create metadata for {font_path}: {e}")
+            logger.exception(f"Failed to create metadata for {font_path}: {e}")
             return None
 
     def _get_license_info(self, font_file: str) -> str:
@@ -320,7 +320,7 @@ class BundledFontProvider:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to create font bundle: {e}")
+            logger.exception(f"Failed to create font bundle: {e}")
             return False
 
     def _create_license_text(self) -> str:

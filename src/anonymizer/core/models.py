@@ -10,10 +10,10 @@ from pydantic import BaseModel, Field, field_validator
 class BoundingBox(BaseModel):
     """Bounding box coordinates."""
 
-    left: int = Field(..., description="Left coordinate")
-    top: int = Field(..., description="Top coordinate")
-    right: int = Field(..., description="Right coordinate")
-    bottom: int = Field(..., description="Bottom coordinate")
+    left: int = Field(..., ge=0, description="Left coordinate")
+    top: int = Field(..., ge=0, description="Top coordinate")
+    right: int = Field(..., gt=0, description="Right coordinate")
+    bottom: int = Field(..., gt=0, description="Bottom coordinate")
 
     @field_validator("right")
     @classmethod
@@ -63,6 +63,11 @@ class BoundingBox(BaseModel):
             right=clamped_right,
             bottom=clamped_bottom,
         )
+
+    @classmethod
+    def create_unchecked(cls, left: int, top: int, right: int, bottom: int) -> "BoundingBox":
+        """Create BoundingBox without validation (for testing purposes)."""
+        return cls.model_construct(left=left, top=top, right=right, bottom=bottom)
 
     @property
     def width(self) -> int:

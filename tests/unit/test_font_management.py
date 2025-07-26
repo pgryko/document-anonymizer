@@ -309,10 +309,10 @@ class TestSystemFontProvider:
         mock_system.return_value = "Windows"
 
         with patch.dict("os.environ", {"WINDIR": "C:\\Windows"}):
-            provider = SystemFontProvider()
+            SystemFontProvider()
 
             # Should include Windows fonts directory
-            expected_dir = Path("C:\\Windows") / "Fonts"
+            Path("C:\\Windows") / "Fonts"
             # Note: directory might not exist in test environment
 
     @patch("platform.system")
@@ -320,7 +320,7 @@ class TestSystemFontProvider:
         """Test macOS font directory detection."""
         mock_system.return_value = "Darwin"
 
-        provider = SystemFontProvider()
+        SystemFontProvider()
 
         # Should include macOS font directories
         # Note: directories might not exist in test environment
@@ -330,7 +330,7 @@ class TestSystemFontProvider:
         """Test Linux font directory detection."""
         mock_system.return_value = "Linux"
 
-        provider = SystemFontProvider()
+        SystemFontProvider()
 
         # Should include Linux font directories
         # Note: directories might not exist in test environment
@@ -441,11 +441,11 @@ class TestFontUtils:
         from src.anonymizer.fonts.utils import validate_font_file
 
         # Test with invalid extension - should return False immediately
-        assert validate_font_file("notafont.txt") == False
+        assert validate_font_file("notafont.txt") is False
 
         # Test with valid extensions but non-existent files - should return False
-        assert validate_font_file("nonexistent.ttf") == False
-        assert validate_font_file("nonexistent.otf") == False
+        assert validate_font_file("nonexistent.ttf") is False
+        assert validate_font_file("nonexistent.otf") is False
 
 
 class TestFontManagerIntegration:

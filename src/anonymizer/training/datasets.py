@@ -23,9 +23,9 @@ import torch
 from PIL import Image, ImageEnhance, UnidentifiedImageError
 from torch.utils.data import DataLoader, Dataset
 
-from ..core.config import DatasetConfig
-from ..core.exceptions import PreprocessingError, ValidationError
-from ..core.models import BoundingBox, TextRegion
+from src.anonymizer.core.config import DatasetConfig
+from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
+from src.anonymizer.core.models import BoundingBox, TextRegion
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +272,7 @@ class AnonymizerDataset(Dataset):
                 if sample:
                     samples.append(sample)
             except Exception as e:
-                logger.error(f"Failed to load sample {annotation_file}: {e}")
+                logger.exception(f"Failed to load sample {annotation_file}: {e}")
                 continue
 
         if not samples:
@@ -322,12 +322,11 @@ class AnonymizerDataset(Dataset):
                 text_regions.append(region)
 
             # Create sample
-            sample = DatasetSample(image_path=image_path, image=image, text_regions=text_regions)
+            return DatasetSample(image_path=image_path, image=image, text_regions=text_regions)
 
-            return sample
 
         except Exception as e:
-            logger.error(f"Failed to load sample {annotation_file}: {e}")
+            logger.exception(f"Failed to load sample {annotation_file}: {e}")
             return None
 
     def __len__(self) -> int:
@@ -371,7 +370,7 @@ class AnonymizerDataset(Dataset):
             except Exception as e:
                 # Use idx as fallback if actual_idx wasn't set
                 error_idx = locals().get("actual_idx", idx)
-                logger.error(f"Failed to get item {error_idx} (attempt {attempt + 1}): {e}")
+                logger.exception(f"Failed to get item {error_idx} (attempt {attempt + 1}): {e}")
 
                 # Try next sample on error
                 if attempt < max_retries - 1 and len(self.samples) > 0:
@@ -481,6 +480,11 @@ def create_dummy_batch() -> dict[str, Any]:
 
 def collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
     """Custom collate function for batch processing with improved error handling."""
+    # Handle completely empty batch (no items at all)
+    if not batch:
+        logger.warning("Empty batch received, returning dummy batch")
+        return create_dummy_batch()
+
     # Filter out empty items and items with no valid text regions
     valid_batch = [
         item
@@ -488,8 +492,9 @@ def collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
         if item and len(item.get("texts", [])) > 0 and item["masks"].shape[0] > 0
     ]
 
+    # If all items were filtered out (all items were invalid)
     if not valid_batch:
-        from ..core.exceptions import ValidationError
+        from src.anonymizer.core.exceptions import ValidationError
 
         raise ValidationError("Empty batch after filtering")
 

@@ -5,7 +5,7 @@ import logging
 import cv2
 import numpy as np
 
-from ..core.exceptions import PreprocessingError, ValidationError
+from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -119,10 +119,7 @@ class ImageProcessor:
             x2, y2 = min(img_w, x + width), min(img_h, y + height)
 
             # Extract crop
-            if len(image.shape) == 2:
-                crop = image[y1:y2, x1:x2]
-            else:
-                crop = image[y1:y2, x1:x2, :]
+            crop = image[y1:y2, x1:x2] if len(image.shape) == 2 else image[y1:y2, x1:x2, :]
 
             # Add padding if needed
             crop_h, crop_w = crop.shape[:2]
@@ -202,9 +199,8 @@ class ImageProcessor:
 
             # Scale to target range
             target_min, target_max = target_range
-            scaled = normalized * (target_max - target_min) + target_min
+            return normalized * (target_max - target_min) + target_min
 
-            return scaled
 
         except Exception as e:
             raise PreprocessingError(f"Image normalization failed: {e}")

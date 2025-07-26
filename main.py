@@ -31,8 +31,8 @@ try:
     from src.anonymizer.training.unet_trainer import UNetTrainer
     from src.anonymizer.training.vae_trainer import VAETrainer
 except ImportError as e:
-    logger.error(f"Import failed: {e}")
-    logger.error("Make sure you have all dependencies installed and the project is properly set up")
+    logger.exception(f"Import failed: {e}")
+    logger.exception("Make sure you have all dependencies installed and the project is properly set up")
     sys.exit(1)
 
 
@@ -101,7 +101,7 @@ def train_vae(config):
         trainer.train(train_dataloader, val_dataloader)
         logger.info("VAE training finished.")
     except AnonymizerError as e:
-        logger.error(f"VAE training failed: {e}")
+        logger.exception(f"VAE training failed: {e}")
         sys.exit(1)
 
 
@@ -124,7 +124,7 @@ def train_unet(config):
         # trainer.train(train_dataloader, val_dataloader)
         logger.info("UNet training finished.")
     except AnonymizerError as e:
-        logger.error(f"UNet training failed: {e}")
+        logger.exception(f"UNet training failed: {e}")
         sys.exit(1)
 
 
@@ -161,7 +161,7 @@ def anonymize(config, image, output):
         #     f.write(anonymized_image)
         logger.info(f"Anonymized image saved to {output}")
     except AnonymizerError as e:
-        logger.error(f"Anonymization failed: {e}")
+        logger.exception(f"Anonymization failed: {e}")
         sys.exit(1)
 
 
@@ -273,10 +273,10 @@ def batch_anonymize(
                 logger.warning(f"  - {failed_result.item_id}: {', '.join(failed_result.errors)}")
 
     except AnonymizerError as e:
-        logger.error(f"Batch anonymization failed: {e}")
+        logger.exception(f"Batch anonymization failed: {e}")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        logger.exception(f"Unexpected error: {e}")
         sys.exit(1)
 
 
@@ -338,7 +338,7 @@ def batch_status(result_file, output_dir):
             print("Please provide either --result-file or --output-dir")
 
     except Exception as e:
-        logger.error(f"Status check failed: {e}")
+        logger.exception(f"Status check failed: {e}")
         sys.exit(1)
 
 

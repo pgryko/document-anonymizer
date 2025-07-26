@@ -311,7 +311,7 @@ class TestBatchProcessor:
         )
 
         # Mock PIL Image save and shutil
-        with patch("PIL.Image") as mock_image, patch("shutil.copy2") as mock_copy:
+        with patch("PIL.Image") as mock_image, patch("shutil.copy2"):
             mock_pil_image = Mock()
             mock_image.fromarray.return_value = mock_pil_image
 

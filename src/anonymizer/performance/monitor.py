@@ -198,7 +198,7 @@ class ResourceMonitor:
                 time.sleep(self.sample_interval)
 
             except Exception as e:
-                logger.error(f"Error in monitoring loop: {e}")
+                logger.exception(f"Error in monitoring loop: {e}")
                 time.sleep(self.sample_interval)
 
     def start_monitoring(self):
@@ -248,7 +248,7 @@ class ResourceMonitor:
         try:
             return self._take_sample()
         except Exception as e:
-            logger.error(f"Error getting current stats: {e}")
+            logger.exception(f"Error getting current stats: {e}")
             return None
 
     def generate_summary(self, samples: list[ResourceSample] | None = None) -> ResourceSummary:
@@ -332,7 +332,7 @@ class ResourceMonitor:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to export samples: {e}")
+            logger.exception(f"Failed to export samples: {e}")
             return False
 
 
@@ -431,7 +431,7 @@ class PerformanceMonitor:
         summary = self.resource_monitor.generate_summary()
         current_stats = self.get_current_usage()
 
-        report = {
+        return {
             "report_timestamp": datetime.now().isoformat(),
             "monitoring_summary": summary.to_dict(),
             "current_usage": current_stats.to_dict() if current_stats else None,
@@ -439,7 +439,6 @@ class PerformanceMonitor:
             "recommendations": self._generate_recommendations(summary),
         }
 
-        return report
 
     def _generate_insights(self, summary: ResourceSummary) -> list[str]:
         """Generate performance insights from summary data."""

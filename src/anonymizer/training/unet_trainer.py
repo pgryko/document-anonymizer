@@ -23,10 +23,10 @@ from PIL import Image, ImageDraw, ImageFont
 from torch.utils.data import DataLoader
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel, get_scheduler
 
-from ..core.config import UNetConfig
-from ..core.exceptions import ModelLoadError, TrainingError, ValidationError
-from ..core.models import ModelArtifacts, TrainingMetrics
-from ..utils.metrics import MetricsCollector
+from src.anonymizer.core.config import UNetConfig
+from src.anonymizer.core.exceptions import ModelLoadError, TrainingError, ValidationError
+from src.anonymizer.core.models import ModelArtifacts, TrainingMetrics
+from src.anonymizer.utils.metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -419,7 +419,7 @@ class UNetTrainer:
 
             # Create metrics
             current_lr = self.optimizer.param_groups[0]["lr"]
-            metrics = TrainingMetrics(
+            return TrainingMetrics(
                 epoch=self.current_epoch,
                 step=self.global_step,
                 total_loss=loss.item(),
@@ -428,7 +428,6 @@ class UNetTrainer:
                 learning_rate=current_lr,
             )
 
-            return metrics
 
         except Exception as e:
             raise TrainingError(f"Training step failed: {e}")
@@ -603,7 +602,7 @@ class UNetTrainer:
                 self.unet.train()
                 epoch_metrics = []
 
-                for batch_idx, batch in enumerate(train_dataloader):
+                for _batch_idx, batch in enumerate(train_dataloader):
                     try:
                         metrics = self.train_step(batch)
                         epoch_metrics.append(metrics)
@@ -620,7 +619,7 @@ class UNetTrainer:
                             self.save_checkpoint()
 
                     except Exception as e:
-                        logger.error(f"Training step failed at step {self.global_step}: {e}")
+                        logger.exception(f"Training step failed at step {self.global_step}: {e}")
                         continue
 
                 # Validation phase
@@ -637,12 +636,12 @@ class UNetTrainer:
                             logger.info(f"New best model saved with loss: {self.best_loss:.4f}")
 
                     except Exception as e:
-                        logger.error(f"Validation failed: {e}")
+                        logger.exception(f"Validation failed: {e}")
 
             logger.info("Training completed successfully")
 
         except Exception as e:
-            logger.error(f"Training failed: {e}")
+            logger.exception(f"Training failed: {e}")
             raise TrainingError(f"UNet training failed: {e}")
 
         finally:
