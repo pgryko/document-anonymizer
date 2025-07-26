@@ -12,7 +12,7 @@ from .models import DetectedText, OCRResult, OCRConfig
 
 __all__ = [
     "OCRProcessor",
-    "TrOCREngine", 
+    "TrOCREngine",
     "PaddleOCREngine",
     "EasyOCREngine",
     "DetectedText",

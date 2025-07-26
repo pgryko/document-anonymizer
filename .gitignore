@@ -9,6 +9,9 @@ lerna-debug.log*
 .DS_Store
 .idea/
 
+benchmark_results/
+performance_results/
+
 # Python
 **/__pycache__/**
 *.pyc
