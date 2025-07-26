@@ -9,7 +9,7 @@ across different systems during the anonymization process.
 from .bundled import BundledFontProvider
 from .manager import FontManager, FontMetadata
 from .system import SystemFontProvider
-from .utils import detect_font, find_similar_font, get_font_metrics
+from .utils import detect_font, find_similar_font, get_font_metrics, validate_font_file
 
 __all__ = [
     "BundledFontProvider",
@@ -19,4 +19,5 @@ __all__ = [
     "detect_font",
     "find_similar_font",
     "get_font_metrics",
+    "validate_font_file",
 ]

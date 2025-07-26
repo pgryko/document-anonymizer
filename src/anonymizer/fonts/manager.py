@@ -143,17 +143,28 @@ class FontManager:
             "Georgia": ["Times New Roman", "Times", "Liberation Serif"],
         }
 
-    def get_font(self, font_name: str, style: str = "normal") -> FontMetadata | None:
+    def get_font(
+        self, font_name: str, style: str = "normal", _visited: set[str] | None = None
+    ) -> FontMetadata | None:
         """
         Get font by name and style.
 
         Args:
             font_name: Font family name
             style: Font style (normal, bold, italic, bold-italic)
+            _visited: Internal parameter to prevent recursion
 
         Returns:
             FontMetadata if found, None otherwise
         """
+        if _visited is None:
+            _visited = set()
+
+        # Prevent infinite recursion
+        if font_name in _visited:
+            return None
+        _visited.add(font_name)
+
         # Try exact match first
         full_name = f"{font_name}-{style}" if style != "normal" else font_name
 
@@ -168,7 +179,7 @@ class FontManager:
         # Try fallback fonts
         if font_name in self.fallback_map:
             for fallback_name in self.fallback_map[font_name]:
-                fallback_font = self.get_font(fallback_name, style)
+                fallback_font = self.get_font(fallback_name, style, _visited)
                 if fallback_font:
                     logger.info(f"Using fallback font {fallback_font.name} for {font_name}")
                     return fallback_font

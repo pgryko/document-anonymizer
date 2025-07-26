@@ -889,10 +889,10 @@ class TestBoundingBoxFixes:
         clamped = bbox.clamp_to_bounds(512, 512)
 
         # Should ensure minimum size of 1x1
-        assert clamped.left == 511  # max(0, min(510, 512-1))
-        assert clamped.top == 511  # max(0, min(510, 512-1))
-        assert clamped.right == 512  # max(1, min(520, 512))
-        assert clamped.bottom == 512  # max(1, min(520, 512))
+        assert clamped.left == 510  # max(0, min(510, 512-1)) = max(0, 510) = 510
+        assert clamped.top == 510  # max(0, min(510, 512-1)) = max(0, 510) = 510
+        assert clamped.right == 512  # max(510+1, min(520, 512)) = max(511, 512) = 512
+        assert clamped.bottom == 512  # max(510+1, min(520, 512)) = max(511, 512) = 512
 
 
 class TestDatasetPreprocessingFixes:

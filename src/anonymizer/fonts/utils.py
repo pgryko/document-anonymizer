@@ -464,6 +464,10 @@ def validate_font_file(font_path: str) -> bool:
         True if valid font file, False otherwise
     """
     try:
+        # Check if file exists
+        if not os.path.exists(font_path):
+            return False
+
         # Check file extension
         ext = os.path.splitext(font_path)[1].lower()
         valid_extensions = {".ttf", ".otf", ".woff", ".woff2", ".ttc", ".otc"}
@@ -479,7 +483,7 @@ def validate_font_file(font_path: str) -> bool:
         return False
 
 
-def create_font_sample(font_path: str, text: str = "Sample Text", size: int = 24) -> any | None:
+def create_font_sample(font_path: str, text: str = "Sample Text", size: int = 24):
     """
     Create a sample image showing the font.
 

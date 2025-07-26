@@ -29,7 +29,7 @@ from src.anonymizer.core.models import (
 def device():
     """Get device for testing (GPU if available)."""
     if torch.cuda.is_available():
-        device = torch.device("cuda")
+        device = torch.device("cuda:0")  # Specify exact device
         print(f"Using GPU: {torch.cuda.get_device_name()}")
     else:
         device = torch.device("cpu")

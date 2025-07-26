@@ -129,19 +129,19 @@ class ModelBenchmark:
                     # - Measure per-iteration timing
                     time.sleep(0.05)  # Placeholder
 
-                success = True
-                error_message = None
+            success = True
+            error_message = None
 
-                # Calculate additional metrics
-                latest_metrics = self.profiler.metrics[-1]
-                avg_iteration_time = latest_metrics.duration_ms / num_iterations
+            # Calculate additional metrics
+            latest_metrics = self.profiler.metrics[-1]
+            avg_iteration_time = latest_metrics.duration_ms / num_iterations
 
-                additional_metrics = {
-                    "num_iterations": num_iterations,
-                    "avg_iteration_ms": avg_iteration_time,
-                    "input_size": input_size,
-                    "throughput_fps": (1000 / avg_iteration_time if avg_iteration_time > 0 else 0),
-                }
+            additional_metrics = {
+                "num_iterations": num_iterations,
+                "avg_iteration_ms": avg_iteration_time,
+                "input_size": input_size,
+                "throughput_fps": (1000 / avg_iteration_time if avg_iteration_time > 0 else 0),
+            }
 
         except Exception as e:
             success = False
@@ -224,19 +224,19 @@ class AnonymizationBenchmark:
                     # - Tensor conversion
                     time.sleep(0.02)  # Placeholder
 
-                success = True
-                error_message = None
+            success = True
+            error_message = None
 
-                # Additional metrics
-                latest_metrics = self.profiler.metrics[-1]
-                avg_doc_time = latest_metrics.duration_ms / num_documents
+            # Additional metrics (after context manager exits and metrics are added)
+            latest_metrics = self.profiler.metrics[-1]
+            avg_doc_time = latest_metrics.duration_ms / num_documents
 
-                additional_metrics = {
-                    "num_documents": num_documents,
-                    "avg_document_ms": avg_doc_time,
-                    "image_size": image_size,
-                    "documents_per_second": (1000 / avg_doc_time if avg_doc_time > 0 else 0),
-                }
+            additional_metrics = {
+                "num_documents": num_documents,
+                "avg_document_ms": avg_doc_time,
+                "image_size": image_size,
+                "documents_per_second": (1000 / avg_doc_time if avg_doc_time > 0 else 0),
+            }
 
         except Exception as e:
             success = False
@@ -288,18 +288,18 @@ class AnonymizationBenchmark:
                     # - Confidence scoring
                     time.sleep(0.1)  # Placeholder for OCR
 
-                success = True
-                error_message = None
+            success = True
+            error_message = None
 
-                latest_metrics = self.profiler.metrics[-1]
-                avg_ocr_time = latest_metrics.duration_ms / num_images
+            latest_metrics = self.profiler.metrics[-1]
+            avg_ocr_time = latest_metrics.duration_ms / num_images
 
-                additional_metrics = {
-                    "num_images": num_images,
-                    "avg_ocr_ms": avg_ocr_time,
-                    "image_size": image_size,
-                    "images_per_second": 1000 / avg_ocr_time if avg_ocr_time > 0 else 0,
-                }
+            additional_metrics = {
+                "num_images": num_images,
+                "avg_ocr_ms": avg_ocr_time,
+                "image_size": image_size,
+                "images_per_second": 1000 / avg_ocr_time if avg_ocr_time > 0 else 0,
+            }
 
         except Exception as e:
             success = False
@@ -359,17 +359,17 @@ class AnonymizationBenchmark:
                     # - PII classification
                     time.sleep(0.01)  # Placeholder for NER
 
-                success = True
-                error_message = None
+            success = True
+            error_message = None
 
-                latest_metrics = self.profiler.metrics[-1]
-                avg_ner_time = latest_metrics.duration_ms / num_texts
+            latest_metrics = self.profiler.metrics[-1]
+            avg_ner_time = latest_metrics.duration_ms / num_texts
 
-                additional_metrics = {
-                    "num_texts": num_texts,
-                    "avg_ner_ms": avg_ner_time,
-                    "texts_per_second": 1000 / avg_ner_time if avg_ner_time > 0 else 0,
-                }
+            additional_metrics = {
+                "num_texts": num_texts,
+                "avg_ner_ms": avg_ner_time,
+                "texts_per_second": 1000 / avg_ner_time if avg_ner_time > 0 else 0,
+            }
 
         except Exception as e:
             success = False
@@ -438,19 +438,19 @@ class AnonymizationBenchmark:
                     # - Output generation
                     time.sleep(0.5)  # Placeholder for diffusion
 
-                success = True
-                error_message = None
+            success = True
+            error_message = None
 
-                latest_metrics = self.profiler.metrics[-1]
-                avg_inpaint_time = latest_metrics.duration_ms / num_iterations
+            latest_metrics = self.profiler.metrics[-1]
+            avg_inpaint_time = latest_metrics.duration_ms / num_iterations
 
-                additional_metrics = {
-                    "num_iterations": num_iterations,
-                    "num_regions_per_image": num_regions,
-                    "avg_inpainting_ms": avg_inpaint_time,
-                    "image_size": image_size,
-                    "images_per_second": (1000 / avg_inpaint_time if avg_inpaint_time > 0 else 0),
-                }
+            additional_metrics = {
+                "num_iterations": num_iterations,
+                "num_regions_per_image": num_regions,
+                "avg_inpainting_ms": avg_inpaint_time,
+                "image_size": image_size,
+                "images_per_second": (1000 / avg_inpaint_time if avg_inpaint_time > 0 else 0),
+            }
 
         except Exception as e:
             success = False
@@ -511,26 +511,26 @@ class AnonymizationBenchmark:
                     # 6. Post-processing and output
                     time.sleep(0.03)  # Simulate final steps
 
-                success = True
-                error_message = None
+            success = True
+            error_message = None
 
-                latest_metrics = self.profiler.metrics[-1]
-                avg_e2e_time = latest_metrics.duration_ms / num_documents
+            latest_metrics = self.profiler.metrics[-1]
+            avg_e2e_time = latest_metrics.duration_ms / num_documents
 
-                additional_metrics = {
-                    "num_documents": num_documents,
-                    "avg_e2e_ms": avg_e2e_time,
-                    "image_size": image_size,
-                    "documents_per_second": (1000 / avg_e2e_time if avg_e2e_time > 0 else 0),
-                    "pipeline_stages": [
-                        "loading",
-                        "ocr",
-                        "ner",
-                        "masking",
-                        "inpainting",
-                        "output",
-                    ],
-                }
+            additional_metrics = {
+                "num_documents": num_documents,
+                "avg_e2e_ms": avg_e2e_time,
+                "image_size": image_size,
+                "documents_per_second": (1000 / avg_e2e_time if avg_e2e_time > 0 else 0),
+                "pipeline_stages": [
+                    "loading",
+                    "ocr",
+                    "ner",
+                    "masking",
+                    "inpainting",
+                    "output",
+                ],
+            }
 
         except Exception as e:
             success = False

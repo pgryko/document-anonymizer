@@ -10,10 +10,10 @@ from pydantic import BaseModel, Field, field_validator
 class BoundingBox(BaseModel):
     """Bounding box coordinates."""
 
-    left: int = Field(..., ge=0, description="Left coordinate")
-    top: int = Field(..., ge=0, description="Top coordinate")
-    right: int = Field(..., gt=0, description="Right coordinate")
-    bottom: int = Field(..., gt=0, description="Bottom coordinate")
+    left: int = Field(..., description="Left coordinate")
+    top: int = Field(..., description="Top coordinate")
+    right: int = Field(..., description="Right coordinate")
+    bottom: int = Field(..., description="Bottom coordinate")
 
     @field_validator("right")
     @classmethod
@@ -91,7 +91,7 @@ class AnonymizationRequest(BaseModel):
 
     image_data: bytes = Field(..., description="Input image data")
     text_regions: list[TextRegion] = Field(
-        default_factory=list, max_items=50, description="Text regions to anonymize"
+        default_factory=list, min_length=1, max_items=50, description="Text regions to anonymize"
     )
     preserve_formatting: bool = Field(True, description="Preserve text formatting")
     quality_check: bool = Field(True, description="Enable quality verification")

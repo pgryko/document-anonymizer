@@ -339,6 +339,10 @@ class AnonymizerDataset(Dataset):
 
         for attempt in range(max_retries):
             try:
+                # Check for empty samples list
+                if len(self.samples) == 0:
+                    raise ValueError("Dataset has no samples")
+
                 # Use modulo to handle out-of-bounds indices
                 actual_idx = idx % len(self.samples)
                 sample = self.samples[actual_idx]
@@ -365,10 +369,12 @@ class AnonymizerDataset(Dataset):
                 logger.warning(f"Invalid result for sample {actual_idx}, retrying...")
 
             except Exception as e:
-                logger.error(f"Failed to get item {actual_idx} (attempt {attempt + 1}): {e}")
+                # Use idx as fallback if actual_idx wasn't set
+                error_idx = locals().get("actual_idx", idx)
+                logger.error(f"Failed to get item {error_idx} (attempt {attempt + 1}): {e}")
 
                 # Try next sample on error
-                if attempt < max_retries - 1:
+                if attempt < max_retries - 1 and len(self.samples) > 0:
                     idx = (idx + 1) % len(self.samples)
                     continue
 
@@ -483,8 +489,9 @@ def collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
     ]
 
     if not valid_batch:
-        logger.warning("All samples in batch failed preprocessing, returning dummy batch")
-        return create_dummy_batch()
+        from ..core.exceptions import ValidationError
+
+        raise ValidationError("Empty batch after filtering")
 
     # Separate batch components
     images = torch.stack([item["images"] for item in valid_batch])
