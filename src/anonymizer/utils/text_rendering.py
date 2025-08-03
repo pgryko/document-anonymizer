@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -14,14 +15,14 @@ logger = logging.getLogger(__name__)
 class FontManager:
     """Manages font loading and fallbacks."""
 
-    DEFAULT_FONTS = [
+    DEFAULT_FONTS: ClassVar[list[str]] = [
         "Arial.ttf",
         "DejaVuSans.ttf",
         "LiberationSans-Regular.ttf",
         "NotoSans-Regular.ttf",
     ]
 
-    SYSTEM_FONT_PATHS = [
+    SYSTEM_FONT_PATHS: ClassVar[list[str]] = [
         "/System/Library/Fonts/",  # macOS
         "/usr/share/fonts/",  # Linux
         "C:/Windows/Fonts/",  # Windows

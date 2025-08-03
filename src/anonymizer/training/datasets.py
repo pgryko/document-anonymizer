@@ -15,7 +15,7 @@ import logging
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import cv2
 import numpy as np
@@ -59,7 +59,7 @@ class ImageValidator:
     MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50MB
     MAX_DIMENSION = 8192  # 8K resolution limit
     MIN_DIMENSION = 32  # Minimum usable size
-    ALLOWED_FORMATS = {"JPEG", "PNG", "TIFF", "BMP"}
+    ALLOWED_FORMATS: ClassVar[set[str]] = {"JPEG", "PNG", "TIFF", "BMP"}
 
     @classmethod
     def validate_image_file(cls, image_path: Path) -> bool:

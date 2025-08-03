@@ -327,7 +327,7 @@ class BatchProcessor:
             progress_callback.on_item_start(item.item_id, item_index)
 
             # Load image data
-            with open(item.image_path, "rb") as f:
+            with item.image_path.open("rb") as f:
                 image_data = f.read()
 
             # If no text regions are provided, use OCR to detect them

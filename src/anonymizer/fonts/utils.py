@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw, ImageFont
 logger = logging.getLogger(__name__)
 
 
-def get_font_info(font_path: str) -> dict[str, any] | None:
+def get_font_info(font_path: str) -> dict[str, Any] | None:
     """
     Extract font information from font file.
 
@@ -37,7 +37,7 @@ def get_font_info(font_path: str) -> dict[str, any] | None:
         return None
 
 
-def _get_font_info_fonttools(font_path: str) -> dict[str, any] | None:
+def _get_font_info_fonttools(font_path: str) -> dict[str, Any] | None:
     """Get font info using fonttools library."""
     try:
         from fontTools.ttLib import TTFont
@@ -90,7 +90,7 @@ def _get_font_name(name_table, name_id: int) -> str | None:
     return None
 
 
-def _get_font_info_freetype(font_path: str) -> dict[str, any] | None:
+def _get_font_info_freetype(font_path: str) -> dict[str, Any] | None:
     """Get font info using freetype library."""
     try:
         import freetype
@@ -119,7 +119,7 @@ def _get_font_info_freetype(font_path: str) -> dict[str, any] | None:
         return None
 
 
-def _get_font_info_fallback(font_path: str) -> dict[str, any] | None:
+def _get_font_info_fallback(font_path: str) -> dict[str, Any] | None:
     """Fallback font info extraction from filename."""
     try:
         filename = os.path.basename(font_path)
@@ -352,7 +352,7 @@ def calculate_font_similarity(font1: dict, font2: dict) -> float:
         return 0.0
 
 
-def get_font_metrics(font_path: str, size: int = 12) -> dict[str, any] | None:
+def get_font_metrics(font_path: str, size: int = 12) -> dict[str, Any] | None:
     """
     Get font metrics for text rendering.
 
@@ -376,7 +376,7 @@ def get_font_metrics(font_path: str, size: int = 12) -> dict[str, any] | None:
         return None
 
 
-def _get_font_metrics_pil(font_path: str, size: int) -> dict[str, any] | None:
+def _get_font_metrics_pil(font_path: str, size: int) -> dict[str, Any] | None:
     """Get font metrics using PIL."""
     try:
 
@@ -409,7 +409,7 @@ def _get_font_metrics_pil(font_path: str, size: int) -> dict[str, any] | None:
         return None
 
 
-def _get_font_metrics_freetype(font_path: str, size: int) -> dict[str, any] | None:
+def _get_font_metrics_freetype(font_path: str, size: int) -> dict[str, Any] | None:
     """Get font metrics using freetype."""
     try:
         import freetype
@@ -435,7 +435,7 @@ def _get_font_metrics_freetype(font_path: str, size: int) -> dict[str, any] | No
         return None
 
 
-def _get_font_metrics_fallback(font_path: str, size: int) -> dict[str, any] | None:
+def _get_font_metrics_fallback(font_path: str, size: int) -> dict[str, Any] | None:
     """Fallback font metrics based on font size."""
     try:
         # Approximate metrics based on common font characteristics

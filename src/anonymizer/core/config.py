@@ -96,7 +96,7 @@ def validate_secure_path(
             import tempfile
 
             allowed_base_dirs = [
-                os.path.expanduser("~/"),  # User home directory
+                str(Path.home()),  # User home directory
                 str(Path.cwd()),  # Current working directory
                 "/tmp/document-anonymizer/",  # Specific temp directory
                 "/var/tmp/document-anonymizer/",  # Alternative temp directory
