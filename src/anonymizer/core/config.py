@@ -10,13 +10,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from .exceptions import ConfigurationError, ValidationError
 
 
-def validate_secure_path(path: str | Path, field_name: str = "path") -> Path:
+def validate_secure_path(
+    path: str | Path, field_name: str = "path", allowed_base_dirs: list[str] | None = None
+) -> Path:
     """
-    Validate path for security - prevents directory traversal attacks.
+    Validate path for security using whitelist approach.
 
     Args:
         path: Path to validate
         field_name: Name of the field being validated (for error messages)
+        allowed_base_dirs: List of allowed base directories. If None, uses defaults.
 
     Returns:
         Validated Path object
@@ -30,34 +33,88 @@ def validate_secure_path(path: str | Path, field_name: str = "path") -> Path:
     try:
         path_obj = Path(path)
 
-        # Check for directory traversal patterns
-        path_str = str(path_obj)
+        # Resolve to absolute path for security checks
+        try:
+            resolved_path = path_obj.resolve()
+        except (OSError, RuntimeError) as e:
+            raise ValidationError(f"Path resolution failed for {field_name}: {e}")
+
+        # Convert to string for pattern matching
+        resolved_str = str(resolved_path)
+
+        # Check for dangerous patterns first (regardless of whitelist)
         dangerous_patterns = [
-            "../",
-            "..\\",  # Parent directory traversal
-            "/etc/",
-            "/proc/",
-            "/sys/",  # System directories (Linux)
-            "C:\\Windows\\",
-            "C:\\Program Files\\",  # System directories (Windows)
+            "/../",  # Directory traversal
+            "\\..\\",  # Windows directory traversal
+            "\x00",  # Null bytes
+            "\n",  # Newlines
+            "\r",  # Carriage returns
         ]
 
         for pattern in dangerous_patterns:
-            if pattern in path_str:
-                raise ValidationError(f"Potentially dangerous path in {field_name}: {path}")
+            if pattern in resolved_str:
+                raise ValidationError(
+                    f"Dangerous pattern '{pattern}' found in {field_name}: {path}"
+                )
 
-        # Resolve to absolute path and check bounds
+        # Whitelist validation - only allow paths within specified base directories
+        if allowed_base_dirs is None:
+            # Default allowed directories - more restrictive
+            import os
+
+            allowed_base_dirs = [
+                os.path.expanduser("~/"),  # User home directory
+                str(Path.cwd()),  # Current working directory
+                "/tmp/document-anonymizer/",  # Specific temp directory
+                "/var/tmp/document-anonymizer/",  # Alternative temp directory
+            ]
+            # Add OS-specific defaults
+            if os.name == "nt":  # Windows
+                allowed_base_dirs.extend(
+                    [
+                        os.path.expandvars("%TEMP%\\document-anonymizer\\"),
+                        os.path.expandvars("%APPDATA%\\document-anonymizer\\"),
+                    ]
+                )
+
+        # Check if path is within any allowed base directory
+        path_allowed = False
+        for base_dir in allowed_base_dirs:
+            try:
+                base_resolved = Path(base_dir).resolve()
+                # Check if resolved path is within this base directory
+                if resolved_path.is_relative_to(base_resolved):
+                    path_allowed = True
+                    break
+            except (OSError, ValueError):
+                # Skip invalid base directories
+                continue
+
+        if not path_allowed:
+            raise ValidationError(
+                f"Path not within allowed directories for {field_name}: {resolved_path}. "
+                f"Allowed bases: {allowed_base_dirs}"
+            )
+
+        # Additional safety checks
+        path_parts = resolved_path.parts
+        if len(path_parts) > 15:  # Reasonable depth limit
+            raise ValidationError(f"Path depth too deep in {field_name}: {path}")
+
+        # Check for symlinks to prevent bypass
         try:
-            resolved_path = path_obj.resolve()
-
-            # Ensure path stays within reasonable bounds
-            # This is a basic check - in production you'd define allowed base directories
-            path_parts = resolved_path.parts
-            if len(path_parts) > 10:  # Reasonable depth limit
-                raise ValidationError(f"Path depth too deep in {field_name}: {path}")
-
-        except (OSError, RuntimeError) as e:
-            raise ValidationError(f"Path resolution failed for {field_name}: {e}")
+            if resolved_path.is_symlink():
+                # Resolve symlink and re-validate the target
+                symlink_target = resolved_path.readlink()
+                if symlink_target.is_absolute():
+                    # Absolute symlink - validate the target
+                    return validate_secure_path(symlink_target, field_name, allowed_base_dirs)
+                # Relative symlink - resolve relative to symlink's parent
+                absolute_target = (resolved_path.parent / symlink_target).resolve()
+                return validate_secure_path(absolute_target, field_name, allowed_base_dirs)
+        except (OSError, RuntimeError):
+            # If we can't check symlink status, continue
+            pass
 
         return path_obj
 
@@ -67,12 +124,14 @@ def validate_secure_path(path: str | Path, field_name: str = "path") -> Path:
         raise ValidationError(f"Invalid path in {field_name}: {e}")
 
 
-def validate_model_path(path: str | Path, field_name: str = "model_path") -> Path | None:
+def validate_model_path(
+    path: str | Path, field_name: str = "model_path", allowed_base_dirs: list[str] | None = None
+) -> Path | None:
     """Validate model file path with additional security checks."""
     if path is None:
         return None
 
-    validated_path = validate_secure_path(path, field_name)
+    validated_path = validate_secure_path(path, field_name, allowed_base_dirs)
 
     # Additional checks for model files
     if validated_path.suffix not in [".safetensors", ".bin", ".pt", ".pth", ""]:
@@ -298,20 +357,35 @@ class EngineConfig(BaseSettings):
     vae_model_path: str | None = Field(None, description="VAE model path")
     unet_model_path: str | None = Field(None, description="UNet model path")
 
+    # Security settings
+    allowed_model_base_dirs: list[str] = Field(
+        default_factory=lambda: [
+            "~/models/",
+            "./models/",
+            "/tmp/document-anonymizer/models/",
+            "/var/tmp/document-anonymizer/models/",
+        ],
+        description="Allowed base directories for model files",
+    )
+
     @field_validator("vae_model_path")
     @classmethod
-    def validate_vae_model_path(cls, v):
+    def validate_vae_model_path(cls, v, info):
         """Validate VAE model path for security."""
         if v is not None:
-            return str(validate_model_path(v, "vae_model_path"))
+            # Get allowed base dirs from the same config object
+            allowed_dirs = info.data.get("allowed_model_base_dirs")
+            return str(validate_model_path(v, "vae_model_path", allowed_dirs))
         return v
 
     @field_validator("unet_model_path")
     @classmethod
-    def validate_unet_model_path(cls, v):
+    def validate_unet_model_path(cls, v, info):
         """Validate UNet model path for security."""
         if v is not None:
-            return str(validate_model_path(v, "unet_model_path"))
+            # Get allowed base dirs from the same config object
+            allowed_dirs = info.data.get("allowed_model_base_dirs")
+            return str(validate_model_path(v, "unet_model_path", allowed_dirs))
         return v
 
     # Inference parameters
@@ -345,10 +419,39 @@ class R2Config(BaseSettings):
     """Cloudflare R2 storage configuration."""
 
     endpoint_url: str = Field(..., description="R2 endpoint URL")
-    access_key_id: str = Field(..., description="Access key ID")
-    secret_access_key: str = Field(..., description="Secret access key")
+    access_key_id: str = Field(..., description="Access key ID", repr=False)
+    secret_access_key: str = Field(..., description="Secret access key", repr=False)
     bucket_name: str = Field(..., description="Bucket name")
     region: str = Field("auto", description="Region")
+
+    @field_validator("access_key_id", "secret_access_key")
+    @classmethod
+    def validate_credentials(cls, v):
+        """Validate credentials are not empty and meet basic requirements."""
+        if not v or len(v.strip()) == 0:
+            raise ValueError("Credential cannot be empty")
+        if len(v.strip()) < 8:
+            raise ValueError("Credential too short")
+        return v.strip()
+
+    @field_validator("endpoint_url")
+    @classmethod
+    def validate_endpoint_url(cls, v):
+        """Validate endpoint URL format."""
+        if not v.startswith(("https://", "http://")):
+            raise ValueError("Endpoint URL must start with https:// or http://")
+        return v
+
+    def __repr__(self) -> str:
+        """Custom repr that masks sensitive fields."""
+        return f"R2Config(endpoint_url='{self.endpoint_url}', bucket_name='{self.bucket_name}', region='{self.region}', access_key_id='***', secret_access_key='***')"
+
+    def to_safe_dict(self) -> dict:
+        """Export configuration with sensitive fields masked."""
+        config_dict = self.model_dump()
+        config_dict["access_key_id"] = "***MASKED***"
+        config_dict["secret_access_key"] = "***MASKED***"
+        return config_dict
 
     @classmethod
     def from_env(cls) -> "R2Config":

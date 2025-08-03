@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from src.anonymizer.core.models import (
-    AnonymizationRequest,
     BatchAnonymizationRequest,
     BatchAnonymizationResult,
     BatchItem,
@@ -366,17 +365,9 @@ class BatchProcessor:
                 progress_callback.on_item_complete(item.item_id, result.success, processing_time_ms)
                 return result
 
-            # Create anonymization request
-            anon_request = AnonymizationRequest(
-                image_data=image_data,
-                text_regions=text_regions,
-                preserve_formatting=item.preserve_formatting,
-                quality_check=item.quality_check,
-            )
-
             # Process with inference engine
             with self._lock:
-                anon_result = self.inference_engine.anonymize_document(anon_request)
+                anon_result = self.inference_engine.anonymize(image_data, text_regions)
 
             # Determine output path
             output_path = self._get_output_path(item, request)

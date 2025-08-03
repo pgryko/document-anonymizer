@@ -12,6 +12,7 @@ import platform
 from pathlib import Path
 
 from .manager import FontMetadata
+from .utils import get_font_info
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,6 @@ class SystemFontProvider:
     def _create_font_metadata(self, font_path: str) -> FontMetadata | None:
         """Create font metadata from system font file."""
         try:
-            from .utils import get_font_info
 
             # Get font information
             font_info = get_font_info(font_path)

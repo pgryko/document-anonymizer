@@ -493,8 +493,6 @@ def collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
 
     # If all items were filtered out (all items were invalid)
     if not valid_batch:
-        from src.anonymizer.core.exceptions import ValidationError
-
         raise ValidationError("Empty batch after filtering")
 
     # Separate batch components

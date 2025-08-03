@@ -7,40 +7,18 @@ to ensure consistent text rendering during anonymization.
 """
 
 import hashlib
+import json
 import logging
 import os
-from dataclasses import dataclass
+import shutil
 from pathlib import Path
 
+from .bundled import BundledFontProvider
+from .models import FontMetadata
+from .system import SystemFontProvider
+from .utils import calculate_font_similarity
+
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class FontMetadata:
-    """Font metadata information."""
-
-    name: str
-    family: str
-    style: str  # normal, bold, italic, bold-italic
-    weight: int  # 100-900
-    path: str
-    size_bytes: int
-    checksum: str
-    is_bundled: bool = False
-    license_info: str | None = None
-
-    @property
-    def filename(self) -> str:
-        """Get the font filename."""
-        return os.path.basename(self.path)
-
-    @property
-    def extension(self) -> str:
-        """Get the font file extension."""
-        return os.path.splitext(self.path)[1].lower()
-
-    def __str__(self) -> str:
-        return f"{self.family} {self.style} ({self.name})"
 
 
 class FontManager:
@@ -64,8 +42,6 @@ class FontManager:
         self.fallback_map: dict[str, list[str]] = {}
 
         # Font providers
-        from .bundled import BundledFontProvider
-        from .system import SystemFontProvider
 
         self.bundled_provider = BundledFontProvider(self.fonts_dir)
         self.system_provider = SystemFontProvider()
@@ -233,8 +209,6 @@ class FontManager:
             dest_path = self.fonts_dir / source_path.name
             dest_path.parent.mkdir(parents=True, exist_ok=True)
 
-            import shutil
-
             shutil.copy2(source_path, dest_path)
 
             # Create metadata
@@ -296,7 +270,6 @@ class FontManager:
         Returns:
             List of similar fonts sorted by similarity
         """
-        from .utils import calculate_font_similarity
 
         target_meta = self.get_font(target_font)
         if not target_meta:
@@ -402,7 +375,6 @@ class FontManager:
             True if successful, False otherwise
         """
         try:
-            import json
 
             font_data = []
             for font in self.fonts_cache.values():

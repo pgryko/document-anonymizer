@@ -14,6 +14,8 @@ Key improvements over reference:
 """
 
 import logging
+import os
+import stat
 import tempfile
 import threading
 import time
@@ -29,8 +31,10 @@ from diffusers import (
     UNet2DConditionModel,
 )
 from PIL import Image, ImageDraw, ImageFont
+from presidio_analyzer import AnalyzerEngine
+from presidio_anonymizer import AnonymizerEngine
 
-from ..core.config import EngineConfig
+from ..core.config import EngineConfig, validate_model_path
 from ..core.exceptions import (
     InferenceError,
     ModelLoadError,
@@ -113,8 +117,6 @@ class NERProcessor:
     def __init__(self):
         """Initialize NER processor with presidio."""
         try:
-            from presidio_analyzer import AnalyzerEngine
-            from presidio_anonymizer import AnonymizerEngine
 
             self.analyzer = AnalyzerEngine()
             self.anonymizer = AnonymizerEngine()
@@ -138,6 +140,7 @@ class NERProcessor:
             raise ModelLoadError(f"Presidio not available: {e}")
 
     def detect_pii(self, text: str, image: np.ndarray) -> list[TextRegion]:
+        # TODO: integrate with other methods for pii detection
         """Detect PII entities and return text regions."""
         try:
             # Use Presidio to analyze text
@@ -145,6 +148,7 @@ class NERProcessor:
 
             # Convert to TextRegion objects
             # For now, create dummy bounding boxes - in production this would
+            # TODO: add OCR to extract bounding boxes
             # integrate with OCR to get actual coordinates
             text_regions = []
             for result in results:
@@ -272,6 +276,45 @@ class InferenceEngine:
 
         logger.info(f"InferenceEngine initialized on device: {self.device}")
 
+    def _get_secure_temp_dir(self) -> Path:
+        """Get or create secure temporary directory for the inference engine."""
+
+        # Define base temp directory name
+        temp_dir_name = "document-anonymizer"
+
+        # Try different base directories in order of preference
+        base_candidates = [
+            Path.home() / ".cache" / temp_dir_name,  # User cache directory
+            Path("/tmp") / temp_dir_name,  # System temp (Linux/Mac)
+            Path(os.environ.get("TEMP", "/tmp")) / temp_dir_name,  # Windows/fallback
+        ]
+
+        for base_dir in base_candidates:
+            try:
+                # Create directory if it doesn't exist
+                base_dir.mkdir(parents=True, exist_ok=True)
+
+                # Set secure permissions (owner only)
+                os.chmod(str(base_dir), stat.S_IRWXU)  # 0o700
+
+                # Test if we can create files in this directory
+                test_file = base_dir / "test_write_access"
+                try:
+                    test_file.touch()
+                    test_file.unlink()  # Clean up test file
+                    logger.debug(f"Using secure temp directory: {base_dir}")
+                    return base_dir
+                except (OSError, PermissionError):
+                    continue
+
+            except (OSError, PermissionError):
+                logger.debug(f"Cannot use temp directory: {base_dir}")
+                continue
+
+        # Fallback to default tempfile behavior (but with secure permissions)
+        logger.warning("Could not create secure temp directory, using system default")
+        return Path(tempfile.gettempdir())
+
     def _initialize_ocr_processor(self):
         """Initialize OCR processor with optimal configuration."""
         try:
@@ -341,18 +384,20 @@ class InferenceEngine:
     def _load_custom_models(self):
         """Load custom trained VAE and UNet models."""
         try:
-            # Validate model paths
+            # Validate model paths using configured allowed directories
             if self.config.vae_model_path:
-                vae_path = SecurePathValidator.validate_model_path(
-                    Path(self.config.vae_model_path),
-                    Path("/tmp"),  # Adjust allowed base directory as needed
+                vae_path = validate_model_path(
+                    self.config.vae_model_path,
+                    "vae_model_path",
+                    self.config.allowed_model_base_dirs,
                 )
                 self.vae = AutoencoderKL.from_pretrained(vae_path.parent)
 
             if self.config.unet_model_path:
-                unet_path = SecurePathValidator.validate_model_path(
-                    Path(self.config.unet_model_path),
-                    Path("/tmp"),  # Adjust allowed base directory as needed
+                unet_path = validate_model_path(
+                    self.config.unet_model_path,
+                    "unet_model_path",
+                    self.config.allowed_model_base_dirs,
                 )
                 self.unet = UNet2DConditionModel.from_pretrained(unet_path.parent)
 
@@ -504,8 +549,15 @@ class InferenceEngine:
     def _process_input_image(self, image_data: bytes) -> np.ndarray:
         """Process and validate input image data."""
         try:
-            # Create secure temporary file
-            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
+            # Create secure temporary file with proper permissions
+            secure_temp_dir = self._get_secure_temp_dir()
+            with tempfile.NamedTemporaryFile(
+                suffix=".png", delete=False, dir=secure_temp_dir, mode="wb"
+            ) as tmp_file:
+                # Set secure permissions (owner read/write only)
+                import os
+
+                os.chmod(tmp_file.name, 0o600)
                 tmp_file.write(image_data)
                 tmp_path = Path(tmp_file.name)
 

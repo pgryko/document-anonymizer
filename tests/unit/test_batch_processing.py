@@ -202,7 +202,7 @@ class TestBatchProcessor:
             success=True,
             errors=[],
         )
-        engine.anonymize_document.return_value = mock_result
+        engine.anonymize.return_value = mock_result
 
         return engine
 
@@ -323,7 +323,7 @@ class TestBatchProcessor:
             assert result.success_rate == 100.0
 
             # Verify inference engine was called
-            mock_inference_engine.anonymize_document.assert_called_once()
+            mock_inference_engine.anonymize.assert_called_once()
 
             # Verify image was saved
             mock_pil_image.save.assert_called_once()
@@ -367,7 +367,7 @@ class TestBatchProcessor:
 
         # Mock failing inference engine
         failing_engine = Mock()
-        failing_engine.anonymize_document.side_effect = Exception("Processing failed")
+        failing_engine.anonymize.side_effect = Exception("Processing failed")
 
         processor = BatchProcessor(failing_engine)
 
@@ -531,7 +531,7 @@ class TestBatchIntegration:
                 success=True,
                 errors=[],
             )
-            mock_engine.anonymize_document.return_value = mock_result
+            mock_engine.anonymize.return_value = mock_result
 
             # Create and run batch processor
             processor = BatchProcessor(mock_engine)

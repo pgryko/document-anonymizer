@@ -4,6 +4,13 @@ import logging
 import sys
 from pathlib import Path
 
+import torch
+import yaml
+
+from src.anonymizer.core.config import VAEConfig
+from src.anonymizer.training import VAETrainer
+from src.anonymizer.training.datasets import create_dataloader
+
 try:
     import modal
 
@@ -26,6 +33,7 @@ if HAS_MODAL:
     app = modal.App(modal_config.app_name)
 
     # Create Modal image with dependencies
+    # TODO: this should install via uv and dependencies in pyproject.toml
     image = (
         modal.Image.debian_slim(python_version=modal_config.python_version)
         .pip_install(
@@ -104,13 +112,6 @@ if HAS_MODAL:
         sys.path.insert(0, "/root/anonymizer")
 
         try:
-            # Import training modules
-            import torch
-            import yaml
-
-            from src.anonymizer.core.config import VAEConfig
-            from src.anonymizer.training import VAETrainer
-            from src.anonymizer.training.datasets import create_dataloader
 
             print("🚀 Starting VAE training on Modal.com")
             print(f"GPU: {torch.cuda.get_device_name() if torch.cuda.is_available() else 'CPU'}")

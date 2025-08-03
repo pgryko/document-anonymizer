@@ -10,6 +10,8 @@ import os
 import re
 from typing import Any
 
+from PIL import Image, ImageDraw, ImageFont
+
 logger = logging.getLogger(__name__)
 
 
@@ -378,7 +380,6 @@ def get_font_metrics(font_path: str, size: int = 12) -> dict[str, any] | None:
 def _get_font_metrics_pil(font_path: str, size: int) -> dict[str, any] | None:
     """Get font metrics using PIL."""
     try:
-        from PIL import Image, ImageDraw, ImageFont
 
         font = ImageFont.truetype(font_path, size)
 

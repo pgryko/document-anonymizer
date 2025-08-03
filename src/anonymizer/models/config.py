@@ -91,6 +91,9 @@ class ModelConfig:
             self.trusted_domains = [
                 "huggingface.co",
                 "github.com",
+                "gitlab.com",
+                "gitlab.com",
+                "cloudflare.com",
                 "s3.amazonaws.com",
                 "storage.googleapis.com",
             ]

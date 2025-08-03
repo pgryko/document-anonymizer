@@ -11,7 +11,7 @@ import logging
 import os
 from pathlib import Path
 
-from .manager import FontMetadata
+from .models import FontMetadata
 
 logger = logging.getLogger(__name__)
 
