@@ -96,7 +96,7 @@ class AnonymizationRequest(BaseModel):
 
     image_data: bytes = Field(..., description="Input image data")
     text_regions: list[TextRegion] = Field(
-        default_factory=list, min_length=1, max_items=50, description="Text regions to anonymize"
+        default_factory=list, description="Text regions to anonymize"
     )
     preserve_formatting: bool = Field(True, description="Preserve text formatting")
     quality_check: bool = Field(True, description="Enable quality verification")

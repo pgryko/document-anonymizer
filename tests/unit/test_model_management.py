@@ -5,6 +5,7 @@ Model Management Tests
 Tests for model downloading, validation, and management functionality.
 """
 
+import logging
 import tempfile
 from pathlib import Path
 
@@ -21,6 +22,8 @@ from src.anonymizer.models.config import (
 from src.anonymizer.models.manager import ModelManager
 from src.anonymizer.models.registry import ModelRegistry
 from src.anonymizer.models.validator import ModelValidator
+
+logger = logging.getLogger(__name__)
 
 
 class TestModelConfig:
@@ -46,15 +49,15 @@ class TestModelConfig:
     def test_model_source_validation(self):
         """Test ModelSource validation."""
         # Test empty name
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="name cannot be empty"):
             ModelSource(name="", url="https://example.com", format=ModelFormat.SAFETENSORS)
 
         # Test empty URL
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="url cannot be empty"):
             ModelSource(name="test", url="", format=ModelFormat.SAFETENSORS)
 
         # Test invalid checksum type
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="invalid checksum_type"):
             ModelSource(
                 name="test",
                 url="https://example.com",
@@ -76,15 +79,15 @@ class TestModelConfig:
     def test_model_config_validation(self):
         """Test ModelConfig validation."""
         # Test invalid max_workers
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="max_workers must be positive"):
             ModelConfig(max_workers=0)
 
         # Test invalid timeout
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="timeout_seconds must be positive"):
             ModelConfig(timeout_seconds=0)
 
         # Test invalid cache size
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="max_cache_size_gb must be positive"):
             ModelConfig(max_cache_size_gb=0)
 
     def test_model_metadata_serialization(self):
@@ -337,9 +340,9 @@ class TestModelValidator:
             assert "model_size_mb" in benchmark
             assert benchmark["model_size_mb"] > 0
 
-        except Exception:
+        except Exception as e:
             # Benchmarking may fail on dummy files, which is expected
-            pass
+            logger.debug(f"Benchmarking failed as expected: {e}")
 
 
 class TestModelManager:
@@ -442,14 +445,7 @@ class TestModelIntegration:
 
     def test_model_imports(self):
         """Test that model management modules can be imported."""
-        from src.anonymizer.models import (
-            ModelConfig,
-            ModelFormat,
-            ModelManager,
-            ModelType,
-        )
-
-        # Should import without errors
+        # Should import without errors (imports already at module level)
         assert ModelManager is not None
         assert ModelConfig is not None
         assert ModelType is not None

@@ -658,7 +658,7 @@ class InferenceEngine:
             processing_time_ms = (time.time() - start_time) * 1000
             self.metrics_collector.record_inference_metrics(processing_time_ms, success=False)
 
-            logger.error(f"Anonymization process failed after {processing_time_ms:.1f}ms")
+            logger.exception(f"Anonymization process failed after {processing_time_ms:.1f}ms")
 
             raise InferenceError(error_msg)
 

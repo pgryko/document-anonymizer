@@ -6,13 +6,19 @@ High-performance batch processing for document anonymization with
 memory management, parallel processing, and progress tracking.
 """
 
+import gc
 import logging
+import shutil
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
+from PIL import Image
+
+from src.anonymizer.core.exceptions import ProcessingError, ValidationError
 from src.anonymizer.core.models import (
     BatchAnonymizationRequest,
     BatchAnonymizationResult,
@@ -20,6 +26,12 @@ from src.anonymizer.core.models import (
     BatchItemResult,
 )
 from src.anonymizer.inference.engine import InferenceEngine
+from src.anonymizer.ocr.processor import OCRProcessor
+
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 logger = logging.getLogger(__name__)
 
@@ -237,7 +249,7 @@ class BatchProcessor:
                     self._cleanup_memory()
 
         except Exception as e:
-            logger.exception(f"Batch processing failed: {e}")
+            logger.exception("Batch processing failed")
             progress_callback.on_error("batch", e)
             raise
 
@@ -258,17 +270,17 @@ class BatchProcessor:
     def _validate_request(self, request: BatchAnonymizationRequest) -> None:
         """Validate batch request."""
         if not request.items:
-            raise ValueError("No items to process")
+            raise ValidationError("No items to process")
 
         # Check for duplicate item IDs
         item_ids = [item.item_id for item in request.items]
         if len(item_ids) != len(set(item_ids)):
-            raise ValueError("Duplicate item IDs found")
+            raise ValidationError("Duplicate item IDs found")
 
         # Validate input files exist
         for item in request.items:
             if not item.image_path.exists():
-                raise FileNotFoundError(f"Input file not found: {item.image_path}")
+                raise ProcessingError(f"Input file not found: {item.image_path}")
 
     def _prepare_output_directory(self, output_dir: Path) -> None:
         """Prepare output directory."""
@@ -334,8 +346,6 @@ class BatchProcessor:
             text_regions = item.text_regions
             if not text_regions:
                 try:
-                    from src.anonymizer.ocr.processor import OCRProcessor
-
                     ocr_processor = OCRProcessor()
                     detected_regions = ocr_processor.detect_text_regions(image_data)
                     text_regions = detected_regions
@@ -349,8 +359,6 @@ class BatchProcessor:
                 logger.info(f"No text regions found for {item.item_id}, copying original image")
                 # Simply copy the original image
                 output_path = self._get_output_path(item, request)
-                import shutil
-
                 shutil.copy2(item.image_path, output_path)
 
                 processing_time_ms = (time.time() - start_time) * 1000
@@ -387,8 +395,6 @@ class BatchProcessor:
             )
 
             progress_callback.on_item_complete(item.item_id, result.success, processing_time_ms)
-
-            return result
 
         except Exception as e:
             processing_time_ms = (time.time() - start_time) * 1000
@@ -431,8 +437,6 @@ class BatchProcessor:
 
     def _save_anonymized_image(self, image_array, output_path: Path) -> None:
         """Save anonymized image to file."""
-        import numpy as np
-        from PIL import Image
 
         # Convert numpy array to PIL Image
         if image_array.dtype != np.uint8:
@@ -456,19 +460,17 @@ class BatchProcessor:
 
     def _get_memory_usage(self) -> float | None:
         """Get current memory usage in MB."""
+        if psutil is None:
+            return None
         try:
-            import psutil
-
             process = psutil.Process()
             return process.memory_info().rss / 1024 / 1024  # Convert to MB
-        except ImportError:
+        except Exception:
             return None
 
     def _cleanup_memory(self) -> None:
         """Perform memory cleanup."""
         try:
-            import gc
-
             gc.collect()
 
             # Check if we're over memory limit
@@ -489,7 +491,6 @@ class BatchProcessor:
 def create_batch_from_directory(
     input_dir: Path,
     output_dir: Path,
-    pattern: str = "*.{jpg,jpeg,png,tiff,pdf}",
     preserve_structure: bool = True,
     max_parallel: int = 4,
     batch_size: int = 8,
@@ -517,7 +518,7 @@ def create_batch_from_directory(
         image_files.extend(files)
 
     if not image_files:
-        raise ValueError(f"No image files found in {input_dir}")
+        raise ValidationError(f"No image files found in {input_dir}")
 
     # Create batch items
     items = []

@@ -49,3 +49,7 @@ class PreprocessingError(InferenceError):
 
 class PostprocessingError(InferenceError):
     """Exception raised during result postprocessing."""
+
+
+class ProcessingError(AnonymizerError):
+    """Exception raised during general processing operations."""

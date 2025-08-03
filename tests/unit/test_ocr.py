@@ -46,15 +46,15 @@ class TestOCRModels:
         bbox = BoundingBox(left=10, top=20, right=100, bottom=50)
 
         # Test empty text
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="text cannot be empty"):
             DetectedText(text="", bbox=bbox, confidence=0.9)
 
         # Test invalid confidence
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="confidence must be between 0 and 1"):
             DetectedText(text="test", bbox=bbox, confidence=1.5)
 
         # Test invalid orientation
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="orientation must be between -180 and 180"):
             DetectedText(text="test", bbox=bbox, confidence=0.9, orientation=200)
 
     def test_ocr_result_properties(self):
@@ -86,11 +86,11 @@ class TestOCRModels:
         assert config.primary_engine == OCREngine.PADDLEOCR
 
         # Invalid confidence threshold
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="confidence threshold must be between 0 and 1"):
             OCRConfig(min_confidence_threshold=1.5)
 
         # Invalid text length
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="min_text_length must be non-negative"):
             OCRConfig(min_text_length=-1)
 
 
@@ -108,7 +108,7 @@ class TestOCREngines:
             assert engine.config == config
 
         # Test invalid engine type
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unknown OCR engine"):
             create_ocr_engine("invalid_engine", config)
 
     def test_engine_initialization(self):
@@ -378,9 +378,7 @@ class TestOCRIntegration:
 
     def test_ocr_import_availability(self):
         """Test that OCR modules can be imported."""
-        from src.anonymizer.ocr import OCRConfig, OCREngine, OCRProcessor
-
-        # Should import without errors
+        # Should import without errors (imports already at module level)
         assert OCRProcessor is not None
         assert OCRConfig is not None
         assert OCREngine is not None

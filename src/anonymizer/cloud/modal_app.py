@@ -117,7 +117,7 @@ if HAS_MODAL:
             print(f"Output: {output_dir}")
 
             # Load configuration
-            with open(config_path) as f:
+            with Path(config_path).open() as f:
                 config_dict = yaml.safe_load(f)
 
             # Create VAE config
@@ -257,7 +257,7 @@ if HAS_MODAL:
             print(f"Output: {output_dir}")
 
             # Load configuration
-            with open(config_path) as f:
+            with Path(config_path).open() as f:
                 config_dict = yaml.safe_load(f)
 
             # Create UNet config
