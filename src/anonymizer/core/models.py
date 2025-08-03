@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 
 class BoundingBox(BaseModel):
@@ -17,14 +17,14 @@ class BoundingBox(BaseModel):
 
     @field_validator("right")
     @classmethod
-    def right_greater_than_left(cls, v, info) -> int:
+    def right_greater_than_left(cls, v: int, info: ValidationInfo) -> int:
         if info.data and "left" in info.data and v <= info.data["left"]:
             raise ValueError("right must be greater than left")
         return v
 
     @field_validator("bottom")
     @classmethod
-    def bottom_greater_than_top(cls, v, info) -> int:
+    def bottom_greater_than_top(cls, v: int, info: ValidationInfo) -> int:
         if info.data and "top" in info.data and v <= info.data["top"]:
             raise ValueError("bottom must be greater than top")
         return v

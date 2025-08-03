@@ -1,5 +1,6 @@
 """Modal.com application for document anonymizer training."""
 
+import contextlib
 import logging
 import sys
 from pathlib import Path
@@ -71,14 +72,10 @@ if HAS_MODAL:
     def get_secrets():
         """Get available Modal secrets."""
         secrets = []
-        try:
+        with contextlib.suppress(Exception):
             secrets.append(modal.Secret.from_name(modal_config.wandb_secret_name))
-        except Exception:
-            pass  # Secret doesn't exist, that's OK
-        try:
+        with contextlib.suppress(Exception):
             secrets.append(modal.Secret.from_name(modal_config.hf_secret_name))
-        except Exception:
-            pass  # Secret doesn't exist, that's OK
         return secrets
 
     secrets = get_secrets()

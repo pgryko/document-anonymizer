@@ -8,7 +8,6 @@ These fonts ensure consistent rendering across different systems.
 
 import hashlib
 import logging
-import os
 from pathlib import Path
 
 from .models import FontMetadata
@@ -223,14 +222,15 @@ class BundledFontProvider:
                 return None
 
             # Calculate checksum
-            with open(font_path, "rb") as f:
+            font_path_obj = Path(font_path)
+            with font_path_obj.open("rb") as f:
                 checksum = hashlib.sha256(f.read()).hexdigest()
 
             # Get file size
-            size_bytes = os.path.getsize(font_path)
+            size_bytes = font_path_obj.stat().st_size
 
             # Extract license info
-            license_info = self._get_license_info(os.path.basename(font_path))
+            license_info = self._get_license_info(font_path_obj.name)
 
             return FontMetadata(
                 name=font_info["name"],

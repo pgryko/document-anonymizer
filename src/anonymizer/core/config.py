@@ -662,7 +662,7 @@ def load_config_from_yaml(config_path: str | Path, config_class: type) -> BaseSe
         raise ConfigurationError(f"Configuration file not found: {config_path}")
 
     try:
-        with open(config_path) as f:
+        with config_path.open() as f:
             config_data = yaml.safe_load(f)
 
         if config_data is None:
