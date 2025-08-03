@@ -187,12 +187,13 @@ class BundledFontProvider:
             return True  # Skip verification if no checksum provided
 
         try:
-            with open(file_path, "rb") as f:
+            with Path(file_path).open("rb") as f:
                 actual_checksum = hashlib.sha256(f.read()).hexdigest()
-            return actual_checksum == expected_checksum
-        except Exception as e:
-            logger.exception(f"Failed to verify checksum for {file_path}: {e}")
+        except Exception:
+            logger.exception(f"Failed to verify checksum for {file_path}")
             return False
+        else:
+            return actual_checksum == expected_checksum
 
     def list_fonts(self) -> list[FontMetadata]:
         """List all bundled fonts."""
@@ -244,8 +245,8 @@ class BundledFontProvider:
                 license_info=license_info,
             )
 
-        except Exception as e:
-            logger.exception(f"Failed to create metadata for {font_path}: {e}")
+        except Exception:
+            logger.exception(f"Failed to create metadata for {font_path}")
             return None
 
     def _get_license_info(self, font_file: str) -> str:
@@ -316,12 +317,12 @@ class BundledFontProvider:
                 manifest = self._create_font_manifest()
                 zf.writestr("MANIFEST.json", manifest)
 
+        except Exception:
+            logger.exception("Failed to create font bundle")
+            return False
+        else:
             logger.info(f"Created font bundle: {output_path}")
             return True
-
-        except Exception as e:
-            logger.exception(f"Failed to create font bundle: {e}")
-            return False
 
     def _create_license_text(self) -> str:
         """Create combined license text for all bundled fonts."""

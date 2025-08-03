@@ -39,8 +39,8 @@ try:
     from src.anonymizer.core.exceptions import TrainingError
     from src.anonymizer.training.unet_trainer import UNetTrainer
     from src.anonymizer.training.vae_trainer import VAETrainer
-except ImportError as e:
-    logger.exception(f"Import failed: {e}")
+except ImportError:
+    logger.exception("Import failed")
     logger.exception(
         "Make sure you have all dependencies installed and the project is properly set up"
     )
@@ -94,7 +94,7 @@ def _train_vae_impl(
         logger.info("   - Error handling: COMPREHENSIVE")
 
     except Exception as e:
-        logger.exception(f"❌ VAE training failed: {e}")
+        logger.exception("❌ VAE training failed")
         raise TrainingError(f"VAE training failed: {e}")
 
 
@@ -139,7 +139,7 @@ def _train_unet_impl(
         logger.info("   - Memory management: Proper GPU cleanup")
 
     except Exception as e:
-        logger.exception(f"❌ UNet training failed: {e}")
+        logger.exception("❌ UNet training failed")
         raise TrainingError(f"UNet training failed: {e}")
 
 
@@ -229,9 +229,9 @@ def train_vae(config, data_path, output_dir, env_file):
 
         _train_vae_impl(config, data_path, output_dir)
         _print_success()
-    except Exception as e:
+    except Exception:
         logger.exception("=" * 80)
-        logger.exception(f"❌ VAE TRAINING FAILED: {e}")
+        logger.exception("❌ VAE TRAINING FAILED")
         logger.exception("=" * 80)
         sys.exit(1)
 
@@ -284,9 +284,9 @@ def train_unet(config, data_path, output_dir, env_file):
 
         _train_unet_impl(config, data_path, output_dir)
         _print_success()
-    except Exception as e:
+    except Exception:
         logger.exception("=" * 80)
-        logger.exception(f"❌ UNET TRAINING FAILED: {e}")
+        logger.exception("❌ UNET TRAINING FAILED")
         logger.exception("=" * 80)
         sys.exit(1)
 
@@ -361,9 +361,9 @@ def train_both(vae_config, unet_config, data_path, output_dir, env_file, sequent
             )
 
         _print_success()
-    except Exception as e:
+    except Exception:
         logger.exception("=" * 80)
-        logger.exception(f"❌ TRAINING FAILED: {e}")
+        logger.exception("❌ TRAINING FAILED")
         logger.exception("=" * 80)
         sys.exit(1)
 
@@ -431,8 +431,8 @@ def validate_config(config, model_type, env_file):
 
         logger.info("🎉 Configuration validation successful!")
 
-    except Exception as e:
-        logger.exception(f"❌ Configuration validation failed: {e}")
+    except Exception:
+        logger.exception("❌ Configuration validation failed")
         sys.exit(1)
 
 

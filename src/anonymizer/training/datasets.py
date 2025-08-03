@@ -271,8 +271,8 @@ class AnonymizerDataset(Dataset):
                 sample = self._load_sample(annotation_file)
                 if sample:
                     samples.append(sample)
-            except Exception as e:
-                logger.exception(f"Failed to load sample {annotation_file}: {e}")
+            except Exception:
+                logger.exception(f"Failed to load sample {annotation_file}")
                 continue
 
         if not samples:
@@ -284,7 +284,7 @@ class AnonymizerDataset(Dataset):
         """Load single sample with validation."""
         try:
             # Load annotations
-            with open(annotation_file) as f:
+            with Path(annotation_file).open() as f:
                 data = json.load(f)
 
             # Get image path
@@ -324,8 +324,8 @@ class AnonymizerDataset(Dataset):
             # Create sample
             return DatasetSample(image_path=image_path, image=image, text_regions=text_regions)
 
-        except Exception as e:
-            logger.exception(f"Failed to load sample {annotation_file}: {e}")
+        except Exception:
+            logger.exception(f"Failed to load sample {annotation_file}")
             return None
 
     def __len__(self) -> int:
@@ -366,10 +366,10 @@ class AnonymizerDataset(Dataset):
                     return result
                 logger.warning(f"Invalid result for sample {actual_idx}, retrying...")
 
-            except Exception as e:
+            except Exception:
                 # Use idx as fallback if actual_idx wasn't set
                 error_idx = locals().get("actual_idx", idx)
-                logger.exception(f"Failed to get item {error_idx} (attempt {attempt + 1}): {e}")
+                logger.exception(f"Failed to get item {error_idx} (attempt {attempt + 1})")
 
                 # Try next sample on error
                 if attempt < max_retries - 1 and len(self.samples) > 0:

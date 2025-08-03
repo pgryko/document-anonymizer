@@ -245,8 +245,8 @@ class TextRenderer:
                 self.font = ImageFont.load_default()
                 logger.warning("Using default font - rendering may be inconsistent")
 
-        except Exception as e:
-            logger.exception(f"Font loading failed: {e}")
+        except Exception:
+            logger.exception("Font loading failed")
             self.font = ImageFont.load_default()
 
     def render_text_on_image(
@@ -763,8 +763,8 @@ class InferenceEngine:
 
             return text_regions
 
-        except Exception as e:
-            logger.exception(f"Auto-detection failed: {e}")
+        except Exception:
+            logger.exception("Auto-detection failed")
             return []
 
     def _anonymize_region(self, image: np.ndarray, region: TextRegion) -> GeneratedPatch:

@@ -197,8 +197,8 @@ class ResourceMonitor:
 
                 time.sleep(self.sample_interval)
 
-            except Exception as e:
-                logger.exception(f"Error in monitoring loop: {e}")
+            except Exception:
+                logger.exception("Error in monitoring loop")
                 time.sleep(self.sample_interval)
 
     def start_monitoring(self):
@@ -247,8 +247,8 @@ class ResourceMonitor:
         """Get current resource usage stats."""
         try:
             return self._take_sample()
-        except Exception as e:
-            logger.exception(f"Error getting current stats: {e}")
+        except Exception:
+            logger.exception("Error getting current stats")
             return None
 
     def generate_summary(self, samples: list[ResourceSample] | None = None) -> ResourceSummary:
@@ -325,14 +325,14 @@ class ResourceMonitor:
             }
 
             filepath.parent.mkdir(parents=True, exist_ok=True)
-            with open(filepath, "w") as f:
+            with filepath.open("w") as f:
                 json.dump(data, f, indent=2)
 
             logger.info(f"Exported {len(self.samples)} samples to {filepath}")
             return True
 
-        except Exception as e:
-            logger.exception(f"Failed to export samples: {e}")
+        except Exception:
+            logger.exception("Failed to export samples")
             return False
 
 

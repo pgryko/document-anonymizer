@@ -72,7 +72,7 @@ class ModelBenchmark:
         except Exception as e:
             success = False
             error_message = str(e)
-            logger.exception(f"Model loading benchmark failed: {e}")
+            logger.exception("Model loading benchmark failed")
 
         # Get the latest metrics
         if not self.profiler.metrics:
@@ -148,7 +148,7 @@ class ModelBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.exception(f"Inference speed benchmark failed: {e}")
+            logger.exception("Inference speed benchmark failed")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -241,7 +241,7 @@ class AnonymizationBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.exception(f"Document loading benchmark failed: {e}")
+            logger.exception("Document loading benchmark failed")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -304,7 +304,7 @@ class AnonymizationBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.exception(f"Text detection benchmark failed: {e}")
+            logger.exception("Text detection benchmark failed")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -374,7 +374,7 @@ class AnonymizationBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.exception(f"PII detection benchmark failed: {e}")
+            logger.exception("PII detection benchmark failed")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -455,7 +455,7 @@ class AnonymizationBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.exception(f"Inpainting benchmark failed: {e}")
+            logger.exception("Inpainting benchmark failed")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -535,7 +535,7 @@ class AnonymizationBenchmark:
             success = False
             error_message = str(e)
             additional_metrics = None
-            logger.exception(f"End-to-end benchmark failed: {e}")
+            logger.exception("End-to-end benchmark failed")
 
         if not self.profiler.metrics:
             return BenchmarkResult(
@@ -589,12 +589,12 @@ class AnonymizationBenchmark:
             }
 
             filepath.parent.mkdir(parents=True, exist_ok=True)
-            with open(filepath, "w") as f:
+            with filepath.open("w") as f:
                 json.dump(data, f, indent=2)
 
             logger.info(f"Saved benchmark results to {filepath}")
             return True
 
-        except Exception as e:
-            logger.exception(f"Failed to save benchmark results: {e}")
+        except Exception:
+            logger.exception("Failed to save benchmark results")
             return False

@@ -70,8 +70,8 @@ class FontManager:
             logger.warning("Could not load any TrueType fonts, using default")
             return ImageFont.load_default()
 
-        except Exception as e:
-            logger.exception(f"Font loading failed: {e}")
+        except Exception:
+            logger.exception("Font loading failed")
             return ImageFont.load_default()
 
     def _try_load_font(self, font_path: str, size: int) -> ImageFont.ImageFont | None:

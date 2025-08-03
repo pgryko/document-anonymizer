@@ -184,8 +184,8 @@ class AdvancedDocumentProcessor:
                     "confidence": result.average_confidence,
                     "entities": result.entities_anonymized,
                 }
-        except Exception as e:
-            self.logger.exception(f"Balanced processing failed: {e}")
+        except Exception:
+            self.logger.exception("Balanced processing failed")
 
         # Strategy 3: Last resort - simple redaction
         try:
@@ -202,7 +202,7 @@ class AdvancedDocumentProcessor:
                 "entities": result.entities_anonymized if result.success else 0,
             }
         except Exception as e:
-            self.logger.exception(f"All processing strategies failed: {e}")
+            self.logger.exception("All processing strategies failed")
             return {"strategy": "failed", "success": False, "error": str(e)}
 
 

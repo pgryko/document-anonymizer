@@ -217,11 +217,11 @@ class FontManager:
                 self.fonts_cache[font_metadata.name] = font_metadata
                 logger.info(f"Installed font: {font_metadata.name}")
                 return True
-            logger.error(f"Failed to create metadata for font: {font_path}")
+        except Exception:
+            logger.exception(f"Failed to install font {font_path}")
             return False
-
-        except Exception as e:
-            logger.exception(f"Failed to install font {font_path}: {e}")
+        else:
+            logger.error(f"Failed to create metadata for font: {font_path}")
             return False
 
     def _create_font_metadata(
@@ -236,7 +236,7 @@ class FontManager:
                 return None
 
             # Calculate checksum
-            with open(font_path, "rb") as f:
+            with Path(font_path).open("rb") as f:
                 checksum = hashlib.sha256(f.read()).hexdigest()
 
             # Get file size
@@ -255,8 +255,8 @@ class FontManager:
                 license_info=metadata.get("license") if metadata else None,
             )
 
-        except Exception as e:
-            logger.exception(f"Failed to create metadata for {font_path}: {e}")
+        except Exception:
+            logger.exception(f"Failed to create metadata for {font_path}")
             return None
 
     def find_similar_fonts(self, target_font: str, max_results: int = 5) -> list[FontMetadata]:
@@ -391,12 +391,12 @@ class FontManager:
                     }
                 )
 
-            with open(output_path, "w") as f:
+            with Path(output_path).open("w") as f:
                 json.dump(font_data, f, indent=2)
 
             logger.info(f"Exported font list to {output_path}")
             return True
 
-        except Exception as e:
-            logger.exception(f"Failed to export font list: {e}")
+        except Exception:
+            logger.exception("Failed to export font list")
             return False

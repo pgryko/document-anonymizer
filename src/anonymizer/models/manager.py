@@ -108,8 +108,8 @@ class ModelManager:
             logger.info(f"Successfully downloaded and registered: {model_name}")
             return metadata
 
-        except Exception as e:
-            logger.exception(f"Failed to download model '{model_name}': {e}")
+        except Exception:
+            logger.exception(f"Failed to download model '{model_name}'")
             raise
 
     def download_from_huggingface(
@@ -156,8 +156,8 @@ class ModelManager:
 
             return metadata
 
-        except Exception as e:
-            logger.exception(f"Failed to download from Hugging Face '{model_id}': {e}")
+        except Exception:
+            logger.exception(f"Failed to download from Hugging Face '{model_id}'")
             raise
 
     def validate_model(self, model_path: Path) -> ValidationResult:
@@ -238,8 +238,8 @@ class ModelManager:
                 logger.info(f"Downloading missing model: {source.name}")
                 try:
                     self.download_model(source.name)
-                except Exception as e:
-                    logger.exception(f"Failed to download {source.name}: {e}")
+                except Exception:
+                    logger.exception(f"Failed to download {source.name}")
                     all_available = False
 
         return all_available
@@ -363,7 +363,7 @@ class ModelManager:
             }
 
         except Exception as e:
-            logger.exception(f"Failed to get storage stats: {e}")
+            logger.exception("Failed to get storage stats")
             return {"error": str(e)}
 
     def export_model_list(self, export_path: Path) -> bool:

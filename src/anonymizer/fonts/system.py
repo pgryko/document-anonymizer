@@ -351,6 +351,6 @@ class SystemFontProvider:
             logger.info(f"Installed system font: {target_path}")
             return True
 
-        except Exception as e:
-            logger.exception(f"Failed to install system font {font_path}: {e}")
+        except Exception:
+            logger.exception(f"Failed to install system font {font_path}")
             return False

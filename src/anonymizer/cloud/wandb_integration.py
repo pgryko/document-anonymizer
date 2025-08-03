@@ -64,13 +64,13 @@ class WandbLogger:
                 **{k: v for k, v in kwargs.items() if k != "config"},
             )
 
-            logger.info(f"W&B run initialized: {self.run.url}")
-            return self.run
-
-        except Exception as e:
-            logger.exception(f"Failed to initialize W&B: {e}")
+        except Exception:
+            logger.exception("Failed to initialize W&B")
             self.enabled = False
             return None
+        else:
+            logger.info(f"W&B run initialized: {self.run.url}")
+            return self.run
 
     def log(self, metrics: dict[str, Any], step: int | None = None) -> None:
         """Log metrics to W&B."""
@@ -79,8 +79,8 @@ class WandbLogger:
 
         try:
             wandb.log(metrics, step=step)
-        except Exception as e:
-            logger.exception(f"Failed to log to W&B: {e}")
+        except Exception:
+            logger.exception("Failed to log to W&B")
 
     def log_model(
         self,
@@ -100,8 +100,8 @@ class WandbLogger:
             artifact.add_dir(model_path)
             self.run.log_artifact(artifact, aliases=aliases)
             logger.info(f"Model logged to W&B: {model_path}")
-        except Exception as e:
-            logger.exception(f"Failed to log model to W&B: {e}")
+        except Exception:
+            logger.exception("Failed to log model to W&B")
 
     def log_config(self, config: dict[str, Any]) -> None:
         """Update run configuration."""
@@ -110,8 +110,8 @@ class WandbLogger:
 
         try:
             wandb.config.update(config)
-        except Exception as e:
-            logger.exception(f"Failed to update W&B config: {e}")
+        except Exception:
+            logger.exception("Failed to update W&B config")
 
     def finish(self) -> None:
         """Finish W&B run."""
@@ -121,8 +121,8 @@ class WandbLogger:
         try:
             wandb.finish()
             logger.info("W&B run finished")
-        except Exception as e:
-            logger.exception(f"Failed to finish W&B run: {e}")
+        except Exception:
+            logger.exception("Failed to finish W&B run")
 
     def watch(self, model, log: str = "all", log_freq: int = 100) -> None:
         """Watch model for gradient and parameter logging."""
@@ -131,8 +131,8 @@ class WandbLogger:
 
         try:
             wandb.watch(model, log=log, log_freq=log_freq)
-        except Exception as e:
-            logger.exception(f"Failed to watch model: {e}")
+        except Exception:
+            logger.exception("Failed to watch model")
 
 
 def setup_wandb(

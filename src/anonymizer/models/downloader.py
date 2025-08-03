@@ -170,7 +170,7 @@ class ModelDownloader:
             downloaded_size = 0
 
             try:
-                with open(temp_path, "wb") as f:
+                with temp_path.open("wb") as f:
                     for chunk in response.iter_content(chunk_size=self.config.chunk_size):
                         if chunk:
                             f.write(chunk)
@@ -249,8 +249,8 @@ class ModelDownloader:
             logger.warning(f"URL domain not in trusted list: {domain}")
             return False
 
-        except Exception as e:
-            logger.exception(f"Error parsing URL {url}: {e}")
+        except Exception:
+            logger.exception(f"Error parsing URL {url}")
             return False
 
     def _get_default_path(self, source: ModelSource) -> Path:
@@ -300,7 +300,7 @@ class ModelDownloader:
             raise ValidationError(f"Unsupported checksum type: {checksum_type}")
 
         # Calculate checksum
-        with open(file_path, "rb") as f:
+        with file_path.open("rb") as f:
             for chunk in iter(lambda: f.read(8192), b""):
                 hasher.update(chunk)
 
@@ -335,7 +335,7 @@ class ModelDownloader:
         metadata_path = self.config.models_dir / f"{metadata.name}.json"
 
         try:
-            with open(metadata_path, "w") as f:
+            with metadata_path.open("w") as f:
                 json.dump(metadata.to_dict(), f, indent=2)
 
             logger.debug(f"Metadata saved: {metadata_path}")

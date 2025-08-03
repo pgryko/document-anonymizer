@@ -30,8 +30,8 @@ try:
     from src.anonymizer.inference.engine import InferenceEngine
     from src.anonymizer.training.unet_trainer import UNetTrainer
     from src.anonymizer.training.vae_trainer import VAETrainer
-except ImportError as e:
-    logger.exception(f"Import failed: {e}")
+except ImportError:
+    logger.exception("Import failed")
     logger.exception(
         "Make sure you have all dependencies installed and the project is properly set up"
     )
@@ -110,8 +110,8 @@ def train_vae(config):
         trainer.setup_distributed()
         trainer.train(train_dataloader, val_dataloader)
         logger.info("VAE training finished.")
-    except AnonymizerError as e:
-        logger.exception(f"VAE training failed: {e}")
+    except AnonymizerError:
+        logger.exception("VAE training failed")
         sys.exit(1)
 
 
@@ -133,8 +133,8 @@ def train_unet(config):
         trainer.setup_distributed()
         # trainer.train(train_dataloader, val_dataloader)
         logger.info("UNet training finished.")
-    except AnonymizerError as e:
-        logger.exception(f"UNet training failed: {e}")
+    except AnonymizerError:
+        logger.exception("UNet training failed")
         sys.exit(1)
 
 
@@ -185,8 +185,8 @@ def anonymize(config, image, output):
             logger.error(f"Anonymization failed: {', '.join(result.errors)}")
             sys.exit(1)
 
-    except AnonymizerError as e:
-        logger.exception(f"Anonymization failed: {e}")
+    except AnonymizerError:
+        logger.exception("Anonymization failed")
         sys.exit(1)
 
 
@@ -297,11 +297,11 @@ def batch_anonymize(
             for failed_result in result.get_failed_items():
                 logger.warning(f"  - {failed_result.item_id}: {', '.join(failed_result.errors)}")
 
-    except AnonymizerError as e:
-        logger.exception(f"Batch anonymization failed: {e}")
+    except AnonymizerError:
+        logger.exception("Batch anonymization failed")
         sys.exit(1)
-    except Exception as e:
-        logger.exception(f"Unexpected error: {e}")
+    except Exception:
+        logger.exception("Unexpected error")
         sys.exit(1)
 
 
@@ -362,8 +362,8 @@ def batch_status(result_file, output_dir):
         else:
             print("Please provide either --result-file or --output-dir")
 
-    except Exception as e:
-        logger.exception(f"Status check failed: {e}")
+    except Exception:
+        logger.exception("Status check failed")
         sys.exit(1)
 
 

@@ -1,6 +1,8 @@
 """Configuration management for the document anonymization system."""
 
 import os
+import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -31,8 +33,6 @@ def validate_secure_path(
         return None
 
     # Check if we're in a test environment
-    import os
-    import sys
 
     is_testing = (
         "pytest" in sys.modules
@@ -92,8 +92,6 @@ def validate_secure_path(
         # Whitelist validation - only allow paths within specified base directories
         if allowed_base_dirs is None:
             # Default allowed directories - more restrictive
-            import os
-            import tempfile
 
             allowed_base_dirs = [
                 str(Path.home()),  # User home directory
@@ -157,12 +155,12 @@ def validate_secure_path(
             # If we can't check symlink status, continue
             pass
 
-        return path_obj
-
     except Exception as e:
         if isinstance(e, ValidationError):
             raise
         raise ValidationError(f"Invalid path in {field_name}: {e}")
+    else:
+        return path_obj
 
 
 def validate_model_path(

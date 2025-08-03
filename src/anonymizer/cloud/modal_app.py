@@ -8,8 +8,8 @@ from pathlib import Path
 import torch
 import yaml
 
-from src.anonymizer.core.config import VAEConfig
-from src.anonymizer.training import VAETrainer
+from src.anonymizer.core.config import UNetConfig, VAEConfig
+from src.anonymizer.training import UNetTrainer, VAETrainer
 from src.anonymizer.training.datasets import create_dataloader
 
 try:
@@ -207,8 +207,8 @@ if HAS_MODAL:
             print("✅ VAE training completed successfully!")
             return str(final_checkpoint_path)
 
-        except Exception as e:
-            logger.exception(f"VAE training failed: {e}")
+        except Exception:
+            logger.exception("VAE training failed")
             if "wandb_logger" in locals():
                 wandb_logger.finish()
             raise
@@ -242,13 +242,6 @@ if HAS_MODAL:
         sys.path.insert(0, "/root/anonymizer")
 
         try:
-            # Import training modules
-            import torch
-            import yaml
-
-            from src.anonymizer.core.config import UNetConfig
-            from src.anonymizer.training import UNetTrainer
-            from src.anonymizer.training.datasets import create_dataloader
 
             print("🚀 Starting UNet training on Modal.com")
             print(f"GPU: {torch.cuda.get_device_name() if torch.cuda.is_available() else 'CPU'}")
@@ -342,8 +335,8 @@ if HAS_MODAL:
             print("✅ UNet training completed successfully!")
             return str(final_checkpoint_path)
 
-        except Exception as e:
-            logger.exception(f"UNet training failed: {e}")
+        except Exception:
+            logger.exception("UNet training failed")
             if "wandb_logger" in locals():
                 wandb_logger.finish()
             raise

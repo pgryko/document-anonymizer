@@ -79,7 +79,7 @@ class ModelValidator:
 
         except Exception as e:
             result.add_error(f"Validation failed with exception: {e}")
-            logger.exception(f"Model validation failed: {e}")
+            logger.exception("Model validation failed")
 
         return result
 
@@ -95,7 +95,7 @@ class ModelValidator:
 
         try:
             # Check read permissions
-            with open(model_path, "rb") as f:
+            with model_path.open("rb") as f:
                 f.read(1)
         except PermissionError:
             result.add_error(f"No read permission for file: {model_path}")
@@ -150,7 +150,7 @@ class ModelValidator:
         """Validate SafeTensors format."""
         try:
             # Try to load metadata
-            with open(model_path, "rb") as f:
+            with model_path.open("rb") as f:
                 # SafeTensors files start with a JSON header
                 header_size = int.from_bytes(f.read(8), "little")
                 if header_size <= 0 or header_size > 1024 * 1024:  # Max 1MB header
@@ -193,7 +193,7 @@ class ModelValidator:
         index_path = model_path / "model_index.json"
         if index_path.exists():
             try:
-                with open(index_path) as f:
+                with index_path.open() as f:
                     index_data = json.load(f)
 
                 if "_class_name" not in index_data:
@@ -253,7 +253,7 @@ class ModelValidator:
             # Determine hash algorithm (assume SHA256 if not specified)
             hasher = hashlib.sha256()
 
-            with open(model_path, "rb") as f:
+            with model_path.open("rb") as f:
                 for chunk in iter(lambda: f.read(8192), b""):
                     hasher.update(chunk)
 

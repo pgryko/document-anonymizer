@@ -125,8 +125,8 @@ class PaddleOCREngine(BaseOCREngine):
         except ImportError:
             self.logger.warning("PaddleOCR not available - install with: pip install paddleocr")
             return False
-        except Exception as e:
-            self.logger.exception(f"Failed to initialize PaddleOCR: {e}")
+        except Exception:
+            self.logger.exception("Failed to initialize PaddleOCR")
             return False
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
@@ -188,7 +188,7 @@ class PaddleOCREngine(BaseOCREngine):
 
         except Exception as e:
             processing_time = (time.time() - start_time) * 1000
-            self.logger.exception(f"PaddleOCR detection failed: {e}")
+            self.logger.exception("PaddleOCR detection failed")
             return OCRResult(
                 detected_texts=[],
                 processing_time_ms=processing_time,
@@ -242,8 +242,8 @@ class EasyOCREngine(BaseOCREngine):
         except ImportError:
             self.logger.warning("EasyOCR not available - install with: pip install easyocr")
             return False
-        except Exception as e:
-            self.logger.exception(f"Failed to initialize EasyOCR: {e}")
+        except Exception:
+            self.logger.exception("Failed to initialize EasyOCR")
             return False
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
@@ -298,7 +298,7 @@ class EasyOCREngine(BaseOCREngine):
 
         except Exception as e:
             processing_time = (time.time() - start_time) * 1000
-            self.logger.exception(f"EasyOCR detection failed: {e}")
+            self.logger.exception("EasyOCR detection failed")
             return OCRResult(
                 detected_texts=[],
                 processing_time_ms=processing_time,
@@ -361,8 +361,8 @@ class TrOCREngine(BaseOCREngine):
                 "TrOCR not available - install with: pip install transformers torch"
             )
             return False
-        except Exception as e:
-            self.logger.exception(f"Failed to initialize TrOCR: {e}")
+        except Exception:
+            self.logger.exception("Failed to initialize TrOCR")
             return False
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
@@ -423,7 +423,7 @@ class TrOCREngine(BaseOCREngine):
 
         except Exception as e:
             processing_time = (time.time() - start_time) * 1000
-            self.logger.exception(f"TrOCR detection failed: {e}")
+            self.logger.exception("TrOCR detection failed")
             return OCRResult(
                 detected_texts=[],
                 processing_time_ms=processing_time,
@@ -497,8 +497,8 @@ class TesseractEngine(BaseOCREngine):
         except ImportError:
             self.logger.warning("Tesseract not available - install with: pip install pytesseract")
             return False
-        except Exception as e:
-            self.logger.exception(f"Failed to initialize Tesseract: {e}")
+        except Exception:
+            self.logger.exception("Failed to initialize Tesseract")
             return False
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
@@ -568,7 +568,7 @@ class TesseractEngine(BaseOCREngine):
 
         except Exception as e:
             processing_time = (time.time() - start_time) * 1000
-            self.logger.exception(f"Tesseract detection failed: {e}")
+            self.logger.exception("Tesseract detection failed")
             return OCRResult(
                 detected_texts=[],
                 processing_time_ms=processing_time,

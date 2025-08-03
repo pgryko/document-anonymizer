@@ -82,8 +82,8 @@ class OCRProcessor:
 
             return self.is_initialized
 
-        except Exception as e:
-            logger.exception(f"Failed to initialize OCR processor: {e}")
+        except Exception:
+            logger.exception("Failed to initialize OCR processor")
             return False
 
     def extract_text_regions(

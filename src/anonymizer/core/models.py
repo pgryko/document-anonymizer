@@ -1,5 +1,6 @@
 """Pydantic models for type-safe data structures."""
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -182,9 +183,7 @@ class ModelArtifacts(BaseModel):
 
         metadata = {}
         if metadata_path.exists():
-            import json
-
-            with open(metadata_path) as f:
+            with metadata_path.open() as f:
                 metadata = json.load(f)
 
         return cls(

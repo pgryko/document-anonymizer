@@ -325,13 +325,13 @@ class PerformanceProfiler:
                 "metrics": [m.to_dict() for m in self.metrics],
             }
 
-            with open(filepath, "w") as f:
+            with filepath.open("w") as f:
                 json.dump(data, f, indent=2)
 
             logger.debug(f"Saved {len(self.metrics)} metrics to {filepath}")
 
-        except Exception as e:
-            logger.exception(f"Failed to save metrics: {e}")
+        except Exception:
+            logger.exception("Failed to save metrics")
 
     def export_metrics(self, filepath: Path) -> bool:
         """Export all metrics to a JSON file."""
@@ -343,14 +343,14 @@ class PerformanceProfiler:
             }
 
             filepath.parent.mkdir(parents=True, exist_ok=True)
-            with open(filepath, "w") as f:
+            with filepath.open("w") as f:
                 json.dump(data, f, indent=2)
 
             logger.info(f"Exported {len(self.metrics)} metrics to {filepath}")
             return True
 
-        except Exception as e:
-            logger.exception(f"Failed to export metrics: {e}")
+        except Exception:
+            logger.exception("Failed to export metrics")
             return False
 
     def clear_metrics(self):

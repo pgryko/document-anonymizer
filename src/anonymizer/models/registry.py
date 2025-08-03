@@ -112,7 +112,7 @@ class ModelRegistry:
     def _load_registry(self):
         """Load custom model registry from disk."""
         try:
-            with open(self.registry_path) as f:
+            with self.registry_path.open() as f:
                 data = json.load(f)
 
             # Load custom models
@@ -175,13 +175,13 @@ class ModelRegistry:
             for metadata in self._metadata.values():
                 data["metadata"].append(metadata.to_dict())
 
-            with open(self.registry_path, "w") as f:
+            with self.registry_path.open("w") as f:
                 json.dump(data, f, indent=2)
 
             logger.debug(f"Registry saved to {self.registry_path}")
 
-        except Exception as e:
-            logger.exception(f"Failed to save registry: {e}")
+        except Exception:
+            logger.exception("Failed to save registry")
 
     def register_model(self, source: ModelSource) -> bool:
         """Register a custom model."""
@@ -190,8 +190,8 @@ class ModelRegistry:
             self._save_registry()
             logger.info(f"Registered model: {source.name}")
             return True
-        except Exception as e:
-            logger.exception(f"Failed to register model {source.name}: {e}")
+        except Exception:
+            logger.exception(f"Failed to register model {source.name}")
             return False
 
     def register_metadata(self, metadata: ModelMetadata) -> bool:
@@ -201,8 +201,8 @@ class ModelRegistry:
             self._save_registry()
             logger.info(f"Registered metadata for: {metadata.name}")
             return True
-        except Exception as e:
-            logger.exception(f"Failed to register metadata for {metadata.name}: {e}")
+        except Exception:
+            logger.exception(f"Failed to register metadata for {metadata.name}")
             return False
 
     def get_model(self, name: str) -> ModelSource | None:
@@ -356,12 +356,12 @@ class ModelRegistry:
             }
 
             export_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(export_path, "w") as f:
+            with export_path.open("w") as f:
                 json.dump(data, f, indent=2)
 
             logger.info(f"Registry exported to {export_path}")
             return True
 
-        except Exception as e:
-            logger.exception(f"Failed to export registry: {e}")
+        except Exception:
+            logger.exception("Failed to export registry")
             return False

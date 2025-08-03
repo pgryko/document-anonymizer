@@ -496,7 +496,7 @@ class UNetTrainer:
             state_path = save_path.with_suffix(".json")
             import json
 
-            with open(state_path, "w") as f:
+            with state_path.open("w") as f:
                 json.dump(training_state, f, indent=2, default=str)
 
             logger.info(f"Checkpoint saved to {save_path}")
@@ -517,7 +517,7 @@ class UNetTrainer:
 
             # Save config
             config_path = model_dir / "config.json"
-            with open(config_path, "w") as f:
+            with config_path.open("w") as f:
                 import json
 
                 json.dump(self.config.dict(), f, indent=2, default=str)
@@ -617,8 +617,8 @@ class UNetTrainer:
                         if self.global_step % self.config.save_every_n_steps == 0:
                             self.save_checkpoint()
 
-                    except Exception as e:
-                        logger.exception(f"Training step failed at step {self.global_step}: {e}")
+                    except Exception:
+                        logger.exception(f"Training step failed at step {self.global_step}")
                         continue
 
                 # Validation phase
@@ -634,13 +634,13 @@ class UNetTrainer:
                             self.save_checkpoint(best_model_path)
                             logger.info(f"New best model saved with loss: {self.best_loss:.4f}")
 
-                    except Exception as e:
-                        logger.exception(f"Validation failed: {e}")
+                    except Exception:
+                        logger.exception("Validation failed")
 
             logger.info("Training completed successfully")
 
         except Exception as e:
-            logger.exception(f"Training failed: {e}")
+            logger.exception("Training failed")
             raise TrainingError(f"UNet training failed: {e}")
 
         finally:
