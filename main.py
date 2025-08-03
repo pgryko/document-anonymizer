@@ -65,14 +65,22 @@ def train_vae(config):
         # Load VAE configuration
         vae_config = VAEConfig.from_env_and_yaml(yaml_path=config)
 
-        # Create dataset configuration - optimized for local vs cloud
+        # Create dataset configuration - paths from environment or defaults
+        import os
+
+        train_data_path = os.environ.get("TRAIN_DATA_PATH", "data/processed/xfund/vae")
+        val_data_path = os.environ.get(
+            "VAL_DATA_PATH", train_data_path
+        )  # Use train path as default
+
+        # Optimize for local vs cloud based on config name
         is_local = "local" in str(config).lower()
         crop_size = 256 if is_local else 512  # Smaller images for local testing
         num_workers = 0 if is_local else 4  # No multiprocessing for local debugging
 
         dataset_config = DatasetConfig(
-            train_data_path=Path("data/processed/xfund/vae"),
-            val_data_path=Path("data/processed/xfund/vae"),
+            train_data_path=Path(train_data_path),
+            val_data_path=Path(val_data_path),
             crop_size=crop_size,
             num_workers=num_workers,
         )
@@ -156,12 +164,27 @@ def anonymize(config, image, output):
     """Anonymize a document."""
     try:
         config = AppConfig.from_env_and_yaml(yaml_path=config)
-        InferenceEngine(config.engine)
-        # image_data = open(image, "rb").read()
-        # anonymized_image = engine.anonymize(image_data, [])
-        # with open(output, "wb") as f:
-        #     f.write(anonymized_image)
-        logger.info(f"Anonymized image saved to {output}")
+        engine = InferenceEngine(config.engine)
+
+        # Read input image
+        with open(image, "rb") as f:
+            image_data = f.read()
+
+        # Anonymize the image
+        result = engine.anonymize(image_data, text_regions=None)
+
+        if result.success:
+            # Convert numpy array to bytes and save
+            import numpy as np
+            from PIL import Image
+
+            pil_image = Image.fromarray(result.anonymized_image.astype(np.uint8))
+            pil_image.save(output)
+            logger.info(f"Anonymized image saved to {output}")
+        else:
+            logger.error(f"Anonymization failed: {', '.join(result.errors)}")
+            sys.exit(1)
+
     except AnonymizerError as e:
         logger.exception(f"Anonymization failed: {e}")
         sys.exit(1)

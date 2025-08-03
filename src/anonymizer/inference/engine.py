@@ -176,13 +176,17 @@ class TextRenderer:
     """Secure text rendering with font validation."""
 
     def __init__(self, font_size: int = 32):
+        # Validate font size
+        if not isinstance(font_size, int) or font_size <= 0 or font_size > 200:
+            raise ValueError(f"Invalid font size: {font_size}. Must be integer between 1-200")
+
         self.font_size = font_size
         self._load_secure_font()
 
     def _load_secure_font(self):
         """Load font with security validation."""
         try:
-            # Try to load a system font securely
+            # Try to load a system font securely with path validation
             font_candidates = [
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
                 "/System/Library/Fonts/Arial.ttf",  # macOS
@@ -192,11 +196,49 @@ class TextRenderer:
             self.font = None
             for font_path in font_candidates:
                 try:
-                    if Path(font_path).exists():
-                        self.font = ImageFont.truetype(font_path, self.font_size)
-                        logger.info(f"Loaded font: {font_path}")
-                        break
-                except OSError:
+                    # Validate font path for security
+                    font_path_obj = Path(font_path)
+
+                    # Check if path exists and is a regular file
+                    if not font_path_obj.exists() or not font_path_obj.is_file():
+                        continue
+
+                    # Security check: ensure path doesn't traverse outside expected directories
+                    resolved_path = font_path_obj.resolve()
+                    allowed_font_dirs = [
+                        Path("/usr/share/fonts"),
+                        Path("/System/Library/Fonts"),
+                        Path.home() / ".fonts",
+                        Path.cwd(),  # Allow current directory for Windows
+                    ]
+
+                    # Check if font is in an allowed directory
+                    is_allowed = any(
+                        str(resolved_path).startswith(str(allowed_dir.resolve()))
+                        for allowed_dir in allowed_font_dirs
+                        if allowed_dir.exists()
+                    )
+
+                    # For relative paths (like "arial.ttf"), allow if file exists in system
+                    if not font_path_obj.is_absolute():
+                        is_allowed = True
+
+                    if not is_allowed:
+                        logger.warning(f"Font path not in allowed directories: {resolved_path}")
+                        continue
+
+                    # Check file extension
+                    if font_path_obj.suffix.lower() not in {".ttf", ".otf", ".woff", ".woff2"}:
+                        logger.warning(f"Invalid font file extension: {font_path_obj.suffix}")
+                        continue
+
+                    # Try to load the font
+                    self.font = ImageFont.truetype(str(resolved_path), self.font_size)
+                    logger.info(f"Loaded font: {resolved_path}")
+                    break
+
+                except (OSError, ValueError, PermissionError) as e:
+                    logger.debug(f"Failed to load font {font_path}: {e}")
                     continue
 
             if self.font is None:
@@ -274,7 +316,22 @@ class InferenceEngine:
         # Thread safety
         self._model_lock = threading.Lock()
 
+        # Production logging
         logger.info(f"InferenceEngine initialized on device: {self.device}")
+        logger.info(
+            f"Engine configuration: num_inference_steps={config.num_inference_steps}, "
+            f"guidance_scale={config.guidance_scale}, strength={config.strength}"
+        )
+        logger.info(
+            f"Memory management: efficient_attention={config.enable_memory_efficient_attention}, "
+            f"cpu_offload={config.enable_sequential_cpu_offload}, max_batch_size={config.max_batch_size}"
+        )
+
+        if torch.cuda.is_available():
+            logger.info(
+                f"CUDA device: {torch.cuda.get_device_name()}, "
+                f"memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB"
+            )
 
     def _get_secure_temp_dir(self) -> Path:
         """Get or create secure temporary directory for the inference engine."""
@@ -505,17 +562,28 @@ class InferenceEngine:
         errors = []
         generated_patches = []
 
+        # Production logging
+        logger.info(f"Starting anonymization process - image size: {len(image_data)} bytes")
+        if text_regions:
+            logger.info(f"Using {len(text_regions)} provided text regions")
+        else:
+            logger.info("Using auto-detection for text regions")
+
         try:
             # Load models if not already loaded
             if self.pipeline is None:
+                logger.info("Loading inference models...")
                 self._load_models()
 
             with self.memory_manager.managed_inference():
                 # Validate and process input image
+                logger.debug("Processing input image...")
                 image = self._process_input_image(image_data)
+                logger.info(f"Processed image shape: {image.shape}")
 
                 # Auto-detect text regions if not provided
                 if text_regions is None:
+                    logger.debug("Auto-detecting text regions...")
                     text_regions = self._auto_detect_text_regions(image)
 
                 if not text_regions:
@@ -528,15 +596,28 @@ class InferenceEngine:
                         errors=["No text regions detected"],
                     )
 
+                logger.info(f"Processing {len(text_regions)} text regions for anonymization")
+
                 # Anonymize each text region
                 anonymized_image = image.copy()
                 for i, region in enumerate(text_regions):
                     try:
+                        logger.debug(
+                            f"Anonymizing region {i+1}/{len(text_regions)}: "
+                            f"bbox={region.bbox}, text='{region.original_text[:50]}{'...' if len(region.original_text) > 50 else ''}'"
+                        )
+
                         patch = self._anonymize_region(anonymized_image, region)
                         generated_patches.append(patch)
 
                         # Apply patch to image
                         anonymized_image = self._apply_patch(anonymized_image, patch, region.bbox)
+
+                        logger.debug(
+                            f"Successfully anonymized region {i+1} - "
+                            f"patch confidence: {patch.confidence:.3f}, "
+                            f"processing time: {patch.metadata.processing_time_ms:.1f}ms"
+                        )
 
                     except Exception as e:
                         error_msg = f"Failed to anonymize region {i}: {e}"
@@ -548,6 +629,12 @@ class InferenceEngine:
                 processing_time_ms = (time.time() - start_time) * 1000
                 self.metrics_collector.record_inference_metrics(
                     processing_time_ms, success=len(errors) == 0
+                )
+
+                logger.info(
+                    f"Anonymization completed - total time: {processing_time_ms:.1f}ms, "
+                    f"regions processed: {len(generated_patches)}/{len(text_regions)}, "
+                    f"errors: {len(errors)}"
                 )
 
                 return AnonymizationResult(
@@ -566,6 +653,8 @@ class InferenceEngine:
             # Record failure metrics
             processing_time_ms = (time.time() - start_time) * 1000
             self.metrics_collector.record_inference_metrics(processing_time_ms, success=False)
+
+            logger.error(f"Anonymization process failed after {processing_time_ms:.1f}ms")
 
             raise InferenceError(error_msg)
 

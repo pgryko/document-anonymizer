@@ -40,6 +40,9 @@ uv run python main.py train-unet --config configs/training/unet_config.yaml
 
 # Run anonymization
 uv run python main.py anonymize --config configs/inference/engine_config.yaml --image input.jpg --output output.jpg
+
+# Batch anonymization
+uv run python main.py batch-anonymize --input-dir ./images --output-dir ./output --config configs/inference/engine_config.yaml
 ```
 
 ## Architecture Overview
@@ -55,15 +58,18 @@ This is a document anonymization system using diffusion models and Named Entity 
 - Critical hyperparameter fixes from reference implementations (proper learning rates, KL divergence)
 
 **Training Pipeline** (`src/anonymizer/training/`):
-- `vae_trainer.py`: VAE training with KL divergence loss (critical bug fix)
-- `unet_trainer.py`: UNet training for inpainting
+- `vae_trainer.py`: VAE training with KL divergence loss (critical bug fix) - FULLY IMPLEMENTED
+- `unet_trainer.py`: UNet training for inpainting - PARTIALLY IMPLEMENTED (needs dataloader and training loop)
 - Distributed training support via Accelerate
 - Perceptual loss for text preservation
 - Memory-efficient training with gradient accumulation
 
 **Inference Engine** (`src/anonymizer/inference/engine.py`):
-- Currently minimal implementation (placeholder)
-- Designed for document anonymization pipeline
+- Production-ready implementation with comprehensive security
+- Secure path validation and memory management
+- Integration with OCR (PaddleOCR, EasyOCR, Tesseract) and NER (Presidio)
+- Thread-safe operations with proper resource cleanup
+- Note: OCR bounding box extraction for NER needs completion (line 151-152)
 
 **Utilities** (`src/anonymizer/utils/`):
 - `image_ops.py`: Image processing operations
@@ -76,7 +82,7 @@ This is a document anonymization system using diffusion models and Named Entity 
 2. **Error Handling**: Custom exception hierarchy in `core/exceptions.py`
 3. **Modular Training**: Separate trainers for VAE and UNet components
 4. **Memory Management**: Built-in memory limits and efficient attention mechanisms
-5. **Testing**: Comprehensive test suite with GPU/integration/unit markers
+5. **Testing**: Comprehensive test suite with GPU/integration/unit markers (NOTE: Current coverage is 19% - needs improvement)
 
 ### Critical Fixes from Reference Implementation
 
@@ -93,3 +99,22 @@ The codebase implements fixes for major bugs in the original DiffUTE research:
 - `configs/inference/engine_config.yaml`: Inference engine settings
 
 Environment variables can override any config with prefixes: `VAE_`, `UNET_`, `ENGINE_`, `APP_`, etc.
+
+## Known Issues and TODOs
+
+### High Priority
+1. **UNet Training**: Dataloader and training loop need to be implemented in `unet_trainer.py`
+2. **OCR Integration**: Bounding box extraction for NER results needs completion (engine.py:151-152)
+3. **Test Coverage**: Currently at 19%, needs significant improvement
+
+### Medium Priority
+1. **Documentation**: Some API documentation and deployment guides need updating
+2. **Performance**: Model caching and batch optimization could improve inference speed
+3. **Error Handling**: Timeout handling for OCR operations needs implementation
+
+### Low Priority
+1. **Monitoring**: Prometheus metrics and health checks could be added
+2. **CLI**: Progress bars and dry-run mode would improve user experience
+3. **Code Cleanup**: Some TODO comments need to be addressed
+
+See `CODE_REVIEW_COMPREHENSIVE.md` and `CODE_REVIEW_ACTION_ITEMS.md` for detailed analysis and action plans.
