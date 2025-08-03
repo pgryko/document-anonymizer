@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 
 import cv2
 import numpy as np
+import torch
 from PIL import Image
 
 from src.anonymizer.core.exceptions import InferenceError, ValidationError

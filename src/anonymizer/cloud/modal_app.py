@@ -73,11 +73,11 @@ if HAS_MODAL:
         secrets = []
         try:
             secrets.append(modal.Secret.from_name(modal_config.wandb_secret_name))
-        except:
+        except Exception:
             pass  # Secret doesn't exist, that's OK
         try:
             secrets.append(modal.Secret.from_name(modal_config.hf_secret_name))
-        except:
+        except Exception:
             pass  # Secret doesn't exist, that's OK
         return secrets
 

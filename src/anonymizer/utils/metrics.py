@@ -22,7 +22,7 @@ class MetricsCollector:
         """Initialize metrics backend (e.g., DataDog, Prometheus)."""
         try:
             # Try to initialize DataDog (optional dependency)
-            import datadog
+            import datadog  # noqa: F401
 
             self._metrics_backend = "datadog"
             logger.info("Initialized DataDog metrics backend")

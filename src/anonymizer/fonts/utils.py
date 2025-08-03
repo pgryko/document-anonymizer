@@ -41,7 +41,6 @@ def _get_font_info_fonttools(font_path: str) -> dict[str, any] | None:
     """Get font info using fonttools library."""
     try:
         from fontTools.ttLib import TTFont
-        from fontTools.ttLib.tables._n_a_m_e import table__n_a_m_e
 
         font = TTFont(font_path)
         name_table = font["name"]
@@ -319,7 +318,7 @@ def _calculate_string_similarity(s1: str, s2: str) -> float:
         return intersection / union if union > 0 else 0
 
 
-def calculate_font_similarity(font1: "FontMetadata", font2: "FontMetadata") -> float:
+def calculate_font_similarity(font1: dict, font2: dict) -> float:
     """
     Calculate similarity between two fonts.
 

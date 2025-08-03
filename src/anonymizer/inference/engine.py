@@ -324,7 +324,8 @@ class InferenceEngine:
         )
         logger.info(
             f"Memory management: efficient_attention={config.enable_memory_efficient_attention}, "
-            f"cpu_offload={config.enable_sequential_cpu_offload}, max_batch_size={config.max_batch_size}"
+            f"cpu_offload={config.enable_sequential_cpu_offload}, "
+            f"max_batch_size={config.max_batch_size}"
         )
 
         if torch.cuda.is_available():
@@ -602,9 +603,12 @@ class InferenceEngine:
                 anonymized_image = image.copy()
                 for i, region in enumerate(text_regions):
                     try:
+                        text_preview = region.original_text[:50]
+                        if len(region.original_text) > 50:
+                            text_preview += "..."
                         logger.debug(
                             f"Anonymizing region {i+1}/{len(text_regions)}: "
-                            f"bbox={region.bbox}, text='{region.original_text[:50]}{'...' if len(region.original_text) > 50 else ''}'"
+                            f"bbox={region.bbox}, text='{text_preview}'"
                         )
 
                         patch = self._anonymize_region(anonymized_image, region)
@@ -719,7 +723,8 @@ class InferenceEngine:
                             pii_regions = self.ner_processor.detect_pii(detected_text.text, image)
 
                             if pii_regions:
-                                # Text contains PII - use original OCR bounding box but update with NER metadata
+                                # Text contains PII - use original OCR bounding box
+                                # but update with NER metadata
                                 for pii_region in pii_regions:
                                     # Create text region with OCR bbox but NER-detected content
                                     text_region = TextRegion(
@@ -743,7 +748,8 @@ class InferenceEngine:
                             text_regions.append(text_region)
 
                 logger.info(
-                    f"OCR detected {len(detected_texts)} text regions, {len(text_regions)} marked for anonymization"
+                    f"OCR detected {len(detected_texts)} text regions, "
+                    f"{len(text_regions)} marked for anonymization"
                 )
 
             else:

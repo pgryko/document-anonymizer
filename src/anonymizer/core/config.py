@@ -31,6 +31,7 @@ def validate_secure_path(
         return None
 
     # Check if we're in a test environment
+    import os
     import sys
 
     is_testing = (
@@ -484,7 +485,11 @@ class R2Config(BaseSettings):
 
     def __repr__(self) -> str:
         """Custom repr that masks sensitive fields."""
-        return f"R2Config(endpoint_url='{self.endpoint_url}', bucket_name='{self.bucket_name}', region='{self.region}', access_key_id='***', secret_access_key='***')"
+        return (
+            f"R2Config(endpoint_url='{self.endpoint_url}', "
+            f"bucket_name='{self.bucket_name}', region='{self.region}', "
+            f"access_key_id='***', secret_access_key='***')"
+        )
 
     def to_safe_dict(self) -> dict:
         """Export configuration with sensitive fields masked."""
