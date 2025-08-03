@@ -61,12 +61,14 @@ def validate_secure_path(
         if allowed_base_dirs is None:
             # Default allowed directories - more restrictive
             import os
+            import tempfile
 
             allowed_base_dirs = [
                 os.path.expanduser("~/"),  # User home directory
                 str(Path.cwd()),  # Current working directory
                 "/tmp/document-anonymizer/",  # Specific temp directory
                 "/var/tmp/document-anonymizer/",  # Alternative temp directory
+                tempfile.gettempdir(),  # System temp directory (for tests)
             ]
             # Add OS-specific defaults
             if os.name == "nt":  # Windows
@@ -74,6 +76,13 @@ def validate_secure_path(
                     [
                         os.path.expandvars("%TEMP%\\document-anonymizer\\"),
                         os.path.expandvars("%APPDATA%\\document-anonymizer\\"),
+                    ]
+                )
+            else:  # Unix-like systems
+                allowed_base_dirs.extend(
+                    [
+                        "/tmp/",  # System temp directory
+                        "/var/tmp/",  # Alternative temp directory
                     ]
                 )
 

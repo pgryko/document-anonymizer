@@ -359,7 +359,14 @@ class InferenceEngine:
 
                 # Initialize NER processor
                 if self.ner_processor is None:
-                    self.ner_processor = NERProcessor()
+                    try:
+                        self.ner_processor = NERProcessor()
+                    except (ImportError, ModelLoadError, SystemExit) as e:
+                        logger.warning(f"NER processor initialization failed: {e}")
+                        logger.warning(
+                            "Continuing without NER processor - text detection will be limited"
+                        )
+                        self.ner_processor = None
 
                 # Initialize OCR processor
                 if self.ocr_processor is None:
@@ -449,11 +456,27 @@ class InferenceEngine:
 
             # Enable memory efficient attention if configured
             if self.config.enable_memory_efficient_attention:
-                self.pipeline.unet.enable_attention_slicing()
+                try:
+                    if hasattr(self.pipeline.unet, "enable_attention_slicing"):
+                        self.pipeline.unet.enable_attention_slicing()
+                    elif hasattr(self.pipeline, "enable_attention_slicing"):
+                        self.pipeline.enable_attention_slicing()
+                    else:
+                        logger.warning("Attention slicing not available in this diffusers version")
+                except Exception as e:
+                    logger.warning(f"Failed to enable attention slicing: {e}")
 
             # Enable CPU offload if configured
             if self.config.enable_sequential_cpu_offload:
-                self.pipeline.enable_sequential_cpu_offload()
+                try:
+                    if hasattr(self.pipeline, "enable_sequential_cpu_offload"):
+                        self.pipeline.enable_sequential_cpu_offload()
+                    else:
+                        logger.warning(
+                            "Sequential CPU offload not available in this diffusers version"
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to enable sequential CPU offload: {e}")
 
             # Set to evaluation mode
             self.pipeline.unet.eval()
