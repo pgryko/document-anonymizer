@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import psutil
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
@@ -292,8 +293,6 @@ class TestE2EAnonymization:
     def test_memory_cleanup(self, engine_config, sample_document_image):
         """Test that memory is properly cleaned up after processing."""
         pytest.skip("Heavy integration test - requires model downloads")
-
-        import psutil
 
         engine = InferenceEngine(engine_config)
 

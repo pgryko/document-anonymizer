@@ -353,9 +353,9 @@ class SystemFontProvider:
                 if fc_cache_path:
                     # Validate executable before using
                     if self._validate_executable("fc-cache", fc_cache_path):
-                        subprocess.run(
+                        subprocess.run(  # noqa: S603  # Security: executable path validated via _validate_executable()
                             [fc_cache_path, "-f"], timeout=30, check=False
-                        )  # noqa: S603  # Validated executable
+                        )  # Validated executable
                     else:
                         logger.warning("fc-cache failed security validation")
                 else:
@@ -368,9 +368,9 @@ class SystemFontProvider:
                 if atsutil_path:
                     # Validate executable before using
                     if self._validate_executable("atsutil", atsutil_path):
-                        subprocess.run(
+                        subprocess.run(  # noqa: S603  # Security: executable path validated via _validate_executable()
                             [atsutil_path, "databases", "-remove"], timeout=30, check=False
-                        )  # noqa: S603  # Validated executable
+                        )  # Validated executable
                     else:
                         logger.warning("atsutil failed security validation")
                 else:

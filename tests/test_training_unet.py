@@ -513,7 +513,6 @@ class TestUNetTrainer:
         trainer = UNetTrainer(unet_config)
 
         # Create mock artifacts
-        from src.anonymizer.core.models import ModelArtifacts
 
         model_path = temp_dir / "model.safetensors"
         config_path = temp_dir / "config.json"

@@ -165,9 +165,9 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
                 continue
 
         def _raise_not_allowed_error() -> None:
-            raise PathNotAllowedError(
+            raise PathNotAllowedError(  # noqa: TRY301  # Already abstracted to inner function as recommended
                 field_name, str(resolved_path), allowed_base_dirs
-            )  # noqa: TRY301
+            )
 
         if not path_allowed:
             _raise_not_allowed_error()

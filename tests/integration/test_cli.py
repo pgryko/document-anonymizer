@@ -284,7 +284,7 @@ class TestCLIIntegration:
     def test_invalid_yaml_config(self, runner, temp_config_dir):
         """Test with invalid YAML configuration."""
         invalid_config = temp_config_dir / "invalid.yaml"
-        with open(invalid_config, "w") as f:
+        with invalid_config.open("w") as f:
             f.write("invalid: yaml: content: {\n")
 
         result = runner.invoke(cli, ["train-vae", "--config", str(invalid_config)])

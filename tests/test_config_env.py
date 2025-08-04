@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from src.anonymizer.core.config import (
     AppConfig,
@@ -133,7 +134,7 @@ R2_BUCKET_NAME=bucket-from-file
             f.write(env_content)
 
         # Change to temp directory so .env file is found
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_dir)
 
@@ -386,7 +387,9 @@ class TestValidationWithEnvVars:
         monkeypatch.setenv("VAE_BATCH_SIZE", "-1")  # Invalid: must be >= 1
         monkeypatch.setenv("VAE_LEARNING_RATE", "0.0")  # Invalid: must be > 0
 
-        with pytest.raises(Exception):  # Should raise validation error
+        with pytest.raises(
+            ValidationError, match="validation error"
+        ):  # Should raise validation error
             VAEConfig()
 
     def test_type_conversion_from_env_vars(self, monkeypatch):

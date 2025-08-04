@@ -564,9 +564,9 @@ class UNetTrainer:
             logger.info(f"Model artifacts saved: {artifacts.model_name} v{artifacts.version}")
             return artifacts
 
-    def train(
+    def train(  # noqa: PLR0912, PLR0915  # Complex training loop requires many branches/statements
         self, train_dataloader: DataLoader, val_dataloader: DataLoader | None = None
-    ):  # noqa: PLR0912, PLR0915  # Complex training loop
+    ):  # Complex training loop
         """
         Main training loop with corrected hyperparameters.
 

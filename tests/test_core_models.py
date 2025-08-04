@@ -4,10 +4,12 @@ Unit tests for core models - Imperative style.
 Tests all critical data structures and validation logic.
 """
 
+import io
 import json
 
 import numpy as np
 import pytest
+from PIL import Image
 from pydantic import ValidationError
 
 from src.anonymizer.core.models import (
@@ -150,9 +152,6 @@ class TestAnonymizationRequest:
 
     def test_anonymization_request_validation_empty_regions(self, sample_image):
         """Test that text regions cannot be empty."""
-        import io
-
-        from PIL import Image
 
         pil_image = Image.fromarray(sample_image)
         buffer = io.BytesIO()
@@ -171,9 +170,6 @@ class TestAnonymizationRequest:
         self, sample_image, sample_text_region
     ):
         """Test that too many text regions are rejected."""
-        import io
-
-        from PIL import Image
 
         pil_image = Image.fromarray(sample_image)
         buffer = io.BytesIO()

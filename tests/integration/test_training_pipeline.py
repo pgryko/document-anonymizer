@@ -354,7 +354,7 @@ class TestTrainingPipelineIntegration:
             state_path = checkpoint_path.with_suffix(".json")
             assert state_path.exists()
 
-            with open(state_path) as f:
+            with state_path.open() as f:
                 state = json.load(f)
                 assert state["global_step"] == 42
                 assert state["current_epoch"] == 2
@@ -512,7 +512,7 @@ class TestTrainingConfigIntegration:
         }
 
         config_path = temp_dir / "test_config.yaml"
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             yaml.dump(config_dict, f)
 
         # Test loading

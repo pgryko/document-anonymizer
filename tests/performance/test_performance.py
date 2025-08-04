@@ -5,6 +5,7 @@ Performance Tests
 Comprehensive performance and memory tests for the document anonymization pipeline.
 """
 
+import json
 import tempfile
 import time
 from pathlib import Path
@@ -258,9 +259,7 @@ class TestAnonymizationBenchmark:
             assert export_path.exists()
 
             # Verify content
-            import json
-
-            with open(export_path) as f:
+            with export_path.open() as f:
                 data = json.load(f)
 
             assert "benchmark_suite" in data
