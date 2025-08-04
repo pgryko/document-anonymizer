@@ -38,7 +38,6 @@ logger = logging.getLogger(__name__)
 try:
     from src.anonymizer.core.config import AppConfig, UNetConfig, VAEConfig
     from src.anonymizer.core.exceptions import (
-        TrainingError,
         UNetTrainingFailedError,
         VAETrainingFailedError,
     )

@@ -15,12 +15,21 @@ from pathlib import Path
 from typing import Any
 
 import cv2
+import fitz  # PyMuPDF
 import numpy as np
 
 from src.anonymizer import AnonymizationConfig, DocumentAnonymizer
 from src.anonymizer.core.models import BoundingBox
 from src.anonymizer.ocr import DetectedText, OCREngine, OCRProcessor, OCRResult
 from src.anonymizer.performance import AnonymizationBenchmark, PerformanceMonitor
+
+# Constants
+HIGH_CONFIDENCE_THRESHOLD = 0.9
+DOCUMENT_RETRY_COUNT = 3
+PAGE_COUNT_THRESHOLD = 10
+TEXT_DENSITY_THRESHOLD = 1000
+IMAGE_SIZE_THRESHOLD = 500
+DEFAULT_IMAGE_SIZE = 1000
 
 
 class CustomOCREngine(OCREngine):
@@ -32,7 +41,7 @@ class CustomOCREngine(OCREngine):
         self.config = config
         self.name = "custom_ocr"
 
-    def detect_text(self, image: np.ndarray) -> OCRResult:
+    def detect_text(self, _image: np.ndarray) -> OCRResult:
         """
         Custom OCR implementation.
         In a real scenario, this would integrate with your preferred OCR solution.
@@ -154,7 +163,7 @@ class AdvancedDocumentProcessor:
             high_acc_anonymizer = DocumentAnonymizer(high_accuracy_config)
             result = high_acc_anonymizer.anonymize_document(document_path, output_path)
 
-            if result.success and result.average_confidence > 0.9:
+            if result.success and result.average_confidence > HIGH_CONFIDENCE_THRESHOLD:
                 self.logger.info("High-accuracy processing successful")
                 return {
                     "strategy": "high_accuracy",
@@ -348,7 +357,7 @@ class SmartConfigurationManager:
         """
         Analyze document to determine optimal configuration.
         """
-        import fitz  # PyMuPDF
+        # fitz imported at module level
 
         try:
             doc = fitz.open(document_path)
@@ -381,7 +390,11 @@ class SmartConfigurationManager:
                     # Estimate image complexity
                     for img in image_list:
                         # This is a simplified calculation
-                        total_image_size += img[2] * img[3] if len(img) > 3 else 1000
+                        total_image_size += (
+                            img[2] * img[3]
+                            if len(img) > DOCUMENT_RETRY_COUNT
+                            else DEFAULT_IMAGE_SIZE
+                        )
 
             characteristics["text_density"] = total_text_length / len(doc) if len(doc) > 0 else 0
             characteristics["avg_image_size"] = (
@@ -389,8 +402,8 @@ class SmartConfigurationManager:
             )
             characteristics["complex_layout"] = (
                 characteristics["has_images"]
-                and characteristics["text_density"] > 1000
-                and len(doc) > 10
+                and characteristics["text_density"] > TEXT_DENSITY_THRESHOLD
+                and len(doc) > PAGE_COUNT_THRESHOLD
             )
 
             doc.close()
@@ -426,9 +439,9 @@ class SmartConfigurationManager:
             )
 
         # Simple text documents
-        if characteristics.get("text_density", 0) > 500 and not characteristics.get(
-            "has_images", False
-        ):
+        if characteristics.get(
+            "text_density", 0
+        ) > IMAGE_SIZE_THRESHOLD and not characteristics.get("has_images", False):
             return AnonymizationConfig(
                 ocr_engines=["tesseract"],
                 ocr_confidence_threshold=0.7,
@@ -504,7 +517,7 @@ class QualityAssuranceFramework:
     def _check_file_integrity(self, file_path: str) -> dict[str, Any]:
         """Check if the anonymized file is valid and readable."""
         try:
-            import fitz
+            # fitz imported at module level
 
             doc = fitz.open(file_path)
             page_count = len(doc)
@@ -514,7 +527,7 @@ class QualityAssuranceFramework:
         else:
             return {"status": "pass", "page_count": page_count, "readable": True}
 
-    def _check_pii_leakage(self, file_path: str, anonymization_result: Any) -> dict[str, Any]:
+    def _check_pii_leakage(self, _file_path: str, _anonymization_result: Any) -> dict[str, Any]:
         """
         Check for potential PII leakage in the anonymized document.
         """
@@ -527,7 +540,7 @@ class QualityAssuranceFramework:
             "confidence": 0.95,
         }
 
-    def _assess_visual_quality(self, original_path: str, anonymized_path: str) -> dict[str, Any]:
+    def _assess_visual_quality(self, _original_path: str, _anonymized_path: str) -> dict[str, Any]:
         """
         Assess visual quality by comparing original and anonymized documents.
         """
@@ -541,7 +554,7 @@ class QualityAssuranceFramework:
         }
 
     def _check_metadata_preservation(
-        self, original_path: str, anonymized_path: str
+        self, _original_path: str, _anonymized_path: str
     ) -> dict[str, Any]:
         """
         Check if important metadata is preserved while sensitive metadata is removed.
@@ -595,7 +608,6 @@ async def main():
     Path("examples/async_output")
 
     # Note: This would work with real files
-    # results = await batch_processor.async_process_documents(input_files, output_dir)
     print("   📊 Async processing configured (requires real input files)")
 
     # Example 4: Smart Configuration
@@ -603,7 +615,6 @@ async def main():
     SmartConfigurationManager()
 
     # This would analyze a real document
-    # recommended_config = config_manager.recommend_configuration("examples/sample.pdf")
     print("   📋 Smart configuration manager initialized")
 
     # Example 5: Quality Assurance
@@ -611,9 +622,6 @@ async def main():
     QualityAssuranceFramework()
 
     # This would validate real anonymization results
-    # validation_report = qa_framework.validate_anonymization_result(
-    #     "original.pdf", "anonymized.pdf", result
-    # )
     print("   ✅ Quality assurance framework initialized")
 
     print("\n🎉 Advanced examples setup complete!")

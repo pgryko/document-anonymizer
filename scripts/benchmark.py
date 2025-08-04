@@ -342,7 +342,7 @@ def full_suite(ctx, quick: bool):
 @click.option("--duration", default=30, help="Monitoring duration in seconds")
 @click.option("--interval", default=1.0, help="Sampling interval in seconds")
 @click.pass_context
-def monitor(ctx, duration: int, interval: float):
+def monitor(_ctx, duration: int, interval: float):
     """Monitor real-time resource usage."""
     click.echo("📊 Starting resource monitoring...")
     click.echo(f"   Duration: {duration} seconds")

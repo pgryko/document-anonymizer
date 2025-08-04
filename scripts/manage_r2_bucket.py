@@ -10,6 +10,14 @@ import sys
 import requests
 from dotenv import load_dotenv
 
+# Constants
+REQUEST_TIMEOUT = 30  # seconds
+BUCKET_EXISTS_ERROR_CODE = 10014
+
+
+class UnsupportedHTTPMethodError(ValueError):
+    """Raised when an unsupported HTTP method is used."""
+
 
 class CloudflareR2Manager:
     """Manages R2 buckets and tokens via Cloudflare API."""
@@ -30,13 +38,15 @@ class CloudflareR2Manager:
 
         try:
             if method.upper() == "GET":
-                response = requests.get(url, headers=self.headers)
+                response = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
             elif method.upper() == "POST":
-                response = requests.post(url, headers=self.headers, json=data)
+                response = requests.post(
+                    url, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT
+                )
             elif method.upper() == "DELETE":
-                response = requests.delete(url, headers=self.headers)
+                response = requests.delete(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
             else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
+                raise UnsupportedHTTPMethodError(method)
 
             response.raise_for_status()
             return response.json()
@@ -75,7 +85,7 @@ class CloudflareR2Manager:
             return response.get("result", {})
         errors = response.get("errors", [])
         for error in errors:
-            if error.get("code") == 10014:  # Bucket already exists
+            if error.get("code") == BUCKET_EXISTS_ERROR_CODE:  # Bucket already exists
                 print(f"⚠️  Bucket '{bucket_name}' already exists")
                 return {"name": bucket_name, "already_exists": True}
             print(f"❌ Failed to create bucket: {error}")
@@ -187,7 +197,7 @@ class CloudflareR2Manager:
         return bool(result)
 
 
-def main():
+def main():  # noqa: PLR0912, PLR0915
     # Load environment variables
     load_dotenv()
 

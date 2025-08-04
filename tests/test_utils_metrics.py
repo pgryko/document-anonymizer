@@ -296,9 +296,9 @@ class TestTimerContextManager:
         ):
             try:
                 with timer():
-                    raise ValueError(
+                    raise ValueError(  # noqa: TRY301, TRY003  # Test exception handling
                         "Test error"
-                    )  # noqa: TRY301, TRY003  # Test exception handling
+                    )
             except ValueError:
                 pass
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 import torch
@@ -16,6 +17,9 @@ import torch
 from src.anonymizer.core.config import DatasetConfig, VAEConfig
 from src.anonymizer.training.datasets import create_dataloaders
 from src.anonymizer.training.vae_trainer import VAETrainer
+
+# Constants
+RGB_CHANNELS = 3
 
 
 @st.cache_resource
@@ -65,10 +69,7 @@ def load_dataset_samples(config_path: str, max_samples: int = 50):
 def tensor_to_image(tensor: torch.Tensor) -> np.ndarray:
     """Convert tensor to displayable image."""
     img = ((tensor + 1) / 2).clamp(0, 1)
-    if img.shape[0] == 3:  # RGB
-        img = img.permute(1, 2, 0)
-    else:  # Grayscale
-        img = img.squeeze(0)
+    img = img.permute(1, 2, 0) if img.shape[0] == RGB_CHANNELS else img.squeeze(0)
     return img.cpu().numpy()
 
 
@@ -83,7 +84,7 @@ def compute_reconstruction_metrics(
         # PSNR
         psnr = 20 * torch.log10(2.0 / torch.sqrt(torch.tensor(mse))).item()
 
-        # SSIM (simplified)
+        # Calculate SSIM
         def ssim_simple(x, y):
             mu_x = torch.mean(x)
             mu_y = torch.mean(y)
@@ -102,7 +103,7 @@ def compute_reconstruction_metrics(
     return {"MSE": mse, "MAE": mae, "PSNR": psnr, "SSIM": ssim}
 
 
-def main():
+def main():  # noqa: PLR0915
     st.set_page_config(page_title="VAE Quality Dashboard", page_icon="🔍", layout="wide")
 
     st.title("🔍 VAE Quality Assessment Dashboard")
@@ -191,7 +192,7 @@ def main():
         with img_cols[2]:
             st.write("**Difference**")
             diff = np.abs(original_img - recon_img)
-            if len(diff.shape) == 3:
+            if len(diff.shape) == RGB_CHANNELS:
                 diff = np.mean(diff, axis=2)
 
             fig, ax = plt.subplots(figsize=(4, 4))
@@ -222,7 +223,7 @@ def main():
                 batch_metrics.append(metrics)
 
         # Plot metrics distribution
-        import pandas as pd
+        # pandas imported at module level
 
         df = pd.DataFrame(batch_metrics)
 

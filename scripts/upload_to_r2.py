@@ -5,6 +5,8 @@ Upload XFUND dataset to Cloudflare R2 storage.
 
 import argparse
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 import boto3
@@ -21,7 +23,7 @@ class CloudflareR2Uploader:
         secret_access_key: str,
         endpoint_url: str,
         bucket_name: str,
-        token: str | None = None,
+        _token: str | None = None,
     ):
         """Initialize R2 client.
 
@@ -30,7 +32,7 @@ class CloudflareR2Uploader:
             secret_access_key: R2 Secret Access Key
             endpoint_url: Jurisdiction-specific endpoint (e.g., https://<account_id>.r2.cloudflarestorage.com)
             bucket_name: R2 bucket name
-            token: Optional R2 token
+            _token: Optional R2 token (unused)
         """
         self.bucket_name = bucket_name
 
@@ -59,10 +61,11 @@ class CloudflareR2Uploader:
             self.s3_client.upload_file(
                 str(local_path), self.bucket_name, r2_key, ExtraArgs=extra_args or {}
             )
-            return True
         except Exception as e:
             print(f"Failed to upload {local_path}: {e}")
             return False
+        else:
+            return True
 
     def upload_directory(
         self,
@@ -87,12 +90,13 @@ class CloudflareR2Uploader:
         # Find all files to upload
         files_to_upload = []
         for file_path in local_dir.rglob("*"):
-            if file_path.is_file():
-                if file_extensions is None or file_path.suffix.lower() in file_extensions:
-                    # Create R2 key preserving directory structure
-                    relative_path = file_path.relative_to(local_dir)
-                    r2_key = f"{r2_prefix}/{relative_path}".strip("/")
-                    files_to_upload.append((file_path, r2_key))
+            if file_path.is_file() and (
+                file_extensions is None or file_path.suffix.lower() in file_extensions
+            ):
+                # Create R2 key preserving directory structure
+                relative_path = file_path.relative_to(local_dir)
+                r2_key = f"{r2_prefix}/{relative_path}".strip("/")
+                files_to_upload.append((file_path, r2_key))
 
         print(f"Found {len(files_to_upload)} files to upload")
 
@@ -118,7 +122,7 @@ class CloudflareR2Uploader:
             return []
 
 
-def main():
+def main():  # noqa: PLR0912, PLR0915
     # Load environment variables
     load_dotenv()
 
@@ -200,11 +204,10 @@ def main():
 
         if account_id and api_token:
             print(f"🔍 Ensuring bucket '{args.bucket_name}' exists...")
-            import subprocess
-            import sys
+            # subprocess and sys imported at module level
 
             # Call the manage script to ensure bucket exists
-            result = subprocess.run(
+            result = subprocess.run(  # noqa: S603
                 [sys.executable, "scripts/manage_r2_bucket.py", "auto-ensure"],
                 capture_output=True,
                 text=True,

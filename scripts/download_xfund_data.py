@@ -15,11 +15,15 @@ import logging
 import tarfile
 import zipfile
 from pathlib import Path
+from typing import ClassVar
 from urllib.request import urlretrieve
 
 import cv2
 import numpy as np
 from tqdm import tqdm
+
+# Constants
+BOX_COORDINATES_COUNT = 4
 
 # Configure logging
 logging.basicConfig(
@@ -32,7 +36,7 @@ class XFUNDDownloader:
     """Downloads XFUND dataset from GitHub releases."""
 
     BASE_URL = "https://github.com/doc-analysis/XFUND/releases/download/v1.0"
-    LANGUAGES = ["zh", "ja", "es", "fr", "it", "de", "pt"]
+    LANGUAGES: ClassVar[list[str]] = ["zh", "ja", "es", "fr", "it", "de", "pt"]
 
     def __init__(self, download_dir: Path, languages: list[str] | None = None):
         self.download_dir = download_dir
@@ -58,7 +62,9 @@ class XFUNDDownloader:
                 else:
                     try:
                         logger.info(f"Downloading from: {url}")
-                        urlretrieve(url, output_path, reporthook=self._download_progress)
+                        urlretrieve(
+                            url, output_path, reporthook=self._download_progress
+                        )  # noqa: S310
                         logger.info(f"Downloaded: {output_path}")
                     except Exception:
                         logger.exception(f"Failed to download {filename}")
@@ -74,7 +80,9 @@ class XFUNDDownloader:
             else:
                 try:
                     logger.info(f"Downloading images from: {img_url}")
-                    urlretrieve(img_url, img_output_path, reporthook=self._download_progress)
+                    urlretrieve(
+                        img_url, img_output_path, reporthook=self._download_progress
+                    )  # noqa: S310
                     logger.info(f"Downloaded: {img_output_path}")
                 except Exception:
                     logger.exception(f"Failed to download images for {lang}")
@@ -96,10 +104,10 @@ class XFUNDDownloader:
         try:
             if format_type == "zip":
                 with zipfile.ZipFile(archive_path, "r") as zip_ref:
-                    zip_ref.extractall(extract_dir)
+                    zip_ref.extractall(extract_dir)  # noqa: S202
             elif format_type == "tar.gz":
                 with tarfile.open(archive_path, "r:gz") as tar:
-                    tar.extractall(extract_dir)
+                    tar.extractall(extract_dir)  # noqa: S202
             logger.info(f"Extracted images to: {extract_dir}")
         except Exception:
             logger.exception(f"Failed to extract {archive_path}")
@@ -202,7 +210,7 @@ class XFUNDProcessor:
         # Draw bounding boxes for text regions
         for item in doc.get("document", []):
             box = item.get("box", [])
-            if len(box) == 4:
+            if len(box) == BOX_COORDINATES_COUNT:
                 x1, y1, x2, y2 = box
                 # Draw light gray box to represent text region
                 cv2.rectangle(image, (x1, y1), (x2, y2), (200, 200, 200), -1)
@@ -229,7 +237,7 @@ class XFUNDProcessor:
         # Get text regions from document
         for item in doc.get("document", []):
             box = item.get("box", [])
-            if len(box) == 4:
+            if len(box) == BOX_COORDINATES_COUNT:
                 x1, y1, x2, y2 = box
                 # Mask text region with white
                 cv2.rectangle(masked_image, (x1, y1), (x2, y2), (255, 255, 255), -1)
@@ -254,7 +262,7 @@ class XFUNDProcessor:
             text = item.get("text", "")
             label = item.get("label", "")
 
-            if len(box) == 4:
+            if len(box) == BOX_COORDINATES_COUNT:
                 metadata["text_regions"].append(
                     {
                         "bbox": {
@@ -306,7 +314,7 @@ class XFUNDProcessor:
             box = item.get("box", [])
             label = item.get("label", "OTHER")
 
-            if len(box) == 4:
+            if len(box) == BOX_COORDINATES_COUNT:
                 x1, y1, x2, y2 = box
                 class_id = label_to_class.get(label, 6)
                 cv2.rectangle(mask, (x1, y1), (x2, y2), class_id, -1)

@@ -9,8 +9,18 @@ and managing font installations.
 
 import argparse
 import logging
+import shutil
 import sys
+import traceback
 from pathlib import Path
+
+# Import utilities at module level to avoid import-outside-top-level issues
+try:
+    from anonymizer.fonts.utils import create_font_sample, get_font_metrics
+except ImportError:
+    # Fallback for development/testing
+    create_font_sample = None
+    get_font_metrics = None
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -38,8 +48,6 @@ def download_bundled_fonts(args) -> None:
         print("🔄 Force downloading fonts...")
         # Remove existing fonts
         if provider.bundled_fonts_dir.exists():
-            import shutil
-
             shutil.rmtree(provider.bundled_fonts_dir)
         provider.bundled_fonts_dir.mkdir(parents=True, exist_ok=True)
         provider._ensure_bundled_fonts()
@@ -138,8 +146,10 @@ def font_info(args) -> None:
     if font.license_info:
         print(f"   License: {font.license_info}")
 
-    # Get font metrics
-    from anonymizer.fonts.utils import get_font_metrics
+    # get_font_metrics imported at module level
+    if get_font_metrics is None:
+        print("❌ Font metrics utilities not available")
+        return
 
     metrics = get_font_metrics(font.path, 12)
     if metrics:
@@ -187,7 +197,10 @@ def create_sample(args) -> None:
 
     print(f"🎨 Creating font sample for {font.name}...")
 
-    from anonymizer.fonts.utils import create_font_sample
+    # create_font_sample imported at module level
+    if create_font_sample is None:
+        print("❌ Font sample utilities not available")
+        return
 
     sample_text = args.text or "The quick brown fox jumps over the lazy dog."
     size = args.size or 24
@@ -281,7 +294,7 @@ def create_font_bundle(args) -> None:
         print("❌ Failed to create font bundle")
 
 
-def main():
+def main():  # noqa: PLR0912, PLR0915
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Font Management Script for Document Anonymization System"
@@ -383,8 +396,6 @@ def main():
     except Exception as e:
         print(f"❌ Error: {e}")
         if args.log_level == "DEBUG":
-            import traceback
-
             traceback.print_exc()
 
 

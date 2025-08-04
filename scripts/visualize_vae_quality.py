@@ -17,6 +17,10 @@ from src.anonymizer.core.config import DatasetConfig, VAEConfig
 from src.anonymizer.training.datasets import create_dataloaders
 from src.anonymizer.training.vae_trainer import VAETrainer
 
+# Constants
+RGB_CHANNELS = 3
+GRAYSCALE_DIFF_SHAPE = 2
+
 
 def load_vae_model(checkpoint_path: str, config_path: str) -> VAETrainer:
     """Load trained VAE model."""
@@ -61,24 +65,28 @@ def visualize_reconstructions(
 
     for i in range(num_samples):
         # Original image
-        if images_np.shape[1] == 3:  # RGB
+        if images_np.shape[1] == RGB_CHANNELS:  # RGB
             img_orig = np.transpose(images_np[i], (1, 2, 0))
             img_recon = np.transpose(reconstructed_np[i], (1, 2, 0))
         else:  # Grayscale
             img_orig = images_np[i, 0]
             img_recon = reconstructed_np[i, 0]
 
-        axes[0, i].imshow(img_orig, cmap="gray" if len(img_orig.shape) == 2 else None)
+        axes[0, i].imshow(
+            img_orig, cmap="gray" if len(img_orig.shape) == GRAYSCALE_DIFF_SHAPE else None
+        )
         axes[0, i].set_title(f"Original {i+1}")
         axes[0, i].axis("off")
 
-        axes[1, i].imshow(img_recon, cmap="gray" if len(img_recon.shape) == 2 else None)
+        axes[1, i].imshow(
+            img_recon, cmap="gray" if len(img_recon.shape) == GRAYSCALE_DIFF_SHAPE else None
+        )
         axes[1, i].set_title(f"Reconstructed {i+1}")
         axes[1, i].axis("off")
 
         # Difference map
         diff = np.abs(img_orig - img_recon)
-        if len(diff.shape) == 3:
+        if len(diff.shape) == RGB_CHANNELS:
             diff = np.mean(diff, axis=2)
 
         axes[2, i].imshow(diff, cmap="hot", vmin=0, vmax=0.5)

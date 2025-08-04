@@ -8,13 +8,16 @@ the existing AnonymizerDataset class.
 """
 
 import sys
+import traceback
 from pathlib import Path
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 
+from torch.utils.data import DataLoader
+
 from src.anonymizer.core.config import DatasetConfig
-from src.anonymizer.training.datasets import AnonymizerDataset, create_dataloader
+from src.anonymizer.training.datasets import AnonymizerDataset, collate_fn, create_dataloader
 
 
 def test_xfund_compatibility():
@@ -48,9 +51,7 @@ def test_xfund_compatibility():
         dataloader = create_dataloader(dataset, batch_size=2, num_workers=0, shuffle=False)
 
         # Manually fix the dataloader creation for num_workers=0
-        from torch.utils.data import DataLoader
-
-        from src.anonymizer.training.datasets import collate_fn
+        # DataLoader and collate_fn imported at module level
 
         dataloader = DataLoader(
             dataset,
@@ -74,7 +75,7 @@ def test_xfund_compatibility():
 
     except Exception as e:
         print(f"\n❌ Compatibility test failed: {e}")
-        import traceback
+        # traceback imported at module level
 
         traceback.print_exc()
 

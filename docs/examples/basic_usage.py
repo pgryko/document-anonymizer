@@ -8,7 +8,19 @@ This module demonstrates basic usage patterns for the Document Anonymization Sys
 from pathlib import Path
 
 from src.anonymizer import AnonymizationConfig, DocumentAnonymizer
+from src.anonymizer.core.exceptions import (
+    InferenceError,
+    NERError,
+    OCRError,
+    ValidationError,
+)
 from src.anonymizer.core.models import BoundingBox
+from src.anonymizer.models import ModelManager
+from src.anonymizer.performance import PerformanceMonitor
+
+# Constants for confidence thresholds
+HIGH_CONFIDENCE_THRESHOLD = 0.9
+MEDIUM_CONFIDENCE_THRESHOLD = 0.7
 
 
 def example_simple_anonymization():
@@ -188,8 +200,7 @@ def example_performance_monitoring():
     """
     print("\n=== Performance Monitoring ===")
 
-    # Import performance monitoring
-    from src.anonymizer.performance import PerformanceMonitor
+    # PerformanceMonitor already imported at module level
 
     # Create monitor
     monitor = PerformanceMonitor(auto_export=False)
@@ -222,12 +233,7 @@ def example_error_handling():
     """
     print("\n=== Error Handling ===")
 
-    from src.anonymizer.core.exceptions import (
-        InferenceError,
-        NERError,
-        OCRError,
-        ValidationError,
-    )
+    # Exceptions already imported at module level
 
     anonymizer = DocumentAnonymizer()
 
@@ -284,9 +290,11 @@ def example_confidence_analysis():
         print(f"   📊 Average: {sum(scores)/len(scores):.3f}")
 
         # Analyze distribution
-        high_confidence = [s for s in scores if s >= 0.9]
-        medium_confidence = [s for s in scores if 0.7 <= s < 0.9]
-        low_confidence = [s for s in scores if s < 0.7]
+        high_confidence = [s for s in scores if s >= HIGH_CONFIDENCE_THRESHOLD]
+        medium_confidence = [
+            s for s in scores if MEDIUM_CONFIDENCE_THRESHOLD <= s < HIGH_CONFIDENCE_THRESHOLD
+        ]
+        low_confidence = [s for s in scores if s < MEDIUM_CONFIDENCE_THRESHOLD]
 
         print(f"   🟢 High confidence (≥0.9): {len(high_confidence)}")
         print(f"   🟡 Medium confidence (0.7-0.9): {len(medium_confidence)}")
@@ -299,7 +307,7 @@ def example_model_management():
     """
     print("\n=== Model Management ===")
 
-    from src.anonymizer.models import ModelManager
+    # ModelManager already imported at module level
 
     # Create model manager
     manager = ModelManager()
