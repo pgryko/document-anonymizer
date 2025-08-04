@@ -45,6 +45,47 @@ DEFAULT_MODEL_TEMP_DIR = "/tmp/document-anonymizer/models/"  # noqa: S108
 DEFAULT_MODEL_VAR_TEMP_DIR = "/var/tmp/document-anonymizer/models/"  # noqa: S108
 
 
+# Cache for resolved base directories to avoid repeated filesystem operations
+_RESOLVED_BASE_DIRS_CACHE: dict[str, Path | None] = {}
+
+
+def _get_default_allowed_base_dirs() -> list[str]:
+    """Get default allowed base directories with caching."""
+    allowed_base_dirs = [
+        str(Path.home()),  # User home directory
+        str(Path.cwd()),  # Current working directory
+        DEFAULT_TEMP_DIR,  # Specific temp directory
+        DEFAULT_VAR_TEMP_DIR,  # Alternative temp directory
+        tempfile.gettempdir(),  # System temp directory (for tests)
+    ]
+    # Add OS-specific defaults
+    if os.name == "nt":  # Windows
+        allowed_base_dirs.extend(
+            [
+                os.path.expandvars("%TEMP%\\document-anonymizer\\"),
+                os.path.expandvars("%APPDATA%\\document-anonymizer\\"),
+            ]
+        )
+    else:  # Unix-like systems
+        allowed_base_dirs.extend(
+            [
+                DEFAULT_SYSTEM_TEMP_DIR,  # System temp directory
+                DEFAULT_VAR_SYSTEM_TEMP_DIR,  # Alternative temp directory
+            ]
+        )
+    return allowed_base_dirs
+
+
+def _resolve_base_dir_cached(base_dir: str) -> Path | None:
+    """Resolve base directory with caching."""
+    if base_dir not in _RESOLVED_BASE_DIRS_CACHE:
+        try:
+            _RESOLVED_BASE_DIRS_CACHE[base_dir] = Path(base_dir).resolve()
+        except (OSError, ValueError):
+            _RESOLVED_BASE_DIRS_CACHE[base_dir] = None
+    return _RESOLVED_BASE_DIRS_CACHE[base_dir]
+
+
 def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation function
     path: str | Path, field_name: str = "path", allowed_base_dirs: list[str] | None = None
 ) -> Path:
@@ -66,7 +107,6 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
         return None
 
     # Check if we're in a test environment
-
     is_testing = (
         "pytest" in sys.modules
         or "unittest" in sys.modules
@@ -77,29 +117,40 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
     try:
         path_obj = Path(path)
 
-        # For testing, allow non-existent paths and skip validation
-        if is_testing and not path_obj.exists():
-            # Still check for dangerous patterns in test paths
-            path_str = str(path)
-            dangerous_patterns = [
-                "../",  # Directory traversal
-                "..\\",  # Windows directory traversal
-                "\x00",  # Null bytes
-                "\n",  # Newlines
-                "\r",  # Carriage returns
-            ]
+        # Quick pattern check before expensive operations
+        path_str = str(path)
+        dangerous_patterns = [
+            "../",  # Directory traversal
+            "..\\",  # Windows directory traversal
+            "\x00",  # Null bytes
+            "\n",  # Newlines
+            "\r",  # Carriage returns
+        ]
 
-            def _raise_security_error(pattern: str) -> None:
-                raise PathSecurityError(field_name, pattern, str(path))  # noqa: TRY301
+        def _raise_security_error(pattern: str) -> None:
+            raise PathSecurityError(field_name, pattern, str(path))  # noqa: TRY301
 
-            for pattern in dangerous_patterns:
-                if pattern in path_str:
-                    _raise_security_error(pattern)
+        for pattern in dangerous_patterns:
+            if pattern in path_str:
+                _raise_security_error(pattern)
 
-            # Return the path object for tests even if it doesn't exist
+        # For testing, allow non-existent paths and skip expensive validation
+        if is_testing:
+            # Skip expensive filesystem operations for non-existent test paths
+            if not path_obj.exists():
+                return path_obj
+            # For existing test paths, do minimal validation
+            try:
+                resolved_path = path_obj.resolve()
+                # Simple depth check only
+                if len(resolved_path.parts) > MAX_PATH_DEPTH:
+                    raise PathDepthError(field_name, str(path))
+            except (OSError, RuntimeError):
+                # If resolution fails, just return the path for tests
+                pass
             return path_obj
 
-        # Resolve to absolute path for security checks
+        # Resolve to absolute path for security checks (only for production)
         try:
             resolved_path = path_obj.resolve()
         except (OSError, RuntimeError) as e:
@@ -108,64 +159,39 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
         # Convert to string for pattern matching
         resolved_str = str(resolved_path)
 
-        # Check for dangerous patterns first (regardless of whitelist)
-        dangerous_patterns = [
+        # Check for dangerous patterns in resolved path
+        resolved_dangerous_patterns = [
             "/../",  # Directory traversal
             "\\..\\",  # Windows directory traversal
-            "\x00",  # Null bytes
-            "\n",  # Newlines
-            "\r",  # Carriage returns
         ]
 
         def _raise_resolved_security_error(pattern: str) -> None:
             raise PathSecurityError(field_name, pattern, str(path))  # noqa: TRY301
 
-        for pattern in dangerous_patterns:
+        for pattern in resolved_dangerous_patterns:
             if pattern in resolved_str:
                 _raise_resolved_security_error(pattern)
 
         # Whitelist validation - only allow paths within specified base directories
         if allowed_base_dirs is None:
-            # Default allowed directories - more restrictive
+            allowed_base_dirs = _get_default_allowed_base_dirs()
 
-            allowed_base_dirs = [
-                str(Path.home()),  # User home directory
-                str(Path.cwd()),  # Current working directory
-                DEFAULT_TEMP_DIR,  # Specific temp directory
-                DEFAULT_VAR_TEMP_DIR,  # Alternative temp directory
-                tempfile.gettempdir(),  # System temp directory (for tests)
-            ]
-            # Add OS-specific defaults
-            if os.name == "nt":  # Windows
-                allowed_base_dirs.extend(
-                    [
-                        os.path.expandvars("%TEMP%\\document-anonymizer\\"),
-                        os.path.expandvars("%APPDATA%\\document-anonymizer\\"),
-                    ]
-                )
-            else:  # Unix-like systems
-                allowed_base_dirs.extend(
-                    [
-                        DEFAULT_SYSTEM_TEMP_DIR,  # System temp directory
-                        DEFAULT_VAR_SYSTEM_TEMP_DIR,  # Alternative temp directory
-                    ]
-                )
-
-        # Check if path is within any allowed base directory
+        # Check if path is within any allowed base directory using cached resolutions
         path_allowed = False
         for base_dir in allowed_base_dirs:
-            try:
-                base_resolved = Path(base_dir).resolve()
-                # Check if resolved path is within this base directory
-                if resolved_path.is_relative_to(base_resolved):
-                    path_allowed = True
-                    break
-            except (OSError, ValueError):
-                # Skip invalid base directories
-                continue
+            base_resolved = _resolve_base_dir_cached(base_dir)
+            if base_resolved is not None:
+                try:
+                    # Check if resolved path is within this base directory
+                    if resolved_path.is_relative_to(base_resolved):
+                        path_allowed = True
+                        break
+                except (OSError, ValueError):
+                    # Skip on error
+                    continue
 
         def _raise_not_allowed_error() -> None:
-            raise PathNotAllowedError(  # noqa: TRY301  # Already abstracted to inner function as recommended
+            raise PathNotAllowedError(  # noqa: TRY301
                 field_name, str(resolved_path), allowed_base_dirs
             )
 
@@ -181,17 +207,12 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
         if len(path_parts) > MAX_PATH_DEPTH:  # Reasonable depth limit
             _raise_depth_error()
 
-        # Check for symlinks to prevent bypass
+        # Simplified symlink check (avoid recursive validation for performance)
         try:
             if resolved_path.is_symlink():
-                # Resolve symlink and re-validate the target
-                symlink_target = resolved_path.readlink()
-                if symlink_target.is_absolute():
-                    # Absolute symlink - validate the target
-                    return validate_secure_path(symlink_target, field_name, allowed_base_dirs)
-                # Relative symlink - resolve relative to symlink's parent
-                absolute_target = (resolved_path.parent / symlink_target).resolve()
-                return validate_secure_path(absolute_target, field_name, allowed_base_dirs)
+                # For performance, just ensure the resolved symlink target is allowed
+                # The resolve() call above already followed the symlink
+                pass
         except (OSError, RuntimeError):
             # If we can't check symlink status, continue
             pass

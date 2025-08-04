@@ -62,9 +62,7 @@ class XFUNDDownloader:
                 else:
                     try:
                         logger.info(f"Downloading from: {url}")
-                        urlretrieve(
-                            url, output_path, reporthook=self._download_progress
-                        )  # noqa: S310
+                        urlretrieve(url, output_path, reporthook=self._download_progress)
                         logger.info(f"Downloaded: {output_path}")
                     except Exception:
                         logger.exception(f"Failed to download {filename}")
@@ -80,9 +78,7 @@ class XFUNDDownloader:
             else:
                 try:
                     logger.info(f"Downloading images from: {img_url}")
-                    urlretrieve(
-                        img_url, img_output_path, reporthook=self._download_progress
-                    )  # noqa: S310
+                    urlretrieve(img_url, img_output_path, reporthook=self._download_progress)
                     logger.info(f"Downloaded: {img_output_path}")
                 except Exception:
                     logger.exception(f"Failed to download images for {lang}")

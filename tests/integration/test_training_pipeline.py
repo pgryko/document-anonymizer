@@ -515,7 +515,7 @@ class TestTrainingConfigIntegration:
         with config_path.open("w") as f:
             yaml.dump(config_dict, f)
 
-        # Test loading
+        # Test loading with the optimized from_env_and_yaml method
         config = VAEConfig.from_env_and_yaml(yaml_path=config_path)
 
         assert config.model_name == "test-model"
@@ -523,6 +523,33 @@ class TestTrainingConfigIntegration:
         assert config.learning_rate == 1e-4
 
         logger.info("✅ Config from YAML test passed")
+
+    def test_from_env_and_yaml_method(self, temp_dir):
+        """Test the from_env_and_yaml method with different parameters."""
+        # Create test YAML config
+        config_dict = {
+            "model_name": "test-from-env-yaml",
+            "version": "v2.0",
+            "base_model": "stabilityai/stable-diffusion-2-1-base",
+            "batch_size": 4,
+            "learning_rate": 2e-4,
+            "num_epochs": 10,
+            "checkpoint_dir": str(temp_dir / "fast_checkpoints"),
+        }
+
+        config_path = temp_dir / "env_yaml_config.yaml"
+        with config_path.open("w") as f:
+            yaml.dump(config_dict, f)
+
+        # Test the from_env_and_yaml method directly
+        config = VAEConfig.from_env_and_yaml(yaml_path=config_path)
+
+        assert config.model_name == "test-from-env-yaml"
+        assert config.batch_size == 4
+        assert config.learning_rate == 2e-4
+        assert config.version == "v2.0"
+
+        logger.info("✅ from_env_and_yaml method test passed")
 
     def test_config_validation(self, temp_dir):
         """Test configuration validation."""
