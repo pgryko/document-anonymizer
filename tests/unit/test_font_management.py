@@ -17,7 +17,13 @@ from src.anonymizer.fonts import (
     FontMetadata,
     SystemFontProvider,
 )
-from src.anonymizer.fonts.utils import calculate_font_similarity, find_similar_font
+from src.anonymizer.fonts.utils import (
+    _get_font_info_fallback,
+    _parse_style_weight,
+    calculate_font_similarity,
+    find_similar_font,
+    validate_font_file,
+)
 
 
 class TestFontMetadata:
@@ -342,7 +348,6 @@ class TestFontUtils:
 
     def test_font_info_fallback(self):
         """Test fallback font info extraction."""
-        from src.anonymizer.fonts.utils import _get_font_info_fallback
 
         # Test with standard font filename
         font_info = _get_font_info_fallback("/path/to/Arial-Bold.ttf")
@@ -354,7 +359,6 @@ class TestFontUtils:
 
     def test_parse_style_weight(self):
         """Test style and weight parsing."""
-        from src.anonymizer.fonts.utils import _parse_style_weight
 
         # Test normal style
         style, weight = _parse_style_weight("Regular")
@@ -439,7 +443,6 @@ class TestFontUtils:
 
     def test_validate_font_file(self):
         """Test font file validation."""
-        from src.anonymizer.fonts.utils import validate_font_file
 
         # Test with invalid extension - should return False immediately
         assert validate_font_file("notafont.txt") is False

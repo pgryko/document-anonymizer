@@ -167,7 +167,7 @@ def anonymize(config, image, output):
         engine = InferenceEngine(config.engine)
 
         # Read input image
-        with open(image, "rb") as f:
+        with Path(image).open("rb") as f:
             image_data = f.read()
 
         # Anonymize the image
@@ -325,7 +325,7 @@ def batch_status(result_file, output_dir):
             # Load and display result from JSON file
             import json
 
-            with open(result_file) as f:
+            with Path(result_file).open() as f:
                 result_data = json.load(f)
 
             print("Batch Processing Results")

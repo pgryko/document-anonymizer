@@ -7,7 +7,7 @@ Manages a registry of available models for document anonymization.
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .config import ModelFormat, ModelMetadata, ModelSource, ModelType
@@ -141,7 +141,7 @@ class ModelRegistry:
             data = {
                 "models": [],
                 "metadata": [],
-                "last_updated": datetime.now().isoformat(),
+                "last_updated": datetime.now(UTC).isoformat(),
             }
 
             # Save custom models (not predefined ones)
@@ -313,13 +313,13 @@ class ModelRegistry:
         metadata = self.get_metadata(name)
         if metadata:
             metadata.usage_count += 1
-            metadata.last_used = datetime.now().isoformat()
+            metadata.last_used = datetime.now(UTC).isoformat()
             self._save_registry()
 
     def cleanup_unused_models(self, days_threshold: int = 30) -> list[str]:
         """Identify models not used in specified days."""
         unused_models = []
-        cutoff_date = datetime.now().timestamp() - (days_threshold * 24 * 3600)
+        cutoff_date = datetime.now(UTC).timestamp() - (days_threshold * 24 * 3600)
 
         for name, metadata in self._metadata.items():
             if metadata.last_used:
@@ -340,7 +340,7 @@ class ModelRegistry:
         """Export current registry to a file."""
         try:
             data = {
-                "exported_date": datetime.now().isoformat(),
+                "exported_date": datetime.now(UTC).isoformat(),
                 "models": [
                     {
                         "name": source.name,

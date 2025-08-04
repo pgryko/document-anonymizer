@@ -70,7 +70,7 @@ class TestCLIIntegration:
         }
 
         config_path = temp_config_dir / "vae_test_config.yaml"
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             yaml.dump(config, f)
 
         return config_path
@@ -102,7 +102,7 @@ class TestCLIIntegration:
         }
 
         config_path = temp_config_dir / "unet_test_config.yaml"
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             yaml.dump(config, f)
 
         return config_path
@@ -133,7 +133,7 @@ class TestCLIIntegration:
         }
 
         config_path = temp_config_dir / "app_test_config.yaml"
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             yaml.dump(config, f)
 
         return config_path
@@ -300,7 +300,7 @@ class TestCLIIntegration:
         }
 
         config_path = temp_config_dir / "incomplete_config.yaml"
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             yaml.dump(invalid_config, f)
 
         result = runner.invoke(cli, ["train-vae", "--config", str(config_path)])
@@ -501,7 +501,7 @@ class TestCLIConfigCompatibility:
         }
 
         config_path = temp_config_dir / "schema_invalid_config.yaml"
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             yaml.dump(invalid_config, f)
 
         result = runner.invoke(cli, ["train-vae", "--config", str(config_path)])

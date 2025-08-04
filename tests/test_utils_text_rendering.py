@@ -75,15 +75,17 @@ class TestFontManager:
         """Test fallback to PIL default font when all TrueType fonts fail."""
         font_manager = FontManager()
 
-        with patch.object(font_manager, "_try_load_font", return_value=None):
-            with patch("PIL.ImageFont.load_default") as mock_default:
-                mock_default_font = Mock()
-                mock_default.return_value = mock_default_font
+        with (
+            patch.object(font_manager, "_try_load_font", return_value=None),
+            patch("PIL.ImageFont.load_default") as mock_default,
+        ):
+            mock_default_font = Mock()
+            mock_default.return_value = mock_default_font
 
-                font = font_manager.get_font("NonExistent.ttf", 32)
+            font = font_manager.get_font("NonExistent.ttf", 32)
 
-                assert font == mock_default_font
-                mock_default.assert_called_once()
+            assert font == mock_default_font
+            mock_default.assert_called_once()
 
     def test_try_load_font_successful(self):
         """Test successful font loading."""
@@ -254,9 +256,11 @@ class TestTextRenderer:
         """Test error handling in text rendering."""
         renderer = TextRenderer()
 
-        with patch("PIL.Image.new", side_effect=Exception("PIL error")):
-            with pytest.raises(PreprocessingError, match="Text rendering failed"):
-                renderer.render_text("Test")
+        with (
+            patch("PIL.Image.new", side_effect=Exception("PIL error")),
+            pytest.raises(PreprocessingError, match="Text rendering failed"),
+        ):
+            renderer.render_text("Test")
 
     def test_render_text_long_text_warning(self):
         """Test warning for text that may not fit."""

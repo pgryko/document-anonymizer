@@ -18,7 +18,12 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from src.anonymizer.core.exceptions import ProcessingError, ValidationError
+from src.anonymizer.core.exceptions import (
+    DuplicateItemError,
+    EmptyBatchError,
+    InputFileNotFoundError,
+    NoImageFilesError,
+)
 from src.anonymizer.core.models import (
     BatchAnonymizationRequest,
     BatchAnonymizationResult,
@@ -270,17 +275,17 @@ class BatchProcessor:
     def _validate_request(self, request: BatchAnonymizationRequest) -> None:
         """Validate batch request."""
         if not request.items:
-            raise ValidationError("No items to process")
+            raise EmptyBatchError()
 
         # Check for duplicate item IDs
         item_ids = [item.item_id for item in request.items]
         if len(item_ids) != len(set(item_ids)):
-            raise ValidationError("Duplicate item IDs found")
+            raise DuplicateItemError()
 
         # Validate input files exist
         for item in request.items:
             if not item.image_path.exists():
-                raise ProcessingError(f"Input file not found: {item.image_path}")
+                raise InputFileNotFoundError(str(item.image_path))
 
     def _prepare_output_directory(self, output_dir: Path) -> None:
         """Prepare output directory."""
@@ -518,7 +523,7 @@ def create_batch_from_directory(
         image_files.extend(files)
 
     if not image_files:
-        raise ValidationError(f"No image files found in {input_dir}")
+        raise NoImageFilesError(str(input_dir))
 
     # Create batch items
     items = []

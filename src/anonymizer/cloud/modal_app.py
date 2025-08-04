@@ -9,6 +9,7 @@ import torch
 import yaml
 
 from src.anonymizer.core.config import UNetConfig, VAEConfig
+from src.anonymizer.core.exceptions import ModalNotAvailableError
 from src.anonymizer.training import UNetTrainer, VAETrainer
 from src.anonymizer.training.datasets import create_dataloader
 
@@ -347,10 +348,10 @@ else:
     train_vae = None
     train_unet = None
 
-    def _modal_not_available(*args, **kwargs):
-        raise ImportError("Modal not available. Install with: pip install modal")
+    def _modal_not_available(*args, **kwargs):  # noqa: ARG001
+        raise ModalNotAvailableError()
 
     if app is None:
-        app = type("DummyApp", (), {"function": lambda *args, **kwargs: _modal_not_available})()
+        app = type("DummyApp", (), {"function": lambda *_args, **_kwargs: _modal_not_available()})()
         train_vae = _modal_not_available
         train_unet = _modal_not_available

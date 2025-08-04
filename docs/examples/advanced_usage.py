@@ -13,11 +13,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import cv2
 import numpy as np
 
 from src.anonymizer import AnonymizationConfig, DocumentAnonymizer
 from src.anonymizer.core.models import BoundingBox
-from src.anonymizer.ocr import DetectedText, OCREngine, OCRResult
+from src.anonymizer.ocr import DetectedText, OCREngine, OCRProcessor, OCRResult
 from src.anonymizer.performance import AnonymizationBenchmark, PerformanceMonitor
 
 
@@ -72,7 +73,6 @@ class CustomAnonymizationStrategy:
         """
         Apply Gaussian blur to the specified region.
         """
-        import cv2
 
         # Extract region
         y1, y2 = bbox.top, bbox.bottom
@@ -112,7 +112,6 @@ class AdvancedDocumentProcessor:
         """
         Process document using custom OCR engine.
         """
-        from src.anonymizer.ocr import OCRProcessor
 
         # Create custom OCR configuration
         custom_ocr_config = {"custom_param": "value"}
@@ -194,16 +193,16 @@ class AdvancedDocumentProcessor:
             )
             simple_anonymizer = DocumentAnonymizer(simple_config)
             result = simple_anonymizer.anonymize_document(document_path, output_path)
-
+        except Exception as e:
+            self.logger.exception("All processing strategies failed")
+            return {"strategy": "failed", "success": False, "error": str(e)}
+        else:
             return {
                 "strategy": "simple_redaction",
                 "success": result.success,
                 "confidence": result.average_confidence if result.success else 0,
                 "entities": result.entities_anonymized if result.success else 0,
             }
-        except Exception as e:
-            self.logger.exception("All processing strategies failed")
-            return {"strategy": "failed", "success": False, "error": str(e)}
 
 
 class BatchProcessingPipeline:
@@ -394,10 +393,10 @@ class SmartConfigurationManager:
             )
 
             doc.close()
-            return characteristics
-
         except Exception as e:
             return {"error": str(e)}
+        else:
+            return characteristics
 
     def recommend_configuration(self, document_path: str) -> AnonymizationConfig:
         """
@@ -509,10 +508,10 @@ class QualityAssuranceFramework:
             doc = fitz.open(file_path)
             page_count = len(doc)
             doc.close()
-
-            return {"status": "pass", "page_count": page_count, "readable": True}
         except Exception as e:
             return {"status": "fail", "error": str(e), "readable": False}
+        else:
+            return {"status": "pass", "page_count": page_count, "readable": True}
 
     def _check_pii_leakage(self, file_path: str, anonymization_result: Any) -> dict[str, Any]:
         """

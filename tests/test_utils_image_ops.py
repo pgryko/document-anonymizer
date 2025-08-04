@@ -83,9 +83,11 @@ class TestImageProcessor:
         # Use a smaller array but with patch to simulate memory limit
         image = np.zeros((1000, 1000, 3), dtype=np.float64)  # Should be fine normally
 
-        with patch.object(ImageProcessor, "MAX_MEMORY_BYTES", 1000):  # Very small limit
-            with pytest.raises(ValidationError, match="Image too large in memory"):
-                ImageProcessor.validate_image_array(image)
+        with (
+            patch.object(ImageProcessor, "MAX_MEMORY_BYTES", 1000),  # Very small limit
+            pytest.raises(ValidationError, match="Image too large in memory"),
+        ):
+            ImageProcessor.validate_image_array(image)
 
     def test_safe_resize_scale_down(self):
         """Test safe resizing with scale down."""

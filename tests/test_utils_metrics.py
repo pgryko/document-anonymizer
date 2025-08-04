@@ -276,50 +276,58 @@ class TestTimerContextManager:
 
     def test_timer_basic_usage(self):
         """Test basic timer usage."""
-        with patch("time.time", side_effect=[0.0, 0.1]):  # 100ms duration
-            with patch("src.anonymizer.utils.metrics.logger") as mock_logger:
-                with timer():
-                    pass  # Simulate work
+        with (
+            patch("time.time", side_effect=[0.0, 0.1]),  # 100ms duration
+            patch("src.anonymizer.utils.metrics.logger") as mock_logger,
+        ):
+            with timer():
+                pass  # Simulate work
 
-                # Should log the duration
-                mock_logger.debug.assert_called_once()
-                log_message = mock_logger.debug.call_args[0][0]
-                assert "100.00ms" in log_message
+            # Should log the duration
+            mock_logger.debug.assert_called_once()
+            log_message = mock_logger.debug.call_args[0][0]
+            assert "100.00ms" in log_message
 
     def test_timer_with_exception(self):
         """Test timer behavior when exception occurs."""
-        with patch("time.time", side_effect=[0.0, 0.05]):  # 50ms duration
-            with patch("src.anonymizer.utils.metrics.logger") as mock_logger:
-                try:
-                    with timer():
-                        raise ValueError("Test error")
-                except ValueError:
-                    pass
+        with (
+            patch("time.time", side_effect=[0.0, 0.05]),  # 50ms duration
+            patch("src.anonymizer.utils.metrics.logger") as mock_logger,
+        ):
+            try:
+                with timer():
+                    raise ValueError("Test error")
+            except ValueError:
+                pass
 
-                # Should still log duration despite exception
-                mock_logger.debug.assert_called_once()
-                log_message = mock_logger.debug.call_args[0][0]
-                assert "50.00ms" in log_message
+            # Should still log duration despite exception
+            mock_logger.debug.assert_called_once()
+            log_message = mock_logger.debug.call_args[0][0]
+            assert "50.00ms" in log_message
 
     def test_timer_zero_duration(self):
         """Test timer with zero duration."""
-        with patch("time.time", side_effect=[1.0, 1.0]):  # Same time
-            with patch("src.anonymizer.utils.metrics.logger") as mock_logger:
-                with timer():
-                    pass
+        with (
+            patch("time.time", side_effect=[1.0, 1.0]),  # Same time
+            patch("src.anonymizer.utils.metrics.logger") as mock_logger,
+        ):
+            with timer():
+                pass
 
-                log_message = mock_logger.debug.call_args[0][0]
-                assert "0.00ms" in log_message
+            log_message = mock_logger.debug.call_args[0][0]
+            assert "0.00ms" in log_message
 
     def test_timer_long_duration(self):
         """Test timer with long duration."""
-        with patch("time.time", side_effect=[0.0, 2.5]):  # 2.5 seconds
-            with patch("src.anonymizer.utils.metrics.logger") as mock_logger:
-                with timer():
-                    pass
+        with (
+            patch("time.time", side_effect=[0.0, 2.5]),  # 2.5 seconds
+            patch("src.anonymizer.utils.metrics.logger") as mock_logger,
+        ):
+            with timer():
+                pass
 
-                log_message = mock_logger.debug.call_args[0][0]
-                assert "2500.00ms" in log_message
+            log_message = mock_logger.debug.call_args[0][0]
+            assert "2500.00ms" in log_message
 
 
 class TestCalculateSimilarityMetrics:
@@ -497,22 +505,24 @@ class TestMetricsIntegration:
         collector = MetricsCollector(enabled=True)
         collector._metrics_backend = "logging"
 
-        with patch.object(collector, "_record_logging_metrics") as mock_record:
-            with patch("time.time", side_effect=[0.0, 0.15]):  # 150ms
-                with timer():
-                    # Simulate inference
-                    pred = torch.randn(1, 3, 64, 64, device=device)
-                    target = torch.randn(1, 3, 64, 64, device=device)
-                    calculate_similarity_metrics(pred, target)
+        with (
+            patch.object(collector, "_record_logging_metrics") as mock_record,
+            patch("time.time", side_effect=[0.0, 0.15]),  # 150ms
+        ):
+            with timer():
+                # Simulate inference
+                pred = torch.randn(1, 3, 64, 64, device=device)
+                target = torch.randn(1, 3, 64, 64, device=device)
+                calculate_similarity_metrics(pred, target)
 
-                # Record the timing
-                collector.record_inference_metrics(150.0, True)
+            # Record the timing
+            collector.record_inference_metrics(150.0, True)
 
-                # Should have called _record_logging_metrics with inference metrics
-                mock_record.assert_called_once()
-                call_args = mock_record.call_args[0]
-                metrics = call_args[0]
-                assert metrics["processing_time_ms"] == 150.0
+            # Should have called _record_logging_metrics with inference metrics
+            mock_record.assert_called_once()
+            call_args = mock_record.call_args[0]
+            metrics = call_args[0]
+            assert metrics["processing_time_ms"] == 150.0
 
     def test_disabled_metrics_performance(self):
         """Test that disabled metrics don't impact performance."""

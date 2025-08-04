@@ -6,7 +6,9 @@ Tests the complete anonymization workflow from image input to anonymized output.
 Validates the integration between NER, diffusion models, and image processing.
 """
 
+import gc
 import logging
+import os
 import tempfile
 import time
 from pathlib import Path
@@ -290,8 +292,6 @@ class TestE2EAnonymization:
     def test_memory_cleanup(self, engine_config, sample_document_image):
         """Test that memory is properly cleaned up after processing."""
         pytest.skip("Heavy integration test - requires model downloads")
-        import gc
-        import os
 
         import psutil
 

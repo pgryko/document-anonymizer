@@ -214,8 +214,8 @@ class ResourceMonitor:
         try:
             self._baseline_disk_io = self.process.io_counters()
             self._baseline_network = psutil.net_io_counters()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to reset monitoring baselines: {e}")
 
         # Start monitoring thread
         self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)

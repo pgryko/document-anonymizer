@@ -2,6 +2,7 @@
 Pytest configuration and fixtures for document anonymization tests.
 """
 
+import io
 import json
 import tempfile
 from pathlib import Path
@@ -84,7 +85,6 @@ def sample_anonymization_request(sample_image, sample_text_region):
     """Create sample anonymization request."""
     # Convert image to bytes
     pil_image = Image.fromarray(sample_image)
-    import io
 
     buffer = io.BytesIO()
     pil_image.save(buffer, format="PNG")
@@ -132,7 +132,7 @@ def mock_dataset_dir(temp_dir, sample_image, sample_text_region):
     }
 
     annotation_path = temp_dir / "sample_image.json"
-    with open(annotation_path, "w") as f:
+    with annotation_path.open("w") as f:
         json.dump(annotation_data, f, indent=2)
 
     return temp_dir

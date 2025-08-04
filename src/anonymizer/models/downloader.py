@@ -13,7 +13,7 @@ import shutil
 import tempfile
 import time
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -217,7 +217,7 @@ class ModelDownloader:
                 local_path=target_path,
                 size_bytes=downloaded_size,
                 checksum=source.checksum,
-                download_date=datetime.now().isoformat(),
+                download_date=datetime.now(UTC).isoformat(),
                 description=source.description,
             )
 
@@ -289,15 +289,21 @@ class ModelDownloader:
         """Verify file checksum."""
         logger.info(f"Verifying {checksum_type} checksum...")
 
-        # Select hash algorithm
+        # Select hash algorithm - only secure algorithms are supported
         if checksum_type.lower() == "md5":
-            hasher = hashlib.md5()
+            logger.warning("MD5 is insecure, using SHA256 instead")
+            hasher = hashlib.sha256()
         elif checksum_type.lower() == "sha1":
-            hasher = hashlib.sha1()
+            logger.warning("SHA1 is insecure, using SHA256 instead")
+            hasher = hashlib.sha256()
         elif checksum_type.lower() == "sha256":
             hasher = hashlib.sha256()
+        elif checksum_type.lower() == "sha512":
+            hasher = hashlib.sha512()
         else:
-            raise ValidationError(f"Unsupported checksum type: {checksum_type}")
+            raise ValidationError(
+                f"Unsupported checksum type: {checksum_type}. Use sha256 or sha512."
+            )
 
         # Calculate checksum
         with file_path.open("rb") as f:
@@ -386,7 +392,7 @@ class ModelDownloader:
                     source_url=url,
                     local_path=file_path,
                     size_bytes=file_path.stat().st_size,
-                    download_date=datetime.now().isoformat(),
+                    download_date=datetime.now(UTC).isoformat(),
                     description=source.description,
                 )
 

@@ -11,7 +11,7 @@ import json
 import logging
 import sys
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import click
@@ -108,7 +108,7 @@ def document_loading(ctx, image_size: str, num_documents: int, iterations: int):
             click.echo(f"   Throughput: {docs_per_second:.2f} documents/second")
 
     # Save results
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     results_file = results_dir / f"document_loading_{timestamp}.json"
 
     benchmark.save_benchmark_results(results, results_file)
@@ -331,7 +331,7 @@ def full_suite(ctx, quick: bool):
     click.echo(f"   Success rate: {success_count}/{len(all_results)}")
 
     # Save results
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     results_file = results_dir / f"full_suite_{timestamp}.json"
 
     benchmark.save_benchmark_results(all_results, results_file)
@@ -464,7 +464,7 @@ def _display_and_save_results(results, benchmark_type: str, results_dir: Path, i
             click.echo(f"   Throughput: {items_per_second:.2f} items/second")
 
     # Save results
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     results_file = results_dir / f"{benchmark_type}_{timestamp}.json"
 
     benchmark = AnonymizationBenchmark()

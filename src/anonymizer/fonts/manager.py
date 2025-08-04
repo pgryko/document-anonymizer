@@ -9,7 +9,6 @@ to ensure consistent text rendering during anonymization.
 import hashlib
 import json
 import logging
-import os
 import shutil
 from pathlib import Path
 
@@ -240,11 +239,11 @@ class FontManager:
                 checksum = hashlib.sha256(f.read()).hexdigest()
 
             # Get file size
-            size_bytes = os.path.getsize(font_path)
+            size_bytes = Path(font_path).stat().st_size
 
             # Create metadata
             return FontMetadata(
-                name=font_info.get("name", os.path.basename(font_path)),
+                name=font_info.get("name", Path(font_path).name),
                 family=font_info.get("family", "Unknown"),
                 style=font_info.get("style", "normal"),
                 weight=font_info.get("weight", 400),
@@ -330,7 +329,7 @@ class FontManager:
             stats["fonts_checked"] += 1
 
             # Check if file exists
-            if not os.path.exists(font.path):
+            if not Path(font.path).exists():
                 stats["missing_files"] += 1
                 missing_files.append(font.name)
                 continue

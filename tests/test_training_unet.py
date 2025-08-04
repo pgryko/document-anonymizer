@@ -50,14 +50,16 @@ class TestTextRenderer:
 
     def test_text_renderer_font_loading_fallback(self):
         """Test font loading with fallback to default."""
-        with patch("PIL.ImageFont.truetype", side_effect=OSError):
-            with patch("PIL.ImageFont.load_default") as mock_default:
-                mock_default.return_value = Mock()
+        with (
+            patch("PIL.ImageFont.truetype", side_effect=OSError),
+            patch("PIL.ImageFont.load_default") as mock_default,
+        ):
+            mock_default.return_value = Mock()
 
-                TextRenderer()
+            TextRenderer()
 
-                # Should fallback to default font
-                mock_default.assert_called()
+            # Should fallback to default font
+            mock_default.assert_called()
 
 
 class TestUNetTrainer:

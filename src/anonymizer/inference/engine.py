@@ -353,7 +353,7 @@ class InferenceEngine:
                 base_dir.mkdir(parents=True, exist_ok=True)
 
                 # Set secure permissions (owner only)
-                os.chmod(str(base_dir), stat.S_IRWXU)  # 0o700
+                base_dir.chmod(stat.S_IRWXU)  # 0o700
 
                 # Test if we can create files in this directory
                 test_file = base_dir / "test_write_access"
@@ -671,9 +671,7 @@ class InferenceEngine:
                 suffix=".png", delete=False, dir=secure_temp_dir, mode="wb"
             ) as tmp_file:
                 # Set secure permissions (owner read/write only)
-                import os
-
-                os.chmod(tmp_file.name, 0o600)
+                Path(tmp_file.name).chmod(0o600)
                 tmp_file.write(image_data)
                 tmp_path = Path(tmp_file.name)
 

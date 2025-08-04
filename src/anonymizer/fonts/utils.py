@@ -6,8 +6,8 @@ Utility functions for font detection, analysis, and manipulation.
 """
 
 import logging
-import os
 import re
+from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
@@ -84,8 +84,8 @@ def _get_font_name(name_table, name_id: int) -> str | None:
             if record.nameID == name_id:
                 return str(record)
 
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Failed to extract font name (ID {name_id}): {e}")
 
     return None
 
@@ -122,8 +122,7 @@ def _get_font_info_freetype(font_path: str) -> dict[str, Any] | None:
 def _get_font_info_fallback(font_path: str) -> dict[str, Any] | None:
     """Fallback font info extraction from filename."""
     try:
-        filename = os.path.basename(font_path)
-        name_without_ext = os.path.splitext(filename)[0]
+        name_without_ext = Path(font_path).stem
 
         # Try to parse family and style from filename
         # Common patterns: FontFamily-Style.ttf, FontFamily_Style.ttf, FontFamilyStyle.ttf
@@ -464,11 +463,11 @@ def validate_font_file(font_path: str) -> bool:
     """
     try:
         # Check if file exists
-        if not os.path.exists(font_path):
+        if not Path(font_path).exists():
             return False
 
         # Check file extension
-        ext = os.path.splitext(font_path)[1].lower()
+        ext = Path(font_path).suffix.lower()
         valid_extensions = {".ttf", ".otf", ".woff", ".woff2", ".ttc", ".otc"}
 
         if ext not in valid_extensions:

@@ -7,6 +7,12 @@ from typing import Any
 import numpy as np
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
+from .exceptions import (
+    BottomNotGreaterThanTopError,
+    InvalidStyleError,
+    RightNotGreaterThanLeftError,
+)
+
 
 class BoundingBox(BaseModel):
     """Bounding box coordinates."""
@@ -20,14 +26,14 @@ class BoundingBox(BaseModel):
     @classmethod
     def right_greater_than_left(cls, v: int, info: ValidationInfo) -> int:
         if info.data and "left" in info.data and v <= info.data["left"]:
-            raise ValueError("right must be greater than left")
+            raise RightNotGreaterThanLeftError()
         return v
 
     @field_validator("bottom")
     @classmethod
     def bottom_greater_than_top(cls, v: int, info: ValidationInfo) -> int:
         if info.data and "top" in info.data and v <= info.data["top"]:
-            raise ValueError("bottom must be greater than top")
+            raise BottomNotGreaterThanTopError()
         return v
 
     def scale(self, factor: float) -> "BoundingBox":
@@ -248,7 +254,7 @@ class FontInfo(BaseModel):
     def validate_style(cls, v):
         valid_styles = {"normal", "bold", "italic", "bold-italic"}
         if v not in valid_styles:
-            raise ValueError(f"Style must be one of {valid_styles}")
+            raise InvalidStyleError(valid_styles)
         return v
 
     def to_dict(self) -> dict[str, Any]:

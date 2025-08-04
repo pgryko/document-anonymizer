@@ -220,7 +220,7 @@ def train_vae(config, data_path, output_dir, env_file):
             import os
 
             # Load environment variables from file
-            with open(env_file) as f:
+            with Path(env_file).open() as f:
                 for line in f:
                     if line.strip() and not line.startswith("#"):
                         key, value = line.strip().split("=", 1)
@@ -275,7 +275,7 @@ def train_unet(config, data_path, output_dir, env_file):
             import os
 
             # Load environment variables from file
-            with open(env_file) as f:
+            with Path(env_file).open() as f:
                 for line in f:
                     if line.strip() and not line.startswith("#"):
                         key, value = line.strip().split("=", 1)
@@ -337,7 +337,7 @@ def train_both(vae_config, unet_config, data_path, output_dir, env_file, sequent
             import os
 
             # Load environment variables from file
-            with open(env_file) as f:
+            with Path(env_file).open() as f:
                 for line in f:
                     if line.strip() and not line.startswith("#"):
                         key, value = line.strip().split("=", 1)
@@ -399,7 +399,7 @@ def validate_config(config, model_type, env_file):
             import os
 
             # Load environment variables from file
-            with open(env_file) as f:
+            with Path(env_file).open() as f:
                 for line in f:
                     if line.strip() and not line.startswith("#"):
                         key, value = line.strip().split("=", 1)

@@ -2,8 +2,8 @@
 Font data models and types.
 """
 
-import os
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
@@ -23,12 +23,12 @@ class FontMetadata:
     @property
     def filename(self) -> str:
         """Get the font filename."""
-        return os.path.basename(self.path)
+        return Path(self.path).name
 
     @property
     def extension(self) -> str:
         """Get the font file extension."""
-        return os.path.splitext(self.path)[1].lower()
+        return Path(self.path).suffix.lower()
 
     def __str__(self) -> str:
         return f"{self.family} {self.style} ({self.name})"

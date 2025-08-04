@@ -8,6 +8,9 @@ These fonts ensure consistent rendering across different systems.
 
 import hashlib
 import logging
+import tempfile
+import urllib.request
+import zipfile
 from pathlib import Path
 
 from .models import FontMetadata
@@ -133,9 +136,6 @@ class BundledFontProvider:
 
     def _download_font(self, font_file: str, source_info: dict[str, str]) -> None:
         """Download a single font file."""
-        import tempfile
-        import urllib.request
-        import zipfile
 
         font_path = self.bundled_fonts_dir / font_file
 

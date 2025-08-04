@@ -9,6 +9,7 @@ Handles detection and loading of fonts from standard system locations.
 import logging
 import os
 import platform
+import shutil
 from pathlib import Path
 
 from .manager import FontMetadata
@@ -125,7 +126,7 @@ class SystemFontProvider:
             checksum = self._calculate_lightweight_checksum(font_path)
 
             # Get file size
-            size_bytes = os.path.getsize(font_path)
+            size_bytes = Path(font_path).stat().st_size
 
             return FontMetadata(
                 name=font_info["name"],
@@ -149,12 +150,16 @@ class SystemFontProvider:
 
         try:
             # For system fonts, use file size + modification time as a lightweight checksum
-            stat = os.stat(font_path)
-            checksum_data = f"{stat.st_size}_{stat.st_mtime}_{os.path.basename(font_path)}"
-            return hashlib.md5(checksum_data.encode()).hexdigest()
+            stat = Path(font_path).stat()
+            checksum_data = f"{stat.st_size}_{stat.st_mtime}_{Path(font_path).name}"
+            return hashlib.sha256(checksum_data.encode()).hexdigest()[
+                :16
+            ]  # Truncate for lightweight usage
         except Exception:
             # Fallback to filename hash
-            return hashlib.md5(os.path.basename(font_path).encode()).hexdigest()
+            return hashlib.sha256(Path(font_path).name.encode()).hexdigest()[
+                :16
+            ]  # Truncate for lightweight usage
 
     def find_font(self, font_name: str, style: str = "normal") -> FontMetadata | None:
         """
@@ -194,15 +199,13 @@ class SystemFontProvider:
                     # Check if this matches our font
                     if font_name.lower() in value_name.lower():
                         font_path = value_data
-                        if not os.path.isabs(font_path):
+                        if not Path(font_path).is_absolute():
                             # Relative path, make absolute
-                            font_path = os.path.join(
-                                os.environ.get("WINDIR", "C:\\Windows"),
-                                "Fonts",
-                                font_path,
+                            font_path = str(
+                                Path(os.environ.get("WINDIR", "C:\\Windows")) / "Fonts" / font_path
                             )
 
-                        if os.path.exists(font_path):
+                        if Path(font_path).exists():
                             return self._create_font_metadata(font_path)
 
                     index += 1
@@ -225,8 +228,13 @@ class SystemFontProvider:
             import subprocess
 
             # Use system_profiler to get font information
+            system_profiler_path = shutil.which("system_profiler")
+            if not system_profiler_path:
+                logger.warning("system_profiler not found in PATH")
+                return None
+
             result = subprocess.run(
-                ["system_profiler", "SPFontsDataType", "-json"],
+                [system_profiler_path, "SPFontsDataType", "-json"],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -249,8 +257,13 @@ class SystemFontProvider:
             import subprocess
 
             # Use fc-match to find font
+            fc_match_path = shutil.which("fc-match")
+            if not fc_match_path:
+                logger.warning("fc-match not found in PATH")
+                return None
+
             result = subprocess.run(
-                ["fc-match", f"{font_name}:style={style}", "--format=%{file}"],
+                [fc_match_path, f"{font_name}:style={style}", "--format=%{file}"],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -259,7 +272,7 @@ class SystemFontProvider:
 
             if result.returncode == 0:
                 font_path = result.stdout.strip()
-                if os.path.exists(font_path):
+                if Path(font_path).exists():
                     return self._create_font_metadata(font_path)
 
         except Exception as e:
@@ -296,14 +309,22 @@ class SystemFontProvider:
                 # Refresh fontconfig cache
                 import subprocess
 
-                subprocess.run(["fc-cache", "-f"], timeout=30, check=False)
+                fc_cache_path = shutil.which("fc-cache")
+                if fc_cache_path:
+                    subprocess.run([fc_cache_path, "-f"], timeout=30, check=False)
+                else:
+                    logger.warning("fc-cache not found in PATH")
                 logger.info("Refreshed fontconfig cache")
 
             elif self.system == "darwin":
                 # Clear macOS font cache
                 import subprocess
 
-                subprocess.run(["atsutil", "databases", "-remove"], timeout=30, check=False)
+                atsutil_path = shutil.which("atsutil")
+                if atsutil_path:
+                    subprocess.run([atsutil_path, "databases", "-remove"], timeout=30, check=False)
+                else:
+                    logger.warning("atsutil not found in PATH")
                 logger.info("Cleared macOS font cache")
 
             elif self.system == "windows":

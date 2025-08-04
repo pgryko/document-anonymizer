@@ -1,5 +1,6 @@
 """Configuration management for the document anonymization system."""
 
+import logging
 import os
 import sys
 import tempfile
@@ -9,7 +10,25 @@ import yaml
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .exceptions import ConfigurationError, ValidationError
+from .exceptions import (
+    BetasValidationError,
+    ConfigFileNotFoundError,
+    ConfigLoadError,
+    EmptyConfigFileError,
+    EmptyCredentialError,
+    InvalidEndpointUrlError,
+    InvalidPathError,
+    InvalidYamlError,
+    PathDepthError,
+    PathNotAllowedError,
+    PathResolutionError,
+    PathSecurityError,
+    ShortCredentialError,
+    UnsupportedFileExtensionError,
+    ValidationError,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def validate_secure_path(
@@ -58,9 +77,7 @@ def validate_secure_path(
 
             for pattern in dangerous_patterns:
                 if pattern in path_str:
-                    raise ValidationError(
-                        f"Dangerous pattern '{pattern}' found in {field_name}: {path}"
-                    )
+                    raise PathSecurityError(field_name, pattern, str(path))
 
             # Return the path object for tests even if it doesn't exist
             return path_obj
@@ -69,7 +86,7 @@ def validate_secure_path(
         try:
             resolved_path = path_obj.resolve()
         except (OSError, RuntimeError) as e:
-            raise ValidationError(f"Path resolution failed for {field_name}: {e}")
+            raise PathResolutionError(field_name, str(e)) from e
 
         # Convert to string for pattern matching
         resolved_str = str(resolved_path)
@@ -85,9 +102,7 @@ def validate_secure_path(
 
         for pattern in dangerous_patterns:
             if pattern in resolved_str:
-                raise ValidationError(
-                    f"Dangerous pattern '{pattern}' found in {field_name}: {path}"
-                )
+                raise PathSecurityError(field_name, pattern, str(path))
 
         # Whitelist validation - only allow paths within specified base directories
         if allowed_base_dirs is None:
@@ -130,15 +145,12 @@ def validate_secure_path(
                 continue
 
         if not path_allowed:
-            raise ValidationError(
-                f"Path not within allowed directories for {field_name}: {resolved_path}. "
-                f"Allowed bases: {allowed_base_dirs}"
-            )
+            raise PathNotAllowedError(field_name, str(resolved_path), allowed_base_dirs)
 
         # Additional safety checks
         path_parts = resolved_path.parts
         if len(path_parts) > 15:  # Reasonable depth limit
-            raise ValidationError(f"Path depth too deep in {field_name}: {path}")
+            raise PathDepthError(field_name, str(path))
 
         # Check for symlinks to prevent bypass
         try:
@@ -158,7 +170,7 @@ def validate_secure_path(
     except Exception as e:
         if isinstance(e, ValidationError):
             raise
-        raise ValidationError(f"Invalid path in {field_name}: {e}")
+        raise InvalidPathError(field_name, str(e)) from e
     else:
         return path_obj
 
@@ -174,9 +186,7 @@ def validate_model_path(
 
     # Additional checks for model files
     if validated_path.suffix not in [".safetensors", ".bin", ".pt", ".pth", ""]:
-        raise ValidationError(
-            f"Unsupported model file extension in {field_name}: {validated_path.suffix}"
-        )
+        raise UnsupportedFileExtensionError(field_name, validated_path.suffix)
 
     return validated_path
 
@@ -200,7 +210,7 @@ class OptimizerConfig(BaseSettings):
     @classmethod
     def validate_betas(cls, v):
         if len(v) != 2 or not all(0.0 <= b < 1.0 for b in v):
-            raise ValueError("betas must be [beta1, beta2] with 0 <= beta < 1")
+            raise BetasValidationError()
         return v
 
 
@@ -468,9 +478,9 @@ class R2Config(BaseSettings):
     def validate_credentials(cls, v):
         """Validate credentials are not empty and meet basic requirements."""
         if not v or len(v.strip()) == 0:
-            raise ValueError("Credential cannot be empty")
+            raise EmptyCredentialError()
         if len(v.strip()) < 8:
-            raise ValueError("Credential too short")
+            raise ShortCredentialError()
         return v.strip()
 
     @field_validator("endpoint_url")
@@ -478,7 +488,7 @@ class R2Config(BaseSettings):
     def validate_endpoint_url(cls, v):
         """Validate endpoint URL format."""
         if not v.startswith(("https://", "http://")):
-            raise ValueError("Endpoint URL must start with https:// or http://")
+            raise InvalidEndpointUrlError()
         return v
 
     def __repr__(self) -> str:
@@ -599,12 +609,13 @@ class AppConfig(BaseSettings):
             if "R2_" in env_groups:
                 try:
                     self.r2 = R2Config(_env_file=env_file if env_file_exists else None)
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"Failed to load R2 config from environment: {e}")
                     self.r2 = None
 
-        except Exception:
+        except Exception as e:
             # If loading fails, keep the defaults
-            pass
+            logger.warning(f"Failed to load configuration from environment: {e}")
 
     @classmethod
     def load_from_env(cls, env_file: str | Path | None = ".env") -> "AppConfig":
@@ -657,14 +668,14 @@ def load_config_from_yaml(config_path: str | Path, config_class: type) -> BaseSe
     config_path = Path(config_path)
 
     if not config_path.exists():
-        raise ConfigurationError(f"Configuration file not found: {config_path}")
+        raise ConfigFileNotFoundError(str(config_path))
 
     try:
         with config_path.open() as f:
             config_data = yaml.safe_load(f)
 
         if config_data is None:
-            raise ConfigurationError(f"Empty configuration file: {config_path}")
+            raise EmptyConfigFileError(str(config_path))
 
         # For BaseSettings classes, we can pass the data directly
         # but we need to disable env file loading for this specific instance
@@ -681,9 +692,9 @@ def load_config_from_yaml(config_path: str | Path, config_class: type) -> BaseSe
         return config_class(**config_data)
 
     except yaml.YAMLError as e:
-        raise ConfigurationError(f"Invalid YAML in {config_path}: {e}")
+        raise InvalidYamlError(str(config_path), str(e)) from e
     except Exception as e:
-        raise ConfigurationError(f"Failed to load configuration: {e}")
+        raise ConfigLoadError(str(e)) from e
 
 
 # Add convenient methods to configuration classes
