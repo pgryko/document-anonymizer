@@ -183,7 +183,7 @@ class VAETrainer:
                 betas=optimizer_config.betas,
             )
         else:
-            raise UnsupportedOptimizerError()
+            raise UnsupportedOptimizerError(optimizer_config.type)
 
         logger.info(
             f"Optimizer setup: {optimizer_config.type} with LR {optimizer_config.learning_rate}"
@@ -257,7 +257,7 @@ class VAETrainer:
 
         # Validate loss values
         if torch.isnan(total_loss) or torch.isinf(total_loss):
-            raise InvalidLossDetectedError()
+            raise InvalidLossDetectedError(float(total_loss), float(recon_loss), float(kl_loss))
 
         return {
             "total_loss": total_loss,
@@ -314,7 +314,7 @@ class VAETrainer:
             )
 
         except Exception as e:
-            raise TrainingStepFailedError() from e
+            raise TrainingStepFailedError(str(e)) from e
 
     def validate(self, val_dataloader: DataLoader) -> dict[str, float]:
         """Run validation."""

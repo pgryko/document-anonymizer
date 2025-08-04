@@ -782,8 +782,8 @@ class ImageResizeError(ImageProcessingError):
 class ImagePadError(ImageProcessingError):
     """Exception raised when image padding fails."""
 
-    def __init__(self):
-        super().__init__("Failed to pad image")
+    def __init__(self, message: str = "Failed to pad image"):
+        super().__init__(message)
 
 
 class ImageCropError(ImageProcessingError):
@@ -810,8 +810,8 @@ class ImageRotationError(ImageProcessingError):
 class ChannelConversionError(ImageProcessingError):
     """Exception raised when channel conversion fails."""
 
-    def __init__(self):
-        super().__init__("Failed to convert image channels")
+    def __init__(self, message: str = "Failed to convert image channels"):
+        super().__init__(message)
 
 
 class CompressionError(ImageProcessingError):

@@ -10,7 +10,18 @@ import cv2
 import numpy as np
 import pytest
 
-from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
+from src.anonymizer.core.exceptions import (
+    CannotPadToSmallerSizeError,
+    ChannelConversionError,
+    ColorConversionChannelError,
+    ImageCropError,
+    ImageMemoryTooLargeError,
+    ImageResizeError,
+    ImageTooLargeError,
+    UnexpectedImageDtypeError,
+    UnexpectedImageShapeError,
+    ValidationError,
+)
 from src.anonymizer.utils.image_ops import ImageProcessor, safe_crop, safe_resize
 
 
@@ -45,7 +56,7 @@ class TestImageProcessor:
         """Test validation fails for non-numpy array."""
         image = [[1, 2, 3], [4, 5, 6]]  # List, not numpy array
 
-        with pytest.raises(ValidationError, match="Image must be numpy array"):
+        with pytest.raises(UnexpectedImageDtypeError, match="Unexpected image dtype"):
             ImageProcessor.validate_image_array(image)
 
     def test_validate_image_array_invalid_dimensions(self):
@@ -53,13 +64,13 @@ class TestImageProcessor:
         # 1D array
         image = np.random.randint(0, 255, (256,), dtype=np.uint8)
 
-        with pytest.raises(ValidationError, match="Invalid image shape"):
+        with pytest.raises(UnexpectedImageShapeError, match="Unexpected image shape"):
             ImageProcessor.validate_image_array(image)
 
         # 4D array
         image = np.random.randint(0, 255, (2, 256, 256, 3), dtype=np.uint8)
 
-        with pytest.raises(ValidationError, match="Invalid image shape"):
+        with pytest.raises(UnexpectedImageShapeError, match="Unexpected image shape"):
             ImageProcessor.validate_image_array(image)
 
     def test_validate_image_array_invalid_channels(self):
@@ -67,13 +78,13 @@ class TestImageProcessor:
         # 5 channels (invalid)
         image = np.random.randint(0, 255, (256, 256, 5), dtype=np.uint8)
 
-        with pytest.raises(ValidationError, match="Invalid number of channels"):
+        with pytest.raises(UnexpectedImageShapeError, match="Unexpected image shape"):
             ImageProcessor.validate_image_array(image)
 
     def test_validate_image_array_too_large_dimensions(self):
         """Test validation fails for too large images."""
         # Create image larger than MAX_DIMENSION (8192)
-        with pytest.raises(ValidationError, match="Image too large"):
+        with pytest.raises(ImageTooLargeError, match="Image too large"):
             # Don't actually create the large array to save memory
             ImageProcessor.validate_image_array(np.zeros((10000, 10000, 3), dtype=np.uint8))
 
@@ -85,7 +96,7 @@ class TestImageProcessor:
 
         with (
             patch.object(ImageProcessor, "MAX_MEMORY_BYTES", 1000),  # Very small limit
-            pytest.raises(ValidationError, match="Image too large in memory"),
+            pytest.raises(ImageMemoryTooLargeError, match="Image too large in memory"),
         ):
             ImageProcessor.validate_image_array(image)
 
@@ -131,7 +142,7 @@ class TestImageProcessor:
         image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
 
         # Try to scale by 10x (over the 4x limit)
-        with pytest.raises(PreprocessingError, match="Scale factor too large"):
+        with pytest.raises(ImageResizeError, match="Failed to resize image"):
             ImageProcessor.safe_resize(image, (1000, 1000), max_scale_factor=4.0)
 
     def test_safe_resize_output_too_large(self):
@@ -139,7 +150,7 @@ class TestImageProcessor:
         image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
 
         # Try to resize to larger than MAX_DIMENSION
-        with pytest.raises(PreprocessingError, match="Scale factor too large"):
+        with pytest.raises(ImageResizeError, match="Failed to resize image"):
             ImageProcessor.safe_resize(image, (10000, 10000))
 
     def test_safe_resize_memory_limit(self):
@@ -162,7 +173,7 @@ class TestImageProcessor:
 
         with (
             patch("cv2.resize", side_effect=cv2.error("OpenCV error")),
-            pytest.raises(PreprocessingError, match="OpenCV resize failed"),
+            pytest.raises(ImageResizeError, match="Failed to resize image"),
         ):
             ImageProcessor.safe_resize(image, (128, 128))
 
@@ -200,11 +211,11 @@ class TestImageProcessor:
         image = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
 
         # Zero width
-        with pytest.raises((ValidationError, PreprocessingError), match="Invalid crop size"):
+        with pytest.raises(ImageCropError, match="Failed to crop image"):
             ImageProcessor.safe_crop(image, 50, 50, 0, 100)
 
         # Negative height
-        with pytest.raises((ValidationError, PreprocessingError), match="Invalid crop size"):
+        with pytest.raises(ImageCropError, match="Failed to crop image"):
             ImageProcessor.safe_crop(image, 50, 50, 100, -50)
 
     def test_safe_crop_bounds_checking(self):
@@ -261,7 +272,7 @@ class TestImageProcessor:
         """Test that padding to smaller size is rejected."""
         image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
 
-        with pytest.raises(ValidationError, match="Cannot pad to smaller size"):
+        with pytest.raises(CannotPadToSmallerSizeError, match="Cannot pad to smaller size"):
             ImageProcessor._pad_image(image, 50, 50)
 
     def test_normalize_image_uint8_to_minus_one_one(self):
@@ -295,7 +306,7 @@ class TestImageProcessor:
         """Test normalization with invalid image."""
         image = [[1, 2, 3]]  # Not a numpy array
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(UnexpectedImageDtypeError):
             ImageProcessor.normalize_image(image)
 
     def test_convert_color_space_bgr_to_rgb(self):
@@ -344,14 +355,16 @@ class TestImageProcessor:
         # Try to convert grayscale with RGB conversion
         gray_image = np.random.randint(0, 255, (100, 100), dtype=np.uint8)
 
-        with pytest.raises(ValidationError, match="Color conversion requires 3-channel image"):
+        with pytest.raises(
+            ColorConversionChannelError, match="Color conversion requires correct channel count"
+        ):
             ImageProcessor.convert_color_space(gray_image, "BGR", "RGB")
 
     def test_convert_color_space_unsupported_conversion(self):
         """Test unsupported color space conversion."""
         rgb_image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
 
-        with pytest.raises((ValidationError, PreprocessingError), match="Unsupported conversion"):
+        with pytest.raises(ChannelConversionError, match="Failed to convert image channels"):
             ImageProcessor.convert_color_space(rgb_image, "RGB", "XYZ")
 
     def test_convert_color_space_opencv_error(self):
@@ -360,7 +373,7 @@ class TestImageProcessor:
 
         with (
             patch("cv2.cvtColor", side_effect=cv2.error("OpenCV error")),
-            pytest.raises(PreprocessingError, match="Color conversion failed"),
+            pytest.raises(ChannelConversionError, match="Failed to convert image channels"),
         ):
             ImageProcessor.convert_color_space(rgb_image, "RGB", "BGR")
 

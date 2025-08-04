@@ -108,6 +108,15 @@ class AnonymizationRequest(BaseModel):
     preserve_formatting: bool = Field(True, description="Preserve text formatting")
     quality_check: bool = Field(True, description="Enable quality verification")
 
+    @field_validator("text_regions")
+    @classmethod
+    def validate_text_regions(cls, v: list[TextRegion]) -> list[TextRegion]:
+        if len(v) == 0:
+            raise ValueError("At least one text region is required")
+        if len(v) > 50:
+            raise ValueError("Too many text regions (maximum 50)")
+        return v
+
     class Config:
         arbitrary_types_allowed = True
 

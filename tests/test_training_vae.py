@@ -14,7 +14,7 @@ from src.anonymizer.core.config import VAEConfig
 from src.anonymizer.core.exceptions import (
     ModelLoadError,
     TrainingError,
-    ValidationError,
+    UnsupportedOptimizerError,
 )
 from src.anonymizer.core.models import ModelArtifacts
 from src.anonymizer.training.vae_trainer import PerceptualLoss, VAETrainer
@@ -171,14 +171,14 @@ class TestVAETrainer:
         mock_vae = Mock()
         trainer.vae = mock_vae
 
-        with pytest.raises(ValidationError, match="Unsupported optimizer"):
+        with pytest.raises(UnsupportedOptimizerError, match="Unsupported optimizer"):
             trainer._setup_optimizer()
 
     def test_vae_trainer_setup_optimizer_without_vae(self, vae_config):
         """Test optimizer setup without VAE initialization."""
         trainer = VAETrainer(vae_config)
 
-        with pytest.raises(TrainingError, match="VAE must be initialized before optimizer"):
+        with pytest.raises(TrainingError, match="VAE not initialized"):
             trainer._setup_optimizer()
 
     def test_vae_trainer_compute_loss_critical_fix(self, vae_config, device):

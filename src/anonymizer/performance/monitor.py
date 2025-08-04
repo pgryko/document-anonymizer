@@ -123,7 +123,13 @@ class ResourceMonitor:
             logger.info("GPU monitoring not available")
 
         # Baseline measurements for deltas
-        self._baseline_disk_io = self.process.io_counters()
+        try:
+            self._baseline_disk_io = self.process.io_counters()
+        except AttributeError:
+            # io_counters not available on macOS
+            self._baseline_disk_io = None
+            logger.info("Process IO counters not available on this platform")
+
         self._baseline_network = psutil.net_io_counters()
 
         logger.info(f"ResourceMonitor initialized (interval: {sample_interval}s)")
@@ -156,13 +162,22 @@ class ResourceMonitor:
             memory_percent = self.process.memory_percent()
 
             # Disk I/O
-            current_disk_io = self.process.io_counters()
-            disk_read_mb = (current_disk_io.read_bytes - self._baseline_disk_io.read_bytes) / (
-                1024 * 1024
-            )
-            disk_write_mb = (current_disk_io.write_bytes - self._baseline_disk_io.write_bytes) / (
-                1024 * 1024
-            )
+            try:
+                current_disk_io = self.process.io_counters()
+                if self._baseline_disk_io:
+                    disk_read_mb = (
+                        current_disk_io.read_bytes - self._baseline_disk_io.read_bytes
+                    ) / (1024 * 1024)
+                    disk_write_mb = (
+                        current_disk_io.write_bytes - self._baseline_disk_io.write_bytes
+                    ) / (1024 * 1024)
+                else:
+                    disk_read_mb = 0.0
+                    disk_write_mb = 0.0
+            except AttributeError:
+                # io_counters not available on this platform
+                disk_read_mb = 0.0
+                disk_write_mb = 0.0
 
             # Network I/O
             current_network = psutil.net_io_counters()
@@ -233,7 +248,11 @@ class ResourceMonitor:
 
         # Reset baselines
         try:
-            self._baseline_disk_io = self.process.io_counters()
+            try:
+                self._baseline_disk_io = self.process.io_counters()
+            except AttributeError:
+                # io_counters not available on this platform
+                self._baseline_disk_io = None
             self._baseline_network = psutil.net_io_counters()
         except Exception as e:
             logger.warning(f"Failed to reset monitoring baselines: {e}")
