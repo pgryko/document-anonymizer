@@ -25,9 +25,9 @@ def reorganize_data():
         (vae_target / "val").mkdir(parents=True, exist_ok=True)
 
         # Load split files
-        with open(vae_source / "train_files.json") as f:
+        with (vae_source / "train_files.json").open() as f:
             train_files = json.load(f)
-        with open(vae_source / "val_files.json") as f:
+        with (vae_source / "val_files.json").open() as f:
             val_files = json.load(f)
 
         # Move train files
@@ -72,9 +72,9 @@ def reorganize_data():
         (unet_target / "val").mkdir(parents=True, exist_ok=True)
 
         # Load split files
-        with open(unet_source / "train_files.json") as f:
+        with (unet_source / "train_files.json").open() as f:
             train_files = json.load(f)
-        with open(unet_source / "val_files.json") as f:
+        with (unet_source / "val_files.json").open() as f:
             val_files = json.load(f)
 
         # Move train files
@@ -165,7 +165,7 @@ dataset = AnonymizerDataset(
 ```
 """
 
-    with open(target_dir / "README.md", "w") as f:
+    with (target_dir / "README.md").open("w") as f:
         f.write(readme_content)
 
     print(f"✓ Created README at {target_dir / 'README.md'}")

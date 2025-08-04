@@ -6,16 +6,19 @@ Tests the complete training pipeline including VAE trainer, UNet trainer,
 dataset loading, and model checkpointing functionality.
 """
 
+import gc
 import json
 import logging
 import os
 import tempfile
 from pathlib import Path
 
+import psutil
 import pytest
 import torch
 import yaml
-from PIL import Image
+from PIL import Image, ImageDraw
+from torch.utils.data import DataLoader, TensorDataset
 
 from src.anonymizer.core.config import DatasetConfig, UNetConfig, VAEConfig
 from src.anonymizer.core.exceptions import TrainingError
@@ -50,7 +53,6 @@ class TestTrainingPipelineIntegration:
 
             image = Image.new("RGB", (width, height), color="white")
             # Add some content to make it realistic
-            from PIL import ImageDraw
 
             draw = ImageDraw.Draw(image)
             draw.rectangle([50, 50, width - 50, height - 50], outline="black", width=2)
@@ -212,7 +214,6 @@ class TestTrainingPipelineIntegration:
             assert optimizer.param_groups[0]["lr"] == vae_config.learning_rate
 
             # Test scheduler setup (need a mock dataloader)
-            from torch.utils.data import DataLoader, TensorDataset
 
             mock_data = TensorDataset(torch.randn(4, 3, 256, 256))
             mock_dataloader = DataLoader(mock_data, batch_size=1)
@@ -406,9 +407,7 @@ class TestTrainingPipelineIntegration:
 
     def test_memory_cleanup(self, vae_config):
         """Test memory cleanup during training."""
-        import gc
 
-        import psutil
 
         trainer = VAETrainer(vae_config)
 
@@ -475,7 +474,6 @@ class TestTrainingPipelineIntegration:
             trainer.vae = trainer._initialize_vae()
 
             # Create mock validation dataloader
-            from torch.utils.data import DataLoader, TensorDataset
 
             val_data = TensorDataset(torch.randn(4, 3, 256, 256))
             val_dataloader = DataLoader(val_data, batch_size=1)

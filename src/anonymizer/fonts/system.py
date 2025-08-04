@@ -6,14 +6,23 @@ Provider for system fonts available on the local machine.
 Handles detection and loading of fonts from standard system locations.
 """
 
+import hashlib
+import json
 import logging
 import os
 import platform
 import shutil
+import subprocess
 from pathlib import Path
 
 from .manager import FontMetadata
 from .utils import get_font_info
+
+# Optional Windows dependency
+try:
+    import winreg
+except ImportError:
+    winreg = None
 
 logger = logging.getLogger(__name__)
 
@@ -146,8 +155,6 @@ class SystemFontProvider:
 
     def _calculate_lightweight_checksum(self, font_path: str) -> str:
         """Calculate a lightweight checksum for system fonts."""
-        import hashlib
-
         try:
             # For system fonts, use file size + modification time as a lightweight checksum
             stat = Path(font_path).stat()
@@ -179,10 +186,11 @@ class SystemFontProvider:
             return self._find_macos_font(font_name, style)
         return self._find_linux_font(font_name, style)
 
-    def _find_windows_font(self, font_name: str, style: str) -> FontMetadata | None:
+    def _find_windows_font(self, font_name: str, _style: str) -> FontMetadata | None:
         """Find font on Windows using registry."""
         try:
-            import winreg
+            if winreg is None:
+                return None
 
             # Open the font registry key
             font_key = winreg.OpenKey(
@@ -220,13 +228,10 @@ class SystemFontProvider:
 
         return None
 
-    def _find_macos_font(self, font_name: str, style: str) -> FontMetadata | None:
+    def _find_macos_font(self, font_name: str, _style: str) -> FontMetadata | None:
         """Find font on macOS using system font cache."""
         try:
             # Try using system font database
-            import json
-            import subprocess
-
             # Use system_profiler to get font information
             system_profiler_path = shutil.which("system_profiler")
             if not system_profiler_path:
@@ -254,8 +259,6 @@ class SystemFontProvider:
     def _find_linux_font(self, font_name: str, style: str) -> FontMetadata | None:
         """Find font on Linux using fontconfig."""
         try:
-            import subprocess
-
             # Use fc-match to find font
             fc_match_path = shutil.which("fc-match")
             if not fc_match_path:
@@ -307,8 +310,6 @@ class SystemFontProvider:
         try:
             if self.system == "linux":
                 # Refresh fontconfig cache
-                import subprocess
-
                 fc_cache_path = shutil.which("fc-cache")
                 if fc_cache_path:
                     subprocess.run([fc_cache_path, "-f"], timeout=30, check=False)
@@ -318,8 +319,6 @@ class SystemFontProvider:
 
             elif self.system == "darwin":
                 # Clear macOS font cache
-                import subprocess
-
                 atsutil_path = shutil.which("atsutil")
                 if atsutil_path:
                     subprocess.run([atsutil_path, "databases", "-remove"], timeout=30, check=False)
@@ -345,8 +344,6 @@ class SystemFontProvider:
             True if successful, False otherwise
         """
         try:
-            import shutil
-
             source_path = Path(font_path)
             if not source_path.exists():
                 logger.error(f"Font file not found: {font_path}")

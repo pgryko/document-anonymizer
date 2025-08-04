@@ -7,10 +7,22 @@ Utility functions for font detection, analysis, and manipulation.
 
 import logging
 import re
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
+
+# Optional dependencies - handled gracefully
+try:
+    from fontTools.ttLib import TTFont
+except ImportError:
+    TTFont = None
+
+try:
+    import freetype
+except ImportError:
+    freetype = None
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +52,8 @@ def get_font_info(font_path: str) -> dict[str, Any] | None:
 def _get_font_info_fonttools(font_path: str) -> dict[str, Any] | None:
     """Get font info using fonttools library."""
     try:
-        from fontTools.ttLib import TTFont
+        if TTFont is None:
+            return None
 
         font = TTFont(font_path)
         name_table = font["name"]
@@ -53,6 +66,13 @@ def _get_font_info_fonttools(font_path: str) -> dict[str, Any] | None:
         # Determine style and weight
         style, weight = _parse_style_weight(subfamily)
 
+    except ImportError:
+        logger.debug("fonttools not available")
+        return None
+    except Exception as e:
+        logger.debug(f"fonttools failed for {font_path}: {e}")
+        return None
+    else:
         return {
             "name": font_name,
             "family": font_family,
@@ -60,13 +80,6 @@ def _get_font_info_fonttools(font_path: str) -> dict[str, Any] | None:
             "weight": weight,
             "subfamily": subfamily,
         }
-
-    except ImportError:
-        logger.debug("fonttools not available")
-        return None
-    except Exception as e:
-        logger.debug(f"fonttools failed for {font_path}: {e}")
-        return None
 
 
 def _get_font_name(name_table, name_id: int) -> str | None:
@@ -93,7 +106,8 @@ def _get_font_name(name_table, name_id: int) -> str | None:
 def _get_font_info_freetype(font_path: str) -> dict[str, Any] | None:
     """Get font info using freetype library."""
     try:
-        import freetype
+        if freetype is None:
+            return None
 
         face = freetype.Face(font_path)
 
@@ -305,7 +319,6 @@ def find_similar_font(target_font: str, available_fonts: list[str]) -> str | Non
 def _calculate_string_similarity(s1: str, s2: str) -> float:
     """Calculate similarity between two strings."""
     try:
-        from difflib import SequenceMatcher
 
         return SequenceMatcher(None, s1, s2).ratio()
     except Exception:
@@ -411,7 +424,8 @@ def _get_font_metrics_pil(font_path: str, size: int) -> dict[str, Any] | None:
 def _get_font_metrics_freetype(font_path: str, size: int) -> dict[str, Any] | None:
     """Get font metrics using freetype."""
     try:
-        import freetype
+        if freetype is None:
+            return None
 
         face = freetype.Face(font_path)
         face.set_char_size(size * 64)  # Size in 1/64th points
@@ -494,7 +508,6 @@ def create_font_sample(font_path: str, text: str = "Sample Text", size: int = 24
         PIL Image with font sample or None if failed
     """
     try:
-        from PIL import Image, ImageDraw, ImageFont
 
         font = ImageFont.truetype(font_path, size)
 

@@ -11,6 +11,9 @@ from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
 
 logger = logging.getLogger(__name__)
 
+# Text rendering constants
+MAX_TEXT_LENGTH = 1000
+
 
 class FontManager:
     """Manages font loading and fallbacks."""
@@ -126,7 +129,7 @@ class TextRenderer:
         if not text or not text.strip():
             raise ValidationError("Text cannot be empty")
 
-        if len(text) > 1000:
+        if len(text) > MAX_TEXT_LENGTH:
             raise ValidationError("Text too long")
 
         # Use defaults if not specified

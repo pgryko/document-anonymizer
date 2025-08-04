@@ -141,7 +141,7 @@ class XFUNDProcessor:
                 logger.error(f"Annotation file not found: {json_path}")
                 continue
 
-            with open(json_path, encoding="utf-8") as f:
+            with json_path.open(encoding="utf-8") as f:
                 data = json.load(f)
 
             # Process documents
@@ -272,7 +272,7 @@ class XFUNDProcessor:
 
         # Save metadata
         metadata_path = self.vae_dir / f"{lang}_{doc_id}_metadata.json"
-        with open(metadata_path, "w", encoding="utf-8") as f:
+        with metadata_path.open("w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
 
     def _prepare_unet_data(self, image: np.ndarray, doc: dict, lang: str):
@@ -326,7 +326,7 @@ class XFUNDProcessor:
         }
 
         metadata_path = self.unet_dir / f"{lang}_{doc_id}_metadata.json"
-        with open(metadata_path, "w", encoding="utf-8") as f:
+        with metadata_path.open("w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
 
     def create_split_files(self, train_ratio: float = 0.8):
@@ -348,10 +348,10 @@ class XFUNDProcessor:
             train_list = [str(f.name) for f in train_files]
             val_list = [str(f.name) for f in val_files]
 
-            with open(data_dir / "train_files.json", "w") as f:
+            with (data_dir / "train_files.json").open("w") as f:
                 json.dump(train_list, f, indent=2)
 
-            with open(data_dir / "val_files.json", "w") as f:
+            with (data_dir / "val_files.json").open("w") as f:
                 json.dump(val_list, f, indent=2)
 
             logger.info(f"{data_type.upper()} split: {len(train_list)} train, {len(val_list)} val")

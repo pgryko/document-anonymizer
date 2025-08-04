@@ -6,11 +6,16 @@ Main CLI for Document Anonymization System
 This CLI provides commands to train and run the document anonymization system.
 """
 
+import json
 import logging
+import os
 import sys
 from pathlib import Path
 
 import click
+import numpy as np
+import torch
+from PIL import Image
 
 # Setup logging
 logging.basicConfig(
@@ -57,8 +62,6 @@ def cli(verbose):
 def train_vae(config):
     """Train VAE model."""
     try:
-        from pathlib import Path
-
         from src.anonymizer.core.config import DatasetConfig, VAEConfig
         from src.anonymizer.training.datasets import create_dataloaders
 
@@ -66,7 +69,6 @@ def train_vae(config):
         vae_config = VAEConfig.from_env_and_yaml(yaml_path=config)
 
         # Create dataset configuration - paths from environment or defaults
-        import os
 
         train_data_path = os.environ.get("TRAIN_DATA_PATH", "data/processed/xfund/vae")
         val_data_path = os.environ.get(
@@ -97,8 +99,6 @@ def train_vae(config):
 
         # Memory management for local testing
         if is_local:
-            import torch
-
             if torch.backends.mps.is_available():
                 logger.info("Running on MPS backend - using conservative memory settings")
                 # Clear any existing cache
@@ -175,9 +175,6 @@ def anonymize(config, image, output):
 
         if result.success:
             # Convert numpy array to bytes and save
-            import numpy as np
-            from PIL import Image
-
             pil_image = Image.fromarray(result.anonymized_image.astype(np.uint8))
             pil_image.save(output)
             logger.info(f"Anonymized image saved to {output}")
@@ -323,8 +320,6 @@ def batch_status(result_file, output_dir):
     try:
         if result_file:
             # Load and display result from JSON file
-            import json
-
             with Path(result_file).open() as f:
                 result_data = json.load(f)
 

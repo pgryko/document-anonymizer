@@ -15,10 +15,41 @@ import numpy as np
 import torch
 from PIL import Image
 
-from src.anonymizer.core.exceptions import InferenceError, ValidationError
+from src.anonymizer.core.exceptions import (
+    ImageCannotBeEmptyError,
+    ImageCannotBeNoneError,
+    ImageDimensionInvalidError,
+    ImageTooSmallError,
+    OCREngineInitializationError,
+    UnsupportedOCREngineError,
+)
 from src.anonymizer.core.models import BoundingBox
 
 from .models import DetectedText, OCRConfig, OCREngine, OCRResult
+
+# Optional dependencies - handled gracefully
+try:
+    import paddleocr
+except ImportError:
+    paddleocr = None
+
+try:
+    import easyocr
+except ImportError:
+    easyocr = None
+
+try:
+    from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+except ImportError:
+    TrOCRProcessor = None
+    VisionEncoderDecoderModel = None
+
+try:
+    import pytesseract
+    from PIL import Image as PILImage
+except ImportError:
+    pytesseract = None
+    PILImage = None
 
 logger = logging.getLogger(__name__)
 
@@ -83,17 +114,17 @@ class BaseOCREngine(ABC):
     def validate_image(self, image: np.ndarray) -> bool:
         """Validate input image."""
         if image is None:
-            raise ValidationError("Image cannot be None")
+            raise ImageCannotBeNoneError()
 
         if len(image.shape) not in [2, 3]:
-            raise ValidationError(f"Image must be 2D or 3D array, got {len(image.shape)}D")
+            raise ImageDimensionInvalidError(len(image.shape))
 
         if image.size == 0:
-            raise ValidationError("Image cannot be empty")
+            raise ImageCannotBeEmptyError()
 
         h, w = image.shape[:2]
         if h < 10 or w < 10:
-            raise ValidationError(f"Image too small: {w}x{h}, minimum 10x10")
+            raise ImageTooSmallError(w, h)
 
         return True
 
@@ -108,7 +139,8 @@ class PaddleOCREngine(BaseOCREngine):
     def initialize(self) -> bool:
         """Initialize PaddleOCR."""
         try:
-            import paddleocr
+            if paddleocr is None:
+                raise OCREngineInitializationError()
 
             # Initialize PaddleOCR
             self.ocr = paddleocr.PaddleOCR(
@@ -132,7 +164,7 @@ class PaddleOCREngine(BaseOCREngine):
     def detect_text(self, image: np.ndarray) -> OCRResult:
         """Detect text using PaddleOCR."""
         if not self.is_initialized:
-            raise InferenceError("PaddleOCR not initialized")
+            raise OCREngineInitializationError()
 
         self.validate_image(image)
         start_time = time.time()
@@ -227,7 +259,8 @@ class EasyOCREngine(BaseOCREngine):
     def initialize(self) -> bool:
         """Initialize EasyOCR."""
         try:
-            import easyocr
+            if easyocr is None:
+                raise OCREngineInitializationError()
 
             # Initialize EasyOCR
             self.reader = easyocr.Reader(
@@ -249,7 +282,7 @@ class EasyOCREngine(BaseOCREngine):
     def detect_text(self, image: np.ndarray) -> OCRResult:
         """Detect text using EasyOCR."""
         if not self.is_initialized:
-            raise InferenceError("EasyOCR not initialized")
+            raise OCREngineInitializationError()
 
         self.validate_image(image)
         start_time = time.time()
@@ -339,8 +372,8 @@ class TrOCREngine(BaseOCREngine):
     def initialize(self) -> bool:
         """Initialize TrOCR."""
         try:
-            import torch
-            from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+            if TrOCRProcessor is None or VisionEncoderDecoderModel is None:
+                raise OCREngineInitializationError()
 
             # Set device
             self.device = torch.device(
@@ -368,7 +401,7 @@ class TrOCREngine(BaseOCREngine):
     def detect_text(self, image: np.ndarray) -> OCRResult:
         """Detect text using TrOCR."""
         if not self.is_initialized:
-            raise InferenceError("TrOCR not initialized")
+            raise OCREngineInitializationError()
 
         self.validate_image(image)
         start_time = time.time()
@@ -467,8 +500,6 @@ class TrOCREngine(BaseOCREngine):
 
         # Clear GPU cache if using CUDA
         try:
-            import torch
-
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except ImportError:
@@ -486,7 +517,8 @@ class TesseractEngine(BaseOCREngine):
     def initialize(self) -> bool:
         """Initialize Tesseract."""
         try:
-            import pytesseract
+            if pytesseract is None:
+                raise OCREngineInitializationError()
 
             # Try to get Tesseract version to verify installation
             version = pytesseract.get_tesseract_version()
@@ -504,14 +536,14 @@ class TesseractEngine(BaseOCREngine):
     def detect_text(self, image: np.ndarray) -> OCRResult:
         """Detect text using Tesseract."""
         if not self.is_initialized:
-            raise InferenceError("Tesseract not initialized")
+            raise OCREngineInitializationError()
 
         self.validate_image(image)
         start_time = time.time()
 
         try:
-            import pytesseract
-            from PIL import Image as PILImage
+            if pytesseract is None or PILImage is None:
+                raise OCREngineInitializationError()
 
             # Preprocess image
             processed_image = self.preprocess_image(image)
@@ -595,6 +627,6 @@ def create_ocr_engine(engine_type: OCREngine, config: OCRConfig) -> BaseOCREngin
     }
 
     if engine_type not in engine_map:
-        raise ValueError(f"Unsupported OCR engine: {engine_type}")
+        raise UnsupportedOCREngineError(str(engine_type))
 
     return engine_map[engine_type](config)

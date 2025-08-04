@@ -12,7 +12,7 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +37,7 @@ class PerformanceMetrics:
 
     def __post_init__(self):
         if not self.timestamp:
-            self.timestamp = datetime.now().isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -315,13 +315,13 @@ class PerformanceProfiler:
         if not self.results_dir:
             return
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         filename = f"performance_metrics_{timestamp}.json"
         filepath = self.results_dir / filename
 
         try:
             data = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "metrics": [m.to_dict() for m in self.metrics],
             }
 
@@ -337,7 +337,7 @@ class PerformanceProfiler:
         """Export all metrics to a JSON file."""
         try:
             data = {
-                "export_timestamp": datetime.now().isoformat(),
+                "export_timestamp": datetime.now(UTC).isoformat(),
                 "total_metrics": len(self.metrics),
                 "metrics": [m.to_dict() for m in self.metrics],
             }
@@ -396,5 +396,5 @@ class PerformanceProfiler:
             "total_operations": len(self.metrics),
             "unique_operations": len(operations),
             "operations": summary,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }

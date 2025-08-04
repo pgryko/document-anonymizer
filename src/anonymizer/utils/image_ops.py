@@ -5,9 +5,33 @@ import logging
 import cv2
 import numpy as np
 
-from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
+from src.anonymizer.core.exceptions import (
+    CannotPadToSmallerSizeError,
+    ChannelConversionError,
+    ColorConversionChannelError,
+    ImageCropError,
+    ImageMemoryTooLargeError,
+    ImageNormalizeError,
+    ImageResizeError,
+    ImageTooLargeError,
+    InvalidCropSizeError,
+    OutputMemoryTooLargeError,
+    OutputSizeTooLargeError,
+    ScaleFactorTooLargeError,
+    UnexpectedImageDtypeError,
+    UnexpectedImageShapeError,
+    UnsupportedColorConversionError,
+)
 
 logger = logging.getLogger(__name__)
+
+# Image processing constants
+MIN_IMAGE_DIMENSIONS = 2
+MAX_IMAGE_DIMENSIONS = 3
+RGB_CHANNELS = 3
+RGBA_CHANNELS = 4
+GRAYSCALE_CHANNELS = 1
+VALID_CHANNEL_COUNTS = [1, 3, 4]
 
 
 class ImageProcessor:
@@ -21,22 +45,22 @@ class ImageProcessor:
     def validate_image_array(cls, image: np.ndarray) -> bool:
         """Validate numpy image array."""
         if not isinstance(image, np.ndarray):
-            raise ValidationError("Image must be numpy array")
+            raise UnexpectedImageDtypeError(str(type(image)))
 
-        if len(image.shape) not in [2, 3]:
-            raise ValidationError(f"Invalid image shape: {image.shape}")
+        if len(image.shape) not in [MIN_IMAGE_DIMENSIONS, MAX_IMAGE_DIMENSIONS]:
+            raise UnexpectedImageShapeError(image.shape)
 
-        if len(image.shape) == 3 and image.shape[2] not in [1, 3, 4]:
-            raise ValidationError(f"Invalid number of channels: {image.shape[2]}")
+        if len(image.shape) == MAX_IMAGE_DIMENSIONS and image.shape[2] not in VALID_CHANNEL_COUNTS:
+            raise UnexpectedImageShapeError(image.shape)
 
         h, w = image.shape[:2]
         if h > cls.MAX_DIMENSION or w > cls.MAX_DIMENSION:
-            raise ValidationError(f"Image too large: {w}x{h}")
+            raise ImageTooLargeError(w, h)
 
         # Check memory usage
         estimated_memory = image.nbytes
         if estimated_memory > cls.MAX_MEMORY_BYTES:
-            raise ValidationError(f"Image too large in memory: {estimated_memory} bytes")
+            raise ImageMemoryTooLargeError(estimated_memory)
 
         return True
 
@@ -68,20 +92,20 @@ class ImageProcessor:
             max_scale = max(scale_w, scale_h)
 
             if max_scale > max_scale_factor:
-                raise ValidationError(f"Scale factor too large: {max_scale}")
+                raise ScaleFactorTooLargeError(max_scale)
 
             # Check output dimensions
             if new_w > cls.MAX_DIMENSION or new_h > cls.MAX_DIMENSION:
-                raise ValidationError(f"Output size too large: {new_w}x{new_h}")
+                raise OutputSizeTooLargeError(new_w, new_h)
 
             # Estimate output memory
-            channels = 1 if len(image.shape) == 2 else image.shape[2]
+            channels = GRAYSCALE_CHANNELS if len(image.shape) == MIN_IMAGE_DIMENSIONS else image.shape[2]
             estimated_memory = new_w * new_h * channels * image.itemsize
             if estimated_memory > cls.MAX_MEMORY_BYTES:
-                raise ValidationError(f"Output would be too large: {estimated_memory} bytes")
+                raise OutputMemoryTooLargeError(estimated_memory)
 
             # Perform resize
-            if len(image.shape) == 2:
+            if len(image.shape) == MIN_IMAGE_DIMENSIONS:
                 resized = cv2.resize(image, (new_w, new_h), interpolation=interpolation)
             else:
                 resized = cv2.resize(image, (new_w, new_h), interpolation=interpolation)
@@ -90,9 +114,9 @@ class ImageProcessor:
             return resized
 
         except cv2.error as e:
-            raise PreprocessingError(f"OpenCV resize failed: {e}")
+            raise ImageResizeError() from e
         except Exception as e:
-            raise PreprocessingError(f"Image resize failed: {e}")
+            raise ImageResizeError() from e
 
     @classmethod
     def safe_crop(
@@ -112,14 +136,14 @@ class ImageProcessor:
 
             # Validate crop parameters
             if width <= 0 or height <= 0:
-                raise ValidationError(f"Invalid crop size: {width}x{height}")
+                raise InvalidCropSizeError(width, height)
 
             # Calculate actual crop bounds
             x1, y1 = max(0, x), max(0, y)
             x2, y2 = min(img_w, x + width), min(img_h, y + height)
 
             # Extract crop
-            crop = image[y1:y2, x1:x2] if len(image.shape) == 2 else image[y1:y2, x1:x2, :]
+            crop = image[y1:y2, x1:x2] if len(image.shape) == MIN_IMAGE_DIMENSIONS else image[y1:y2, x1:x2, :]
 
             # Add padding if needed
             crop_h, crop_w = crop.shape[:2]
@@ -130,7 +154,7 @@ class ImageProcessor:
             return crop
 
         except Exception as e:
-            raise PreprocessingError(f"Image crop failed: {e}")
+            raise ImageCropError() from e
 
     @classmethod
     def _pad_image(
@@ -147,7 +171,7 @@ class ImageProcessor:
         pad_h = target_height - h
 
         if pad_w < 0 or pad_h < 0:
-            raise ValidationError("Cannot pad to smaller size")
+            raise CannotPadToSmallerSizeError()
 
         # Calculate padding
         pad_left = pad_w // 2
@@ -156,7 +180,7 @@ class ImageProcessor:
         pad_bottom = pad_h - pad_top
 
         # Apply padding
-        if len(image.shape) == 2:
+        if len(image.shape) == MIN_IMAGE_DIMENSIONS:
             pad_width = ((pad_top, pad_bottom), (pad_left, pad_right))
         else:
             pad_width = ((pad_top, pad_bottom), (pad_left, pad_right), (0, 0))
@@ -202,7 +226,7 @@ class ImageProcessor:
             return normalized * (target_max - target_min) + target_min
 
         except Exception as e:
-            raise PreprocessingError(f"Image normalization failed: {e}")
+            raise ImageNormalizeError() from e
 
     @classmethod
     def convert_color_space(
@@ -213,10 +237,10 @@ class ImageProcessor:
 
         # Validate input channels based on source format
         source_upper = source.upper()
-        if source_upper in ["BGR", "RGB"] and len(image.shape) != 3:
-            raise ValidationError("Color conversion requires 3-channel image")
-        if source_upper == "GRAY" and len(image.shape) not in [2, 3]:
-            raise ValidationError("Grayscale conversion requires 2D or 3D image")
+        if source_upper in ["BGR", "RGB"] and len(image.shape) != RGB_CHANNELS:
+            raise ColorConversionChannelError("Color")
+        if source_upper == "GRAY" and len(image.shape) not in [MIN_IMAGE_DIMENSIONS, RGB_CHANNELS]:
+            raise ColorConversionChannelError("Grayscale")
 
         try:
             # Get conversion code
@@ -231,7 +255,7 @@ class ImageProcessor:
 
             conversion_key = (source.upper(), target.upper())
             if conversion_key not in conversion_map:
-                raise ValidationError(f"Unsupported conversion: {source} -> {target}")
+                raise UnsupportedColorConversionError(source, target)
 
             conversion_code = conversion_map[conversion_key]
             converted = cv2.cvtColor(image, conversion_code)
@@ -240,9 +264,9 @@ class ImageProcessor:
             return converted
 
         except cv2.error as e:
-            raise PreprocessingError(f"Color conversion failed: {e}")
+            raise ChannelConversionError() from e
         except Exception as e:
-            raise PreprocessingError(f"Color conversion failed: {e}")
+            raise ChannelConversionError() from e
 
 
 # Convenience functions

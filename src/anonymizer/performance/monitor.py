@@ -11,7 +11,7 @@ import queue
 import threading
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -393,7 +393,7 @@ class PerformanceMonitor:
 
         # Auto-export if enabled
         if self.auto_export:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             export_path = self.results_dir / f"session_{self.session_name}_{timestamp}.json"
             self.resource_monitor.export_samples(export_path)
 
@@ -432,7 +432,7 @@ class PerformanceMonitor:
         current_stats = self.get_current_usage()
 
         return {
-            "report_timestamp": datetime.now().isoformat(),
+            "report_timestamp": datetime.now(UTC).isoformat(),
             "monitoring_summary": summary.to_dict(),
             "current_usage": current_stats.to_dict() if current_stats else None,
             "performance_insights": self._generate_insights(summary),

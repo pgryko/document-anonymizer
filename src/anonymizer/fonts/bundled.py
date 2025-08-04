@@ -8,6 +8,7 @@ These fonts ensure consistent rendering across different systems.
 
 import hashlib
 import logging
+import tarfile
 import tempfile
 import urllib.request
 import zipfile
@@ -164,8 +165,6 @@ class BundledFontProvider:
                     extracted_path = temp_path / source_info["zip_path"]
             else:
                 # Handle tar.gz files
-                import tarfile
-
                 with tarfile.open(archive_path, "r:gz") as tf:
                     tf.extract(source_info["zip_path"], temp_path)
                     extracted_path = temp_path / source_info["zip_path"]

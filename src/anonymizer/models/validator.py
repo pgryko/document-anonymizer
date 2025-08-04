@@ -5,14 +5,24 @@ Model Validator
 Validates downloaded models for integrity, compatibility, and functionality.
 """
 
+import hashlib
 import json
 import logging
+import os
+import time
 from pathlib import Path
 from typing import Any
 
+import psutil
 import safetensors
 import torch
 from safetensors.torch import load_file
+
+# Optional dependency - handled gracefully
+try:
+    from diffusers import DiffusionPipeline
+except ImportError:
+    DiffusionPipeline = None
 
 from .config import ModelFormat, ModelMetadata, ModelType, ValidationResult
 
@@ -248,7 +258,6 @@ class ModelValidator:
             return
 
         try:
-            import hashlib
 
             # Determine hash algorithm (assume SHA256 if not specified)
             hasher = hashlib.sha256()
@@ -343,7 +352,7 @@ class ModelValidator:
     def _validate_diffusers_content(
         self,
         model_path: Path,
-        metadata: ModelMetadata | None,
+        _metadata: ModelMetadata | None,
         result: ValidationResult,
     ):
         """Validate Diffusers content."""
@@ -398,7 +407,7 @@ class ModelValidator:
     def _validate_model_loading(
         self,
         model_path: Path,
-        metadata: ModelMetadata | None,
+        _metadata: ModelMetadata | None,
         result: ValidationResult,
     ):
         """Validate that model can be loaded successfully."""
@@ -424,7 +433,17 @@ class ModelValidator:
             elif model_path.is_dir():
                 # Test loading Diffusers pipeline
                 try:
-                    from diffusers import DiffusionPipeline
+                    if DiffusionPipeline is None:
+                        return ValidationResult(
+                            is_valid=False,
+                            errors=["diffusers not available"],
+                            metadata=ModelMetadata(
+                                name=model_path.name,
+                                size_bytes=model_path.stat().st_size,
+                                format=ModelFormat.DIFFUSERS,
+                                type=ModelType.UNKNOWN,
+                            ),
+                        )
 
                     pipeline = DiffusionPipeline.from_pretrained(
                         str(model_path), torch_dtype=torch.float32
@@ -465,10 +484,6 @@ class ModelValidator:
         }
 
         try:
-            import os
-            import time
-
-            import psutil
 
             # Get model size
             if model_path.is_file():

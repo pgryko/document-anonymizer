@@ -5,6 +5,7 @@ Tests pydantic-settings integration for .env files and environment variables.
 """
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -128,7 +129,7 @@ R2_ACCESS_KEY_ID=test-key
 R2_SECRET_ACCESS_KEY=test-secret
 R2_BUCKET_NAME=bucket-from-file
 """
-        with open(env_file, "w") as f:
+        with Path(env_file).open("w") as f:
             f.write(env_content)
 
         # Change to temp directory so .env file is found
@@ -163,7 +164,7 @@ VAE_BATCH_SIZE=128
 UNET_BATCH_SIZE=64
 ENGINE_NUM_INFERENCE_STEPS=100
 """
-        with open(env_file, "w") as f:
+        with Path(env_file).open("w") as f:
             f.write(env_content)
 
         config = AppConfig(_env_file=env_file)
@@ -216,7 +217,7 @@ class TestAppConfig:
 APP_ENVIRONMENT=production
 VAE_BATCH_SIZE=64
 """
-        with open(env_file, "w") as f:
+        with Path(env_file).open("w") as f:
             f.write(env_content)
 
         # Create YAML config files
@@ -226,7 +227,7 @@ model_name: yaml-vae
 batch_size: 256
 learning_rate: 0.001
 """
-        with open(vae_yaml, "w") as f:
+        with Path(vae_yaml).open("w") as f:
             f.write(vae_yaml_content)
 
         config = AppConfig.load_with_overrides(env_file=env_file, vae_yaml=vae_yaml, device="mps")
@@ -244,7 +245,7 @@ learning_rate: 0.001
 model_name: path-configured-vae
 batch_size: 512
 """
-        with open(vae_yaml, "w") as f:
+        with Path(vae_yaml).open("w") as f:
             f.write(vae_yaml_content)
 
         # Set env var for config path
@@ -282,7 +283,7 @@ model_name: yaml-override-vae
 batch_size: 256
 learning_rate: 0.003
 """
-        with open(yaml_file, "w") as f:
+        with Path(yaml_file).open("w") as f:
             f.write(yaml_content)
 
         config = VAEConfig.from_env_and_yaml(yaml_path=yaml_file)
@@ -298,7 +299,7 @@ learning_rate: 0.003
 VAE_MODEL_NAME=custom-env-vae
 VAE_BATCH_SIZE=1024
 """
-        with open(custom_env, "w") as f:
+        with Path(custom_env).open("w") as f:
             f.write(env_content)
 
         config = VAEConfig.from_env_and_yaml(env_file=str(custom_env))
@@ -318,7 +319,7 @@ class TestConfigPrecedence:
 VAE_MODEL_NAME=from-env-file
 VAE_BATCH_SIZE=64
 """
-        with open(env_file, "w") as f:
+        with Path(env_file).open("w") as f:
             f.write(env_content)
 
         # Set environment variable (should override .env file)
@@ -337,7 +338,7 @@ VAE_BATCH_SIZE=64
 VAE_MODEL_NAME=from-env-file
 VAE_BATCH_SIZE=64
 """
-        with open(env_file, "w") as f:
+        with Path(env_file).open("w") as f:
             f.write(env_content)
 
         # Set environment variable
@@ -350,7 +351,7 @@ VAE_BATCH_SIZE=64
 model_name: from-yaml
 batch_size: 256
 """
-        with open(yaml_file, "w") as f:
+        with Path(yaml_file).open("w") as f:
             f.write(yaml_content)
 
         config = VAEConfig.from_yaml(yaml_file)

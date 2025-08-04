@@ -34,26 +34,33 @@ from PIL import Image, ImageDraw, ImageFont
 from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
 
-from ..core.config import EngineConfig, validate_model_path
-from ..core.exceptions import (
+from src.anonymizer.core.config import EngineConfig, validate_model_path
+from src.anonymizer.core.exceptions import (
     InferenceError,
+    InvalidFontSizeError,
+    InvalidInputImageError,
+    ModelFileNotFoundError,
     ModelLoadError,
-    PostprocessingError,
-    PreprocessingError,
-    ValidationError,
+    ModelLoadingError,
+    OCRProcessingFailedError,
+    PatchGenerationFailedError,
+    PathNotFileError,
+    PathOutsideDirectoryError,
+    PathValidationFailedError,
+    PostprocessingFailedError,
 )
-from ..core.models import (
+from src.anonymizer.core.models import (
     AnonymizationResult,
     BoundingBox,
     GeneratedPatch,
     GenerationMetadata,
     TextRegion,
 )
-from ..ocr.models import OCRConfig, OCREngine
-from ..ocr.processor import OCRProcessor
-from ..training.datasets import ImageValidator
-from ..utils.image_ops import ImageProcessor
-from ..utils.metrics import MetricsCollector
+from src.anonymizer.ocr.models import OCRConfig, OCREngine
+from src.anonymizer.ocr.processor import OCRProcessor
+from src.anonymizer.training.datasets import ImageValidator
+from src.anonymizer.utils.image_ops import ImageProcessor
+from src.anonymizer.utils.metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -71,19 +78,19 @@ class SecurePathValidator:
 
             # Check if path is within allowed directory
             if not str(resolved_path).startswith(str(allowed_base)):
-                raise ValidationError(f"Path outside allowed directory: {path}")
+                raise PathOutsideDirectoryError(str(path))
 
             # Check if file exists and is readable
             if not resolved_path.exists():
-                raise ValidationError(f"Model file not found: {resolved_path}")
+                raise ModelFileNotFoundError(str(resolved_path))
 
             if not resolved_path.is_file():
-                raise ValidationError(f"Path is not a file: {resolved_path}")
+                raise PathNotFileError(str(resolved_path))
 
             return resolved_path
 
         except Exception as e:
-            raise ValidationError(f"Path validation failed: {e}")
+            raise PathValidationFailedError(str(e)) from e
 
 
 class MemoryManager:
@@ -137,9 +144,9 @@ class NERProcessor:
             logger.info("NER processor initialized with Presidio")
 
         except ImportError as e:
-            raise ModelLoadError(f"Presidio not available: {e}")
+            raise ModelLoadingError() from e
 
-    def detect_pii(self, text: str, image: np.ndarray) -> list[TextRegion]:
+    def detect_pii(self, text: str, _image: np.ndarray) -> list[TextRegion]:
         # TODO: integrate with other methods for pii detection
         """Detect PII entities and return text regions."""
         try:
@@ -169,7 +176,7 @@ class NERProcessor:
             return text_regions
 
         except Exception as e:
-            raise InferenceError(f"PII detection failed: {e}")
+            raise OCRProcessingFailedError() from e
 
 
 class TextRenderer:
@@ -178,7 +185,7 @@ class TextRenderer:
     def __init__(self, font_size: int = 32):
         # Validate font size
         if not isinstance(font_size, int) or font_size <= 0 or font_size > 200:
-            raise ValueError(f"Invalid font size: {font_size}. Must be integer between 1-200")
+            raise InvalidFontSizeError(font_size)
 
         self.font_size = font_size
         self._load_secure_font()
@@ -280,7 +287,7 @@ class TextRenderer:
             return np.array(pil_image)
 
         except Exception as e:
-            raise PostprocessingError(f"Text rendering failed: {e}")
+            raise PostprocessingFailedError() from e
 
 
 class InferenceEngine:
@@ -444,7 +451,7 @@ class InferenceEngine:
                 logger.info("All models loaded successfully")
 
             except Exception as e:
-                raise ModelLoadError(f"Failed to load models: {e}")
+                raise ModelLoadingError() from e
 
     def _load_custom_models(self):
         """Load custom trained VAE and UNet models."""
@@ -490,7 +497,7 @@ class InferenceEngine:
             self.pipeline.scheduler = pretrained_pipeline.scheduler
 
         except Exception as e:
-            raise ModelLoadError(f"Failed to load custom models: {e}")
+            raise ModelLoadingError() from e
 
     def _load_pretrained_models(self):
         """Load pretrained Stable Diffusion inpainting models."""
@@ -504,7 +511,7 @@ class InferenceEngine:
             )
 
         except Exception as e:
-            raise ModelLoadError(f"Failed to load pretrained models: {e}")
+            raise ModelLoadingError() from e
 
     def _configure_pipeline(self):
         """Configure pipeline for optimal inference."""
@@ -543,7 +550,7 @@ class InferenceEngine:
                 self.pipeline.text_encoder.eval()
 
         except Exception as e:
-            raise ModelLoadError(f"Failed to configure pipeline: {e}")
+            raise ModelLoadingError() from e
 
     def anonymize(
         self, image_data: bytes, text_regions: list[TextRegion] | None = None
@@ -660,7 +667,7 @@ class InferenceEngine:
 
             logger.exception(f"Anonymization process failed after {processing_time_ms:.1f}ms")
 
-            raise InferenceError(error_msg)
+            raise InferenceError(error_msg) from e
 
     def _process_input_image(self, image_data: bytes) -> np.ndarray:
         """Process and validate input image data."""
@@ -700,7 +707,7 @@ class InferenceEngine:
                 tmp_path.unlink(missing_ok=True)
 
         except Exception as e:
-            raise PreprocessingError(f"Failed to process input image: {e}")
+            raise InvalidInputImageError() from e
 
     def _auto_detect_text_regions(self, image: np.ndarray) -> list[TextRegion]:
         """Auto-detect text regions using OCR and NER."""
@@ -813,7 +820,7 @@ class InferenceEngine:
             )
 
         except Exception as e:
-            raise InferenceError(f"Region anonymization failed: {e}")
+            raise PatchGenerationFailedError() from e
 
     def _create_mask(self, image_shape: tuple[int, int], bbox: BoundingBox) -> np.ndarray:
         """Create binary mask for text region."""
@@ -869,4 +876,4 @@ class InferenceEngine:
             return result_image
 
         except Exception as e:
-            raise PostprocessingError(f"Failed to apply patch: {e}")
+            raise PostprocessingFailedError() from e

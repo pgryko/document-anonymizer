@@ -5,13 +5,15 @@ Tests robust dataset loading with comprehensive validation.
 """
 
 import json
+import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import pytest
 import torch
 from PIL import Image
+from torch.utils.data import RandomSampler, SequentialSampler
 
 from src.anonymizer.core.config import DatasetConfig
 from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
@@ -127,7 +129,7 @@ class TestImageValidator:
         """Test validation fails for unsupported formats."""
         # Create a non-image file
         text_file = temp_dir / "not_image.txt"
-        with open(text_file, "w") as f:
+        with text_file.open("w") as f:
             f.write("This is not an image")
 
         with pytest.raises(ValidationError, match="Invalid image data"):
@@ -220,8 +222,6 @@ class TestImageValidator:
             mock_image.verify.return_value = None
 
             # Set up mock for both context manager and direct return
-            from unittest.mock import MagicMock
-
             mock_context = MagicMock()
             mock_context.__enter__.return_value = mock_image
             mock_context.__exit__.return_value = None
@@ -253,7 +253,6 @@ class TestTextRegionValidator:
     def test_validate_text_region_empty_original_text(self, sample_bbox):
         """Test validation fails for empty original text."""
         # Create a mock region with empty text to test the validator logic
-        from unittest.mock import Mock
 
         region = Mock()
         region.bbox = sample_bbox
@@ -267,7 +266,6 @@ class TestTextRegionValidator:
     def test_validate_text_region_too_long_text(self, sample_bbox):
         """Test validation fails for text that's too long."""
         # Create a mock region with long text to test the validator logic
-        from unittest.mock import Mock
 
         region = Mock()
         region.bbox = sample_bbox
@@ -281,7 +279,6 @@ class TestTextRegionValidator:
     def test_validate_text_region_negative_bbox_coordinates(self):
         """Test validation fails for negative bounding box coordinates."""
         # Create a mock region with negative bbox to test the validator logic
-        from unittest.mock import Mock
 
         negative_bbox = Mock()
         negative_bbox.left = -10
@@ -460,7 +457,6 @@ class TestAnonymizerDataset:
     def test_dataset_no_annotation_files(self, dataset_config):
         """Test dataset with no annotation files."""
         # Create a fresh empty directory with no JSON files
-        import tempfile
 
         with tempfile.TemporaryDirectory() as empty_dir:
             empty_path = Path(empty_dir)
@@ -470,7 +466,6 @@ class TestAnonymizerDataset:
     def test_dataset_invalid_annotation_file(self, dataset_config):
         """Test dataset with invalid annotation file."""
         # Create a fresh directory with only invalid JSON file
-        import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -485,7 +480,6 @@ class TestAnonymizerDataset:
     def test_dataset_missing_image_file(self, dataset_config):
         """Test dataset with annotation pointing to missing image."""
         # Create a fresh directory with annotation but no corresponding image
-        import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -502,7 +496,7 @@ class TestAnonymizerDataset:
             }
 
             annotation_file = temp_path / "annotation.json"
-            with open(annotation_file, "w") as f:
+            with annotation_file.open("w") as f:
                 json.dump(annotation_data, f)
 
             # Should skip sample with missing image
@@ -656,7 +650,6 @@ class TestDataLoaderCreation:
 
         assert dataloader.batch_size == 2
         # Check if sampler is shuffling (RandomSampler vs SequentialSampler)
-        from torch.utils.data import RandomSampler
 
         assert isinstance(dataloader.sampler, RandomSampler)
         assert dataloader.num_workers == 0
@@ -709,7 +702,6 @@ class TestDataLoaderCreation:
         assert train_dataloader.batch_size == 2
         assert val_dataloader.batch_size == 2
         # Check sampler types instead of shuffle attribute
-        from torch.utils.data import RandomSampler, SequentialSampler
 
         assert isinstance(train_dataloader.sampler, RandomSampler)
         assert isinstance(val_dataloader.sampler, SequentialSampler)

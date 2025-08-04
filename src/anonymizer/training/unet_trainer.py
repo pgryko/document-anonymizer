@@ -24,11 +24,34 @@ from torch.utils.data import DataLoader
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel, get_scheduler
 
 from src.anonymizer.core.config import UNetConfig
-from src.anonymizer.core.exceptions import ModelLoadError, TrainingError, ValidationError
+from src.anonymizer.core.exceptions import (
+    CheckpointSaveError,
+    DistributedTrainingSetupError,
+    InvalidLossError,
+    LatentEncodingError,
+    NoiseSchedulerInitializationError,
+    OptimizerNotInitializedError,
+    TextConditioningError,
+    TextProjectionSetupError,
+    TrainingLoopError,
+    TrainingStepError,
+    TrOCRInitializationError,
+    TrOCRNotInitializedError,
+    UNetChannelMismatchError,
+    UNetInitializationError,
+    UNetNotInitializedError,
+    UNetValidationNotInitializedError,
+    UnsupportedOptimizerError,
+    VAEInitializationError,
+    VAESchedulerNotInitializedError,
+)
 from src.anonymizer.core.models import ModelArtifacts, TrainingMetrics
 from src.anonymizer.utils.metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
+
+# UNet constants
+EXPECTED_UNET_INPUT_CHANNELS = 9
 
 
 class TextRenderer:
@@ -110,7 +133,7 @@ class UNetTrainer:
             )
             logger.info(f"Initialized accelerator on device: {self.accelerator.device}")
         except Exception as e:
-            raise TrainingError(f"Failed to setup distributed training: {e}")
+            raise DistributedTrainingSetupError(str(e)) from e
 
     def _initialize_unet(self) -> UNet2DConditionModel:
         """
@@ -126,16 +149,16 @@ class UNetTrainer:
             unet = UNet2DConditionModel.from_pretrained(self.config.base_model, subfolder="unet")
 
             # Verify architecture is correct (9 channels for inpainting)
-            if unet.conv_in.in_channels != 9:
-                raise ValidationError(f"Expected 9-channel UNet, got {unet.conv_in.in_channels}")
+            if unet.conv_in.in_channels != EXPECTED_UNET_INPUT_CHANNELS:
+                raise UNetChannelMismatchError(unet.conv_in.in_channels)
 
+        except Exception as e:
+            raise UNetInitializationError(str(e)) from e
+        else:
             logger.info(f"UNet initialized: {sum(p.numel() for p in unet.parameters())} parameters")
             logger.info(f"UNet input channels: {unet.conv_in.in_channels} (correct for inpainting)")
 
             return unet
-
-        except Exception as e:
-            raise ModelLoadError(f"Failed to initialize UNet: {e}")
 
     def _initialize_vae(self) -> AutoencoderKL:
         """Initialize VAE for latent encoding."""
@@ -148,11 +171,11 @@ class UNetTrainer:
             for param in vae.parameters():
                 param.requires_grad = False
 
+        except Exception as e:
+            raise VAEInitializationError(str(e)) from e
+        else:
             logger.info("VAE initialized and frozen")
             return vae
-
-        except Exception as e:
-            raise ModelLoadError(f"Failed to initialize VAE: {e}")
 
     def _initialize_trocr(self) -> tuple:
         """Initialize TrOCR for text conditioning."""
@@ -172,11 +195,11 @@ class UNetTrainer:
             for param in trocr.parameters():
                 param.requires_grad = False
 
+        except Exception as e:
+            raise TrOCRInitializationError(str(e)) from e
+        else:
             logger.info("TrOCR initialized and frozen")
             return trocr, trocr_processor
-
-        except Exception as e:
-            raise ModelLoadError(f"Failed to initialize TrOCR: {e}")
 
     def _initialize_noise_scheduler(self) -> DDPMScheduler:
         """Initialize noise scheduler for training."""
@@ -186,18 +209,18 @@ class UNetTrainer:
             # Set training timesteps
             scheduler.set_timesteps(self.config.num_train_timesteps)
 
+        except Exception as e:
+            raise NoiseSchedulerInitializationError(str(e)) from e
+        else:
             logger.info(
                 f"Noise scheduler initialized with {self.config.num_train_timesteps} timesteps"
             )
             return scheduler
 
-        except Exception as e:
-            raise ModelLoadError(f"Failed to initialize noise scheduler: {e}")
-
     def _setup_text_projection(self):
         """Setup text projection layer if needed."""
         if self.trocr is None or self.unet is None:
-            raise TrainingError("TrOCR and UNet must be initialized before text projection")
+            raise TextProjectionSetupError()
 
         # Get TrOCR encoder output dimension
         trocr_dim = self.trocr.config.encoder.hidden_size
@@ -227,12 +250,12 @@ class UNetTrainer:
                 logger.info("Using default VAE weights")
 
         except Exception as e:
-            raise ModelLoadError(f"Failed to load pretrained VAE: {e}")
+            raise VAEInitializationError(str(e)) from e
 
     def _setup_optimizer(self) -> torch.optim.Optimizer:
         """Setup optimizer with corrected learning rate."""
         if self.unet is None:
-            raise TrainingError("UNet must be initialized before optimizer")
+            raise UNetNotInitializedError()
 
         # Get trainable parameters
         trainable_params = list(self.unet.parameters())
@@ -250,7 +273,7 @@ class UNetTrainer:
                 betas=optimizer_config.betas,
             )
         else:
-            raise ValidationError(f"Unsupported optimizer: {optimizer_config.type}")
+            raise UnsupportedOptimizerError(optimizer_config.type)
 
         logger.info(
             f"Optimizer setup: {optimizer_config.type} with LR {optimizer_config.learning_rate}"
@@ -260,7 +283,7 @@ class UNetTrainer:
     def _setup_scheduler(self, dataloader: DataLoader) -> Any:
         """Setup learning rate scheduler."""
         if self.optimizer is None:
-            raise TrainingError("Optimizer must be initialized before scheduler")
+            raise OptimizerNotInitializedError()
 
         scheduler_config = self.config.scheduler
         num_training_steps = len(dataloader) * self.config.num_epochs
@@ -280,7 +303,7 @@ class UNetTrainer:
     def _prepare_text_conditioning(self, texts: list[str]) -> torch.Tensor:
         """Extract text features using TrOCR."""
         if self.trocr is None or self.trocr_processor is None:
-            raise TrainingError("TrOCR not initialized")
+            raise TrOCRNotInitializedError()
 
         try:
             # Render text images
@@ -300,17 +323,17 @@ class UNetTrainer:
             if self.text_projection is not None:
                 features = self.text_projection(features)
 
-            return features
-
         except Exception as e:
-            raise TrainingError(f"Text conditioning failed: {e}")
+            raise TextConditioningError(str(e)) from e
+        else:
+            return features
 
     def _prepare_latents(
         self, images: torch.Tensor, masks: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         """Prepare latent inputs for diffusion training."""
         if self.vae is None or self.noise_scheduler is None:
-            raise TrainingError("VAE and noise scheduler must be initialized")
+            raise VAESchedulerNotInitializedError()
 
         try:
             batch_size = images.shape[0]
@@ -344,10 +367,10 @@ class UNetTrainer:
             # 4 (noisy) + 1 (mask) + 4 (masked_image) = 9 channels
             unet_inputs = torch.cat([noisy_latents, mask_latents, masked_latents], dim=1)
 
-            return {"unet_inputs": unet_inputs, "noise": noise, "timesteps": timesteps}
-
         except Exception as e:
-            raise TrainingError(f"Latent preparation failed: {e}")
+            raise LatentEncodingError(str(e)) from e
+        else:
+            return {"unet_inputs": unet_inputs, "noise": noise, "timesteps": timesteps}
 
     def _compute_loss(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         """Compute diffusion loss."""
@@ -369,14 +392,14 @@ class UNetTrainer:
                 encoder_hidden_states=text_features,
             ).sample
         except Exception as e:
-            raise TrainingError(f"UNet forward pass failed: {e}")
+            raise TrainingStepError(str(e)) from e
 
         # Compute loss
         loss = F.mse_loss(noise_pred, latent_data["noise"], reduction="mean")
 
         # Validate loss
         if torch.isnan(loss) or torch.isinf(loss):
-            raise TrainingError(f"Invalid loss detected: {loss}")
+            raise InvalidLossError(float(loss))
 
         return {
             "loss": loss,
@@ -429,12 +452,12 @@ class UNetTrainer:
             )
 
         except Exception as e:
-            raise TrainingError(f"Training step failed: {e}")
+            raise TrainingStepError(str(e)) from e
 
     def validate(self, val_dataloader: DataLoader) -> dict[str, float]:
         """Run validation."""
         if self.unet is None:
-            raise TrainingError("UNet not initialized")
+            raise UNetValidationNotInitializedError()
 
         self.unet.eval()
         total_loss = 0.0
@@ -499,11 +522,11 @@ class UNetTrainer:
             with state_path.open("w") as f:
                 json.dump(training_state, f, indent=2, default=str)
 
+        except Exception as e:
+            raise CheckpointSaveError(str(e)) from e
+        else:
             logger.info(f"Checkpoint saved to {save_path}")
             return save_path
-
-        except Exception as e:
-            raise TrainingError(f"Failed to save checkpoint: {e}")
 
     def save_model(self) -> ModelArtifacts:
         """Save final model artifacts."""
@@ -537,11 +560,11 @@ class UNetTrainer:
                 },
             )
 
+        except Exception as e:
+            raise CheckpointSaveError(str(e)) from e
+        else:
             logger.info(f"Model artifacts saved: {artifacts.model_name} v{artifacts.version}")
             return artifacts
-
-        except Exception as e:
-            raise TrainingError(f"Failed to save model artifacts: {e}")
 
     def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader | None = None):
         """
@@ -641,7 +664,7 @@ class UNetTrainer:
 
         except Exception as e:
             logger.exception("Training failed")
-            raise TrainingError(f"UNet training failed: {e}")
+            raise TrainingLoopError(str(e)) from e
 
         finally:
             # Cleanup GPU memory

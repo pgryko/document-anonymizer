@@ -127,7 +127,7 @@ class ModelDownloader:
                 if attempt == self.config.max_retries - 1:
                     raise InferenceError(
                         f"Download failed after {self.config.max_retries} attempts: {e}"
-                    )
+                    ) from e
                 time.sleep(2**attempt)  # Exponential backoff
         return None
 
@@ -136,7 +136,7 @@ class ModelDownloader:
         source: ModelSource,
         target_path: Path,
         progress_callback: Callable[[int, int], None] | None,
-        attempt: int,
+        _attempt: int,
     ) -> ModelMetadata:
         """Download model with progress tracking."""
         # Create temp file for download

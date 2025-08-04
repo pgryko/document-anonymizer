@@ -25,6 +25,18 @@ from diffusers import AutoencoderKL
 from torch.utils.data import DataLoader
 from transformers import get_scheduler
 
+from src.anonymizer.core.config import VAEConfig
+from src.anonymizer.core.exceptions import (
+    TrainingError,
+    VAEDecodingError,
+    VAEEncodingError,
+    VAEInitializationError,
+    VAETrainingFailedError,
+    ValidationError,
+)
+from src.anonymizer.core.models import ModelArtifacts, TrainingMetrics
+from src.anonymizer.utils.metrics import MetricsCollector
+
 try:
     from torch.utils.tensorboard import SummaryWriter
 
@@ -32,6 +44,7 @@ try:
 except ImportError:
     SummaryWriter = None
     HAS_TENSORBOARD = False
+
 try:
     import torchvision.utils as vutils
 
@@ -40,10 +53,8 @@ except ImportError:
     vutils = None
     HAS_TORCHVISION = False
 
-from src.anonymizer.core.config import VAEConfig
-from src.anonymizer.core.exceptions import ModelLoadError, TrainingError, ValidationError
-from src.anonymizer.core.models import ModelArtifacts, TrainingMetrics
-from src.anonymizer.utils.metrics import MetricsCollector
+# Training constants
+ALPHA_CHANNEL_COUNT = 4
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +98,7 @@ class PerceptualLoss(torch.nn.Module):
         # Ensure 3 channels
         if x.shape[1] == 1:
             x = x.repeat(1, 3, 1, 1)
-        elif x.shape[1] == 4:
+        elif x.shape[1] == ALPHA_CHANNEL_COUNT:
             x = x[:, :3]  # Drop alpha channel
 
         # Normalize to [-1, 1] to [0, 1]
@@ -132,7 +143,7 @@ class VAETrainer:
             )
             logger.info(f"Initialized accelerator on device: {self.accelerator.device}")
         except Exception as e:
-            raise TrainingError(f"Failed to setup distributed training: {e}")
+            raise TrainingError(f"Failed to setup distributed training: {e}") from e
 
     def _initialize_vae(self) -> AutoencoderKL:
         """Initialize VAE model."""
@@ -147,7 +158,7 @@ class VAETrainer:
             return vae
 
         except Exception as e:
-            raise ModelLoadError(f"Failed to initialize VAE: {e}")
+            raise VAEInitializationError(str(e)) from e
 
     def _setup_optimizer(self) -> torch.optim.Optimizer:
         """Setup optimizer with corrected learning rate."""
@@ -207,13 +218,13 @@ class VAETrainer:
             posterior = self.vae.encode(images).latent_dist
             latents = posterior.sample()
         except Exception as e:
-            raise TrainingError(f"VAE encoding failed: {e}")
+            raise VAEEncodingError(str(e)) from e
 
         # Decode back to image space
         try:
             reconstructed = self.vae.decode(latents).sample
         except Exception as e:
-            raise TrainingError(f"VAE decoding failed: {e}")
+            raise VAEDecodingError(str(e)) from e
 
         # Reconstruction loss (MSE)
         recon_loss = F.mse_loss(reconstructed, images, reduction="mean")
@@ -298,7 +309,7 @@ class VAETrainer:
             )
 
         except Exception as e:
-            raise TrainingError(f"Training step failed: {e}")
+            raise TrainingError(f"Training step failed: {e}") from e
 
     def validate(self, val_dataloader: DataLoader) -> dict[str, float]:
         """Run validation."""
@@ -421,7 +432,7 @@ class VAETrainer:
             return save_path
 
         except Exception as e:
-            raise TrainingError(f"Failed to save checkpoint: {e}")
+            raise TrainingError(f"Failed to save checkpoint: {e}") from e
 
     def save_model(self) -> ModelArtifacts:
         """Save final model artifacts."""
@@ -458,7 +469,7 @@ class VAETrainer:
             return artifacts
 
         except Exception as e:
-            raise TrainingError(f"Failed to save model artifacts: {e}")
+            raise TrainingError(f"Failed to save model artifacts: {e}") from e
 
     def train(
         self,
@@ -551,7 +562,7 @@ class VAETrainer:
 
         except Exception as e:
             logger.exception("Training failed")
-            raise TrainingError(f"VAE training failed: {e}")
+            raise VAETrainingFailedError(str(e)) from e
 
         finally:
             # Cleanup GPU memory

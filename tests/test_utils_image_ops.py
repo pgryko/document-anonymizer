@@ -147,20 +147,20 @@ class TestImageProcessor:
         image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
 
         # Mock memory estimation to exceed limit
-        with patch.object(ImageProcessor, "MAX_MEMORY_BYTES", 1000):  # Very small limit
-            with pytest.raises(
-                ValidationError,
-                match="Output would be too large|Image too large in memory",
-            ):
-                ImageProcessor.safe_resize(image, (1000, 1000))
+        with patch.object(ImageProcessor, "MAX_MEMORY_BYTES", 1000), pytest.raises(
+            ValidationError,
+            match="Output would be too large|Image too large in memory",
+        ):  # Very small limit
+            ImageProcessor.safe_resize(image, (1000, 1000))
 
     def test_safe_resize_opencv_error(self):
         """Test handling of OpenCV errors."""
         image = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
 
-        with patch("cv2.resize", side_effect=cv2.error("OpenCV error")):
-            with pytest.raises(PreprocessingError, match="OpenCV resize failed"):
-                ImageProcessor.safe_resize(image, (128, 128))
+        with patch("cv2.resize", side_effect=cv2.error("OpenCV error")), pytest.raises(
+            PreprocessingError, match="OpenCV resize failed"
+        ):
+            ImageProcessor.safe_resize(image, (128, 128))
 
     def test_safe_crop_valid(self):
         """Test safe cropping with valid parameters."""
@@ -354,9 +354,10 @@ class TestImageProcessor:
         """Test handling of OpenCV errors in color conversion."""
         rgb_image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
 
-        with patch("cv2.cvtColor", side_effect=cv2.error("OpenCV error")):
-            with pytest.raises(PreprocessingError, match="Color conversion failed"):
-                ImageProcessor.convert_color_space(rgb_image, "RGB", "BGR")
+        with patch("cv2.cvtColor", side_effect=cv2.error("OpenCV error")), pytest.raises(
+            PreprocessingError, match="Color conversion failed"
+        ):
+            ImageProcessor.convert_color_space(rgb_image, "RGB", "BGR")
 
 
 class TestConvenienceFunctions:

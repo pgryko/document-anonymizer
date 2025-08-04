@@ -30,6 +30,12 @@ from .exceptions import (
 
 logger = logging.getLogger(__name__)
 
+# Configuration constants
+MAX_PATH_DEPTH = 15
+BETA_PARAMETERS_COUNT = 2
+MAX_WORKER_THREADS = 8
+MIN_CREDENTIAL_LENGTH = 8
+
 
 def validate_secure_path(
     path: str | Path, field_name: str = "path", allowed_base_dirs: list[str] | None = None
@@ -149,7 +155,7 @@ def validate_secure_path(
 
         # Additional safety checks
         path_parts = resolved_path.parts
-        if len(path_parts) > 15:  # Reasonable depth limit
+        if len(path_parts) > MAX_PATH_DEPTH:  # Reasonable depth limit
             raise PathDepthError(field_name, str(path))
 
         # Check for symlinks to prevent bypass
@@ -209,7 +215,7 @@ class OptimizerConfig(BaseSettings):
     @field_validator("betas")
     @classmethod
     def validate_betas(cls, v):
-        if len(v) != 2 or not all(0.0 <= b < 1.0 for b in v):
+        if len(v) != BETA_PARAMETERS_COUNT or not all(0.0 <= b < 1.0 for b in v):
             raise BetasValidationError()
         return v
 
@@ -479,7 +485,7 @@ class R2Config(BaseSettings):
         """Validate credentials are not empty and meet basic requirements."""
         if not v or len(v.strip()) == 0:
             raise EmptyCredentialError()
-        if len(v.strip()) < 8:
+        if len(v.strip()) < MIN_CREDENTIAL_LENGTH:
             raise ShortCredentialError()
         return v.strip()
 

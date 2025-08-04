@@ -23,6 +23,7 @@ Usage:
 """
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -35,8 +36,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 try:
-    from src.anonymizer.core.config import UNetConfig, VAEConfig
-    from src.anonymizer.core.exceptions import TrainingError
+    from src.anonymizer.core.config import AppConfig, UNetConfig, VAEConfig
+    from src.anonymizer.core.exceptions import (
+        TrainingError,
+        UNetTrainingFailedError,
+        VAETrainingFailedError,
+    )
     from src.anonymizer.training.unet_trainer import UNetTrainer
     from src.anonymizer.training.vae_trainer import VAETrainer
 except ImportError:
@@ -95,7 +100,7 @@ def _train_vae_impl(
 
     except Exception as e:
         logger.exception("❌ VAE training failed")
-        raise TrainingError(f"VAE training failed: {e}")
+        raise VAETrainingFailedError(str(e)) from e
 
 
 def _train_unet_impl(
@@ -140,7 +145,7 @@ def _train_unet_impl(
 
     except Exception as e:
         logger.exception("❌ UNet training failed")
-        raise TrainingError(f"UNet training failed: {e}")
+        raise UNetTrainingFailedError(str(e)) from e
 
 
 def _print_header():
@@ -217,7 +222,6 @@ def train_vae(config, data_path, output_dir, env_file):
     """
     try:
         if env_file:
-            import os
 
             # Load environment variables from file
             with Path(env_file).open() as f:
@@ -272,7 +276,6 @@ def train_unet(config, data_path, output_dir, env_file):
     """
     try:
         if env_file:
-            import os
 
             # Load environment variables from file
             with Path(env_file).open() as f:
@@ -334,7 +337,6 @@ def train_both(vae_config, unet_config, data_path, output_dir, env_file, sequent
     """
     try:
         if env_file:
-            import os
 
             # Load environment variables from file
             with Path(env_file).open() as f:
@@ -396,7 +398,6 @@ def validate_config(config, model_type, env_file):
     """
     try:
         if env_file:
-            import os
 
             # Load environment variables from file
             with Path(env_file).open() as f:
@@ -423,7 +424,6 @@ def validate_config(config, model_type, env_file):
             )
             logger.info(f"   Model: {config_obj.model_name}, Base: {config_obj.base_model}")
         elif model_type == "app":
-            from src.anonymizer.core.config import AppConfig
 
             config_obj = AppConfig.from_env_and_yaml(yaml_path=config)
             logger.info(f"✅ App config valid - Environment: {config_obj.environment}")

@@ -24,10 +24,80 @@ from PIL import Image, ImageEnhance, UnidentifiedImageError
 from torch.utils.data import DataLoader, Dataset
 
 from src.anonymizer.core.config import DatasetConfig
-from src.anonymizer.core.exceptions import PreprocessingError, ValidationError
+from src.anonymizer.core.exceptions import (
+    BoundingBoxExceedsImageError,
+    BoundingBoxOutOfBoundsError,
+    BoundingBoxTooSmallError,
+    EmptyBatchAfterFilteringError,
+    EmptyDatasetError,
+    ImageDimensionsTooLargeError,
+    ImageDimensionsTooSmallError,
+    ImageNotFoundError,
+    ImageTooLargeError,
+    InsufficientTextRegionsError,
+    InvalidImageDataError,
+    MissingImageNameError,
+    NegativeCoordinatesError,
+    NoAnnotationFilesError,
+    NoValidSamplesError,
+    NoValidTextRegionsError,
+    PreprocessingError,
+    ScaledBoundingBoxTooSmallError,
+    TextTooLongError,
+    TextTooShortError,
+    UnexpectedImageDtypeError,
+    UnexpectedImageShapeError,
+    UnsupportedImageFormatError,
+    ValidationError,
+)
 from src.anonymizer.core.models import BoundingBox, TextRegion
 
 logger = logging.getLogger(__name__)
+
+# Dataset constants
+EXPECTED_IMAGE_DIMENSIONS = 3
+EXPECTED_RGB_CHANNELS = 3
+
+
+# Helper functions for TRY301 compliance
+def _validate_file_size(file_size: int, max_size: int) -> None:
+    """Validate file size is within limits."""
+    if file_size > max_size:
+        raise ImageTooLargeError(file_size, max_size)
+
+
+def _validate_image_format(img_format: str, allowed_formats: set[str]) -> None:
+    """Validate image format is supported."""
+    if img_format not in allowed_formats:
+        raise UnsupportedImageFormatError(img_format)
+
+
+def _validate_image_dimensions(width: int, height: int, max_dim: int, min_dim: int) -> None:
+    """Validate image dimensions are within limits."""
+    if width > max_dim or height > max_dim:
+        raise ImageDimensionsTooLargeError(width, height, max_dim)
+    if width < min_dim or height < min_dim:
+        raise ImageDimensionsTooSmallError(width, height, min_dim)
+
+
+def _validate_image_array_properties(image_array: np.ndarray) -> None:
+    """Validate image array has expected properties."""
+    if image_array.dtype != np.uint8:
+        raise UnexpectedImageDtypeError(str(image_array.dtype))
+    if len(image_array.shape) != EXPECTED_IMAGE_DIMENSIONS or image_array.shape[2] != EXPECTED_RGB_CHANNELS:
+        raise UnexpectedImageShapeError(image_array.shape)
+
+
+def _validate_image_name(image_name: str | None) -> None:
+    """Validate image name is present."""
+    if not image_name:
+        raise MissingImageNameError()
+
+
+def _validate_dataset_not_empty(samples: list) -> None:
+    """Validate dataset has samples."""
+    if len(samples) == 0:
+        raise EmptyDatasetError()
 
 
 @dataclass
@@ -41,15 +111,15 @@ class DatasetSample:
     def __post_init__(self):
         """Validate sample after initialization."""
         if not self.image_path.exists():
-            raise ValidationError(f"Image not found: {self.image_path}")
+            raise ImageNotFoundError(str(self.image_path))
 
         if len(self.text_regions) == 0:
-            raise ValidationError("At least one text region required")
+            raise InsufficientTextRegionsError()
 
         h, w = self.image.shape[:2]
         for region in self.text_regions:
             if region.bbox.right > w or region.bbox.bottom > h:
-                raise ValidationError(f"Bounding box out of bounds: {region.bbox}")
+                raise BoundingBoxOutOfBoundsError(str(region.bbox))
 
 
 class ImageValidator:
@@ -67,22 +137,16 @@ class ImageValidator:
         try:
             # Check file size
             file_size = image_path.stat().st_size
-            if file_size > cls.MAX_IMAGE_SIZE:
-                raise ValidationError(f"Image too large: {file_size} bytes")
+            _validate_file_size(file_size, cls.MAX_IMAGE_SIZE)
 
             # Load and validate image
             with Image.open(image_path) as img:
                 # Check format
-                if img.format not in cls.ALLOWED_FORMATS:
-                    raise ValidationError(f"Unsupported format: {img.format}")
+                _validate_image_format(img.format, cls.ALLOWED_FORMATS)
 
                 # Check dimensions
                 width, height = img.size
-                if width > cls.MAX_DIMENSION or height > cls.MAX_DIMENSION:
-                    raise ValidationError(f"Image too large: {width}x{height}")
-
-                if width < cls.MIN_DIMENSION or height < cls.MIN_DIMENSION:
-                    raise ValidationError(f"Image too small: {width}x{height}")
+                _validate_image_dimensions(width, height, cls.MAX_DIMENSION, cls.MIN_DIMENSION)
 
                 # Validate image data
                 img.verify()
@@ -90,7 +154,7 @@ class ImageValidator:
             return True
 
         except UnidentifiedImageError:
-            raise ValidationError("Invalid image data")
+            raise InvalidImageDataError()
         except Exception as e:
             raise ValidationError(f"Image validation failed: {e}")
 
@@ -114,11 +178,7 @@ class ImageValidator:
             image_array = np.array(image)
 
             # Validate array properties
-            if image_array.dtype != np.uint8:
-                raise ValidationError(f"Unexpected image dtype: {image_array.dtype}")
-
-            if len(image_array.shape) != 3 or image_array.shape[2] != 3:
-                raise ValidationError(f"Unexpected image shape: {image_array.shape}")
+            _validate_image_array_properties(image_array)
 
             return image_array
 
@@ -143,27 +203,27 @@ class TextRegionValidator:
 
         # Validate text content
         if len(region.original_text) < cls.MIN_TEXT_LENGTH:
-            raise ValidationError("Original text too short")
+            raise TextTooShortError("Original")
 
         if len(region.original_text) > cls.MAX_TEXT_LENGTH:
-            raise ValidationError("Original text too long")
+            raise TextTooLongError("Original")
 
         if len(region.replacement_text) < cls.MIN_TEXT_LENGTH:
-            raise ValidationError("Replacement text too short")
+            raise TextTooShortError("Replacement")
 
         if len(region.replacement_text) > cls.MAX_TEXT_LENGTH:
-            raise ValidationError("Replacement text too long")
+            raise TextTooLongError("Replacement")
 
         # Validate bounding box
         bbox = region.bbox
         if bbox.left < 0 or bbox.top < 0:
-            raise ValidationError("Bounding box has negative coordinates")
+            raise NegativeCoordinatesError()
 
         if bbox.right > w or bbox.bottom > h:
-            raise ValidationError("Bounding box exceeds image dimensions")
+            raise BoundingBoxExceedsImageError()
 
         if bbox.width < cls.MIN_BBOX_SIZE or bbox.height < cls.MIN_BBOX_SIZE:
-            raise ValidationError("Bounding box too small")
+            raise BoundingBoxTooSmallError()
 
         return True
 
@@ -264,7 +324,7 @@ class AnonymizerDataset(Dataset):
         annotation_files = list(self.data_dir.glob("*.json"))
 
         if not annotation_files:
-            raise ValidationError(f"No annotation files found in {self.data_dir}")
+            raise NoAnnotationFilesError(str(self.data_dir))
 
         for annotation_file in annotation_files:
             try:
@@ -276,7 +336,7 @@ class AnonymizerDataset(Dataset):
                 continue
 
         if not samples:
-            raise ValidationError("No valid samples found")
+            raise NoValidSamplesError()
 
         return samples
 
@@ -284,13 +344,12 @@ class AnonymizerDataset(Dataset):
         """Load single sample with validation."""
         try:
             # Load annotations
-            with Path(annotation_file).open() as f:
+            with annotation_file.open() as f:
                 data = json.load(f)
 
             # Get image path
             image_name = data.get("image_name")
-            if not image_name:
-                raise ValidationError("Missing image_name in annotation")
+            _validate_image_name(image_name)
 
             image_path = self.data_dir / image_name
 
@@ -338,8 +397,7 @@ class AnonymizerDataset(Dataset):
         for attempt in range(max_retries):
             try:
                 # Check for empty samples list
-                if len(self.samples) == 0:
-                    raise ValueError("Dataset has no samples")
+                _validate_dataset_not_empty(self.samples)
 
                 # Use modulo to handle out-of-bounds indices
                 actual_idx = idx % len(self.samples)
@@ -421,7 +479,7 @@ class AnonymizerDataset(Dataset):
                 # Validate bbox is still meaningful after clamping
                 if clamped_bbox.width <= 0 or clamped_bbox.height <= 0:
                     logger.warning(
-                        f"Scaled bbox too small after clamping, skipping: {clamped_bbox}"
+                        ScaledBoundingBoxTooSmallError(str(clamped_bbox)).args[0]
                     )
                     continue
 
@@ -440,7 +498,7 @@ class AnonymizerDataset(Dataset):
             if not masks:
                 masks.append(np.zeros((target_size, target_size), dtype=np.float32))
                 texts.append("")
-                logger.warning("No valid text regions found, using dummy mask")
+                logger.warning(NoValidTextRegionsError().args[0])
 
             # Convert to tensors
             image_tensor = torch.from_numpy(padded_image).permute(2, 0, 1).float() / 255.0
@@ -493,7 +551,7 @@ def collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
 
     # If all items were filtered out (all items were invalid)
     if not valid_batch:
-        raise ValidationError("Empty batch after filtering")
+        raise EmptyBatchAfterFilteringError()
 
     # Separate batch components
     images = torch.stack([item["images"] for item in valid_batch])
