@@ -10,11 +10,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv sync
 
 # Run tests
-uv run pytest
+uv run pytest                  # All tests (~2+ minutes)
 
 # Run specific test types
-uv run pytest -m unit          # Unit tests only
-uv run pytest -m integration   # Integration tests only
+uv run pytest -m unit          # Unit tests only (~48s)
+uv run pytest -m integration   # Integration tests only (~2+ minutes)
 uv run pytest -m gpu          # GPU tests only
 uv run pytest -m "not slow"   # Skip slow tests
 
@@ -27,7 +27,7 @@ uv run ruff check src/ tests/
 uv run mypy src/
 
 # Run single test file
-uv run pytest tests/test_core_config.py -v
+uv run pytest tests/test_core_config.py -v  # ~5s
 ```
 
 ### Training Commands

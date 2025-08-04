@@ -69,6 +69,7 @@ addopts = [
     "--tb=short",
     "--strict-markers",
     "--disable-warnings",
+    "--durations=10",
     "--cov=src/anonymizer",
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
