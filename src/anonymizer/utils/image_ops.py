@@ -99,7 +99,9 @@ class ImageProcessor:
                 raise OutputSizeTooLargeError(new_w, new_h)
 
             # Estimate output memory
-            channels = GRAYSCALE_CHANNELS if len(image.shape) == MIN_IMAGE_DIMENSIONS else image.shape[2]
+            channels = (
+                GRAYSCALE_CHANNELS if len(image.shape) == MIN_IMAGE_DIMENSIONS else image.shape[2]
+            )
             estimated_memory = new_w * new_h * channels * image.itemsize
             if estimated_memory > cls.MAX_MEMORY_BYTES:
                 raise OutputMemoryTooLargeError(estimated_memory)
@@ -143,7 +145,11 @@ class ImageProcessor:
             x2, y2 = min(img_w, x + width), min(img_h, y + height)
 
             # Extract crop
-            crop = image[y1:y2, x1:x2] if len(image.shape) == MIN_IMAGE_DIMENSIONS else image[y1:y2, x1:x2, :]
+            crop = (
+                image[y1:y2, x1:x2]
+                if len(image.shape) == MIN_IMAGE_DIMENSIONS
+                else image[y1:y2, x1:x2, :]
+            )
 
             # Add padding if needed
             crop_h, crop_w = crop.shape[:2]

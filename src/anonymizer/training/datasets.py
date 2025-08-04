@@ -84,7 +84,10 @@ def _validate_image_array_properties(image_array: np.ndarray) -> None:
     """Validate image array has expected properties."""
     if image_array.dtype != np.uint8:
         raise UnexpectedImageDtypeError(str(image_array.dtype))
-    if len(image_array.shape) != EXPECTED_IMAGE_DIMENSIONS or image_array.shape[2] != EXPECTED_RGB_CHANNELS:
+    if (
+        len(image_array.shape) != EXPECTED_IMAGE_DIMENSIONS
+        or image_array.shape[2] != EXPECTED_RGB_CHANNELS
+    ):
         raise UnexpectedImageShapeError(image_array.shape)
 
 
@@ -478,9 +481,7 @@ class AnonymizerDataset(Dataset):
 
                 # Validate bbox is still meaningful after clamping
                 if clamped_bbox.width <= 0 or clamped_bbox.height <= 0:
-                    logger.warning(
-                        ScaledBoundingBoxTooSmallError(str(clamped_bbox)).args[0]
-                    )
+                    logger.warning(ScaledBoundingBoxTooSmallError(str(clamped_bbox)).args[0])
                     continue
 
                 # Create individual mask for this region

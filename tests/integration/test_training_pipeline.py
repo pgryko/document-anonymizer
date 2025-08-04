@@ -408,7 +408,6 @@ class TestTrainingPipelineIntegration:
     def test_memory_cleanup(self, vae_config):
         """Test memory cleanup during training."""
 
-
         trainer = VAETrainer(vae_config)
 
         # Get initial memory

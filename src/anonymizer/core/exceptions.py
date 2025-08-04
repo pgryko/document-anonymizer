@@ -567,6 +567,7 @@ class InvalidLossError(TrainingStepError):
 
 # Additional specific exceptions for common TRY003 patterns
 
+
 # Image operations exceptions
 class ImageProcessingError(ProcessingError):
     """Exception raised during image processing operations."""
