@@ -112,7 +112,7 @@ class ModelValidator:
         except Exception as e:
             result.add_error(f"Cannot access file {model_path}: {e}")
 
-    def _validate_file_format(
+    def _validate_file_format(  # noqa: PLR0912  # Complex format validation
         self,
         model_path: Path,
         metadata: ModelMetadata | None,
@@ -404,7 +404,7 @@ class ModelValidator:
             if not has_attention:
                 result.add_warning("UNet model missing attention layers")
 
-    def _validate_model_loading(
+    def _validate_model_loading(  # noqa: PLR0912  # Complex model loading validation
         self,
         model_path: Path,
         _metadata: ModelMetadata | None,

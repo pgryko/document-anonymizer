@@ -95,4 +95,4 @@ def create_scheduler(
         return scheduler
 
     except Exception as e:
-        raise ConfigurationError(f"Failed to create scheduler: {e}")
+        raise ConfigurationError(f"Failed to create scheduler: {e}") from e

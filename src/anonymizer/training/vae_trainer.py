@@ -13,6 +13,7 @@ Key fixes:
 - Proper memory management and cleanup
 """
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -27,12 +28,18 @@ from transformers import get_scheduler
 
 from src.anonymizer.core.config import VAEConfig
 from src.anonymizer.core.exceptions import (
-    TrainingError,
+    CheckpointSaveFailedError,
+    DistributedTrainingSetupFailedError,
+    InvalidLossDetectedError,
+    ModelArtifactsSaveFailedError,
+    OptimizerNotInitializedError,
+    TrainingStepFailedError,
+    UnsupportedOptimizerError,
     VAEDecodingError,
     VAEEncodingError,
     VAEInitializationError,
+    VAENotInitializedError,
     VAETrainingFailedError,
-    ValidationError,
 )
 from src.anonymizer.core.models import ModelArtifacts, TrainingMetrics
 from src.anonymizer.utils.metrics import MetricsCollector
@@ -47,10 +54,12 @@ except ImportError:
 
 try:
     import torchvision.utils as vutils
+    from torchvision import models
 
     HAS_TORCHVISION = True
 except ImportError:
     vutils = None
+    models = None
     HAS_TORCHVISION = False
 
 # Training constants
@@ -64,16 +73,14 @@ class PerceptualLoss(torch.nn.Module):
 
     def __init__(self, device: torch.device):
         super().__init__()
-        try:
-            from torchvision import models
-
+        if models is not None:
             # Use VGG16 features for perceptual loss
             vgg = models.vgg16(pretrained=True).features[:16].to(device)
             vgg.eval()
             for param in vgg.parameters():
                 param.requires_grad = False
             self.vgg = vgg
-        except ImportError:
+        else:
             logger.warning("torchvision not available, skipping perceptual loss")
             self.vgg = None
 
@@ -143,7 +150,7 @@ class VAETrainer:
             )
             logger.info(f"Initialized accelerator on device: {self.accelerator.device}")
         except Exception as e:
-            raise TrainingError(f"Failed to setup distributed training: {e}") from e
+            raise DistributedTrainingSetupFailedError() from e
 
     def _initialize_vae(self) -> AutoencoderKL:
         """Initialize VAE model."""
@@ -155,15 +162,15 @@ class VAETrainer:
             vae.train()
 
             logger.info(f"VAE initialized: {sum(p.numel() for p in vae.parameters())} parameters")
-            return vae
-
         except Exception as e:
             raise VAEInitializationError(str(e)) from e
+        else:
+            return vae
 
     def _setup_optimizer(self) -> torch.optim.Optimizer:
         """Setup optimizer with corrected learning rate."""
         if self.vae is None:
-            raise TrainingError("VAE must be initialized before optimizer")
+            raise VAENotInitializedError()
 
         # CRITICAL FIX: Use corrected learning rate (5e-4 instead of 5e-6)
         optimizer_config = self.config.optimizer
@@ -176,7 +183,7 @@ class VAETrainer:
                 betas=optimizer_config.betas,
             )
         else:
-            raise ValidationError(f"Unsupported optimizer: {optimizer_config.type}")
+            raise UnsupportedOptimizerError()
 
         logger.info(
             f"Optimizer setup: {optimizer_config.type} with LR {optimizer_config.learning_rate}"
@@ -186,7 +193,7 @@ class VAETrainer:
     def _setup_scheduler(self, dataloader: DataLoader) -> Any:
         """Setup learning rate scheduler."""
         if self.optimizer is None:
-            raise TrainingError("Optimizer must be initialized before scheduler")
+            raise OptimizerNotInitializedError()
 
         scheduler_config = self.config.scheduler
         num_training_steps = len(dataloader) * self.config.num_epochs
@@ -250,9 +257,7 @@ class VAETrainer:
 
         # Validate loss values
         if torch.isnan(total_loss) or torch.isinf(total_loss):
-            raise TrainingError(
-                f"Invalid loss detected: total={total_loss}, recon={recon_loss}, kl={kl_loss}"
-            )
+            raise InvalidLossDetectedError()
 
         return {
             "total_loss": total_loss,
@@ -309,12 +314,12 @@ class VAETrainer:
             )
 
         except Exception as e:
-            raise TrainingError(f"Training step failed: {e}") from e
+            raise TrainingStepFailedError() from e
 
     def validate(self, val_dataloader: DataLoader) -> dict[str, float]:
         """Run validation."""
         if self.vae is None:
-            raise TrainingError("VAE not initialized")
+            raise VAENotInitializedError()
 
         self.vae.eval()
         total_losses = {
@@ -423,16 +428,15 @@ class VAETrainer:
             }
 
             state_path = save_path.with_suffix(".json")
-            import json
 
             with state_path.open("w") as f:
                 json.dump(training_state, f, indent=2, default=str)
 
             logger.info(f"Checkpoint saved to {save_path}")
-            return save_path
-
         except Exception as e:
-            raise TrainingError(f"Failed to save checkpoint: {e}") from e
+            raise CheckpointSaveFailedError() from e
+        else:
+            return save_path
 
     def save_model(self) -> ModelArtifacts:
         """Save final model artifacts."""
@@ -447,8 +451,6 @@ class VAETrainer:
             # Save config
             config_path = model_dir / "config.json"
             with config_path.open("w") as f:
-                import json
-
                 json.dump(self.config.dict(), f, indent=2, default=str)
 
             # Create artifacts
@@ -466,12 +468,12 @@ class VAETrainer:
             )
 
             logger.info(f"Model artifacts saved: {artifacts.model_name} v{artifacts.version}")
+        except Exception as e:
+            raise ModelArtifactsSaveFailedError() from e
+        else:
             return artifacts
 
-        except Exception as e:
-            raise TrainingError(f"Failed to save model artifacts: {e}") from e
-
-    def train(
+    def train(  # noqa: PLR0912  # Complex training loop
         self,
         train_dataloader: DataLoader,
         val_dataloader: DataLoader | None = None,

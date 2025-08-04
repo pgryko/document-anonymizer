@@ -53,6 +53,36 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Constants for image processing and validation
+MIN_IMAGE_SIZE = 10
+MEDIAN_BLUR_KERNEL_SIZE = 3
+MIN_LINE_LENGTH = 2
+MIN_TEXT_INFO_LENGTH = 2
+MIN_CHANNEL_COUNT = 3
+DEFAULT_TROCR_CONFIDENCE = 0.8
+MIN_REGION_WIDTH = 30
+MIN_REGION_HEIGHT = 15
+TESSERACT_CONFIDENCE_SCALE = 100
+
+
+# Helper functions for validation and error handling
+def _validate_ocr_dependency(dependency, _dependency_name: str) -> None:
+    """Validate that an OCR dependency is available."""
+    if dependency is None:
+        raise OCREngineInitializationError()
+
+
+def _validate_trocr_dependencies() -> None:
+    """Validate TrOCR dependencies are available."""
+    if TrOCRProcessor is None or VisionEncoderDecoderModel is None:
+        raise OCREngineInitializationError()
+
+
+def _validate_tesseract_dependencies() -> None:
+    """Validate Tesseract dependencies are available."""
+    if pytesseract is None or PILImage is None:
+        raise OCREngineInitializationError()
+
 
 class BaseOCREngine(ABC):
     """Base class for all OCR engines."""
@@ -95,7 +125,7 @@ class BaseOCREngine(ABC):
             processed = cv2.resize(processed, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
 
         # Convert to grayscale for processing
-        if len(processed.shape) == 3:
+        if len(processed.shape) == MIN_CHANNEL_COUNT:
             gray = cv2.cvtColor(processed, cv2.COLOR_RGB2GRAY)
         else:
             gray = processed.copy()
@@ -106,10 +136,10 @@ class BaseOCREngine(ABC):
 
         # Noise reduction
         if self.config.noise_reduction:
-            gray = cv2.medianBlur(gray, 3)
+            gray = cv2.medianBlur(gray, MEDIAN_BLUR_KERNEL_SIZE)
 
         # Convert back to RGB if original was color
-        return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB) if len(image.shape) == 3 else gray
+        return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB) if len(image.shape) == MIN_CHANNEL_COUNT else gray
 
     def validate_image(self, image: np.ndarray) -> bool:
         """Validate input image."""
@@ -123,7 +153,7 @@ class BaseOCREngine(ABC):
             raise ImageCannotBeEmptyError()
 
         h, w = image.shape[:2]
-        if h < 10 or w < 10:
+        if h < MIN_IMAGE_SIZE or w < MIN_IMAGE_SIZE:
             raise ImageTooSmallError(w, h)
 
         return True
@@ -139,8 +169,7 @@ class PaddleOCREngine(BaseOCREngine):
     def initialize(self) -> bool:
         """Initialize PaddleOCR."""
         try:
-            if paddleocr is None:
-                raise OCREngineInitializationError()
+            _validate_ocr_dependency(paddleocr, "PaddleOCR")
 
             # Initialize PaddleOCR
             self.ocr = paddleocr.PaddleOCR(
@@ -149,17 +178,16 @@ class PaddleOCREngine(BaseOCREngine):
                 use_gpu=self.config.use_gpu,
                 show_log=False,
             )
-
-            self.is_initialized = True
-            self.logger.info("PaddleOCR initialized successfully")
-            return True
-
         except ImportError:
             self.logger.warning("PaddleOCR not available - install with: pip install paddleocr")
             return False
         except Exception:
             self.logger.exception("Failed to initialize PaddleOCR")
             return False
+        else:
+            self.is_initialized = True
+            self.logger.info("PaddleOCR initialized successfully")
+            return True
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
         """Detect text using PaddleOCR."""
@@ -180,11 +208,11 @@ class PaddleOCREngine(BaseOCREngine):
             detected_texts = []
             if result and result[0]:
                 for line in result[0]:
-                    if len(line) >= 2:
+                    if len(line) >= MIN_LINE_LENGTH:
                         bbox_coords = line[0]
                         text_info = line[1]
 
-                        if len(text_info) >= 2:
+                        if len(text_info) >= MIN_TEXT_INFO_LENGTH:
                             text = text_info[0]
                             confidence = text_info[1]
 
@@ -259,25 +287,23 @@ class EasyOCREngine(BaseOCREngine):
     def initialize(self) -> bool:
         """Initialize EasyOCR."""
         try:
-            if easyocr is None:
-                raise OCREngineInitializationError()
+            _validate_ocr_dependency(easyocr, "EasyOCR")
 
             # Initialize EasyOCR
             self.reader = easyocr.Reader(
                 self.config.languages if self.config.languages else ["en"],
                 gpu=self.config.use_gpu,
             )
-
-            self.is_initialized = True
-            self.logger.info("EasyOCR initialized successfully")
-            return True
-
         except ImportError:
             self.logger.warning("EasyOCR not available - install with: pip install easyocr")
             return False
         except Exception:
             self.logger.exception("Failed to initialize EasyOCR")
             return False
+        else:
+            self.is_initialized = True
+            self.logger.info("EasyOCR initialized successfully")
+            return True
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
         """Detect text using EasyOCR."""
@@ -372,8 +398,7 @@ class TrOCREngine(BaseOCREngine):
     def initialize(self) -> bool:
         """Initialize TrOCR."""
         try:
-            if TrOCRProcessor is None or VisionEncoderDecoderModel is None:
-                raise OCREngineInitializationError()
+            _validate_trocr_dependencies()
 
             # Set device
             self.device = torch.device(
@@ -384,11 +409,6 @@ class TrOCREngine(BaseOCREngine):
             model_name = "microsoft/trocr-base-printed"  # or "microsoft/trocr-base-handwritten"
             self.processor = TrOCRProcessor.from_pretrained(model_name)
             self.model = VisionEncoderDecoderModel.from_pretrained(model_name).to(self.device)
-
-            self.is_initialized = True
-            self.logger.info(f"TrOCR initialized successfully on {self.device}")
-            return True
-
         except ImportError:
             self.logger.warning(
                 "TrOCR not available - install with: pip install transformers torch"
@@ -397,6 +417,10 @@ class TrOCREngine(BaseOCREngine):
         except Exception:
             self.logger.exception("Failed to initialize TrOCR")
             return False
+        else:
+            self.is_initialized = True
+            self.logger.info(f"TrOCR initialized successfully on {self.device}")
+            return True
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
         """Detect text using TrOCR."""
@@ -469,7 +493,7 @@ class TrOCREngine(BaseOCREngine):
     def _detect_text_regions(self, image: np.ndarray) -> list[tuple[BoundingBox, np.ndarray]]:
         """Simple text region detection using OpenCV (for TrOCR preprocessing)."""
         # Convert to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY) if len(image.shape) == 3 else image.copy()
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY) if len(image.shape) == MIN_CHANNEL_COUNT else image.copy()
 
         # Apply morphological operations to find text regions
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (17, 7))
@@ -484,7 +508,7 @@ class TrOCREngine(BaseOCREngine):
             x, y, w, h = cv2.boundingRect(contour)
 
             # Filter small regions
-            if w > 30 and h > 15:
+            if w > MIN_REGION_WIDTH and h > MIN_REGION_HEIGHT:
                 bbox = BoundingBox(left=x, top=y, right=x + w, bottom=y + h)
                 region_image = image[y : y + h, x : x + w]
                 regions.append((bbox, region_image))
@@ -517,21 +541,20 @@ class TesseractEngine(BaseOCREngine):
     def initialize(self) -> bool:
         """Initialize Tesseract."""
         try:
-            if pytesseract is None:
-                raise OCREngineInitializationError()
+            _validate_ocr_dependency(pytesseract, "Tesseract")
 
             # Try to get Tesseract version to verify installation
             version = pytesseract.get_tesseract_version()
-            self.is_initialized = True
-            self.logger.info(f"Tesseract initialized successfully (version: {version})")
-            return True
-
         except ImportError:
             self.logger.warning("Tesseract not available - install with: pip install pytesseract")
             return False
         except Exception:
             self.logger.exception("Failed to initialize Tesseract")
             return False
+        else:
+            self.is_initialized = True
+            self.logger.info(f"Tesseract initialized successfully (version: {version})")
+            return True
 
     def detect_text(self, image: np.ndarray) -> OCRResult:
         """Detect text using Tesseract."""
@@ -542,8 +565,7 @@ class TesseractEngine(BaseOCREngine):
         start_time = time.time()
 
         try:
-            if pytesseract is None or PILImage is None:
-                raise OCREngineInitializationError()
+            _validate_tesseract_dependencies()
 
             # Preprocess image
             processed_image = self.preprocess_image(image)
@@ -569,7 +591,7 @@ class TesseractEngine(BaseOCREngine):
                 if (
                     text
                     and confidence
-                    >= self.config.min_confidence_threshold * 100  # Tesseract uses 0-100 scale
+                    >= self.config.min_confidence_threshold * TESSERACT_CONFIDENCE_SCALE  # Tesseract uses 0-100 scale
                     and self.config.min_text_length <= len(text) <= self.config.max_text_length
                 ):
                     # Create bounding box

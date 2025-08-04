@@ -568,6 +568,163 @@ class InvalidLossError(TrainingStepError):
 # Additional specific exceptions for common TRY003 patterns
 
 
+# VAE trainer specific exceptions
+class VAENotInitializedError(TrainingError):
+    """Exception raised when VAE is not initialized."""
+
+    def __init__(self):
+        super().__init__("VAE not initialized")
+
+
+class VAEOptimizerNotInitializedError(TrainingError):
+    """Exception raised when VAE must be initialized before optimizer."""
+
+    def __init__(self):
+        super().__init__("VAE must be initialized before optimizer")
+
+
+class DistributedTrainingSetupFailedError(TrainingError):
+    """Exception raised when distributed training setup fails."""
+
+    def __init__(self, error: str):
+        super().__init__(f"Failed to setup distributed training: {error}")
+
+
+class InvalidLossDetectedError(TrainingError):
+    """Exception raised when invalid loss is detected during training."""
+
+    def __init__(self, total_loss: float, recon_loss: float, kl_loss: float):
+        super().__init__(
+            f"Invalid loss detected: total={total_loss}, recon={recon_loss}, kl={kl_loss}"
+        )
+
+
+class TrainingStepFailedError(TrainingError):
+    """Exception raised when training step fails."""
+
+    def __init__(self, error: str):
+        super().__init__(f"Training step failed: {error}")
+
+
+class CheckpointSaveFailedError(TrainingError):
+    """Exception raised when checkpoint saving fails."""
+
+    def __init__(self, error: str):
+        super().__init__(f"Failed to save checkpoint: {error}")
+
+
+class ModelArtifactsSaveFailedError(TrainingError):
+    """Exception raised when model artifacts saving fails."""
+
+    def __init__(self, error: str):
+        super().__init__(f"Failed to save model artifacts: {error}")
+
+
+# Model downloader specific exceptions
+class URLNotAllowedError(ValidationError):
+    """Exception raised when URL is not allowed."""
+
+    def __init__(self, url: str):
+        super().__init__(f"URL not allowed: {url}")
+
+
+class DownloadSizeMismatchError(InferenceError):
+    """Exception raised when download size doesn't match expected."""
+
+    def __init__(self, expected: int, actual: int):
+        super().__init__(f"Download size mismatch: expected {expected}, got {actual}")
+
+
+class InsufficientDiskSpaceError(InferenceError):
+    """Exception raised when insufficient disk space for download."""
+
+    def __init__(self, required_gb: float, available_gb: float):
+        super().__init__(
+            f"Insufficient disk space. Required: {required_gb:.2f}GB, Available: {available_gb:.2f}GB"
+        )
+
+
+class DownloadFailedAfterRetriesError(InferenceError):
+    """Exception raised when download fails after all retry attempts."""
+
+    def __init__(self, max_retries: int, error: str):
+        super().__init__(f"Download failed after {max_retries} attempts: {error}")
+
+
+# Configuration validation exceptions
+class ModelNameAndUrlRequiredError(ValidationError):
+    """Exception raised when model name and URL are required."""
+
+    def __init__(self):
+        super().__init__("Model name and URL are required")
+
+
+class UnsupportedChecksumTypeError(ValidationError):
+    """Exception raised for unsupported checksum types."""
+
+    def __init__(self, checksum_type: str):
+        super().__init__(f"Unsupported checksum type: {checksum_type}")
+
+
+class MaxWorkersPositiveError(ValidationError):
+    """Exception raised when max_workers must be positive."""
+
+    def __init__(self):
+        super().__init__("max_workers must be positive")
+
+
+class TimeoutSecondsPositiveError(ValidationError):
+    """Exception raised when timeout_seconds must be positive."""
+
+    def __init__(self):
+        super().__init__("timeout_seconds must be positive")
+
+
+class MaxCacheSizePositiveError(ValidationError):
+    """Exception raised when max_cache_size_gb must be positive."""
+
+    def __init__(self):
+        super().__init__("max_cache_size_gb must be positive")
+
+
+# HTTP method exceptions
+class UnsupportedHTTPMethodError(ValidationError):
+    """Exception raised for unsupported HTTP methods."""
+
+    def __init__(self, method: str):
+        super().__init__(f"Unsupported HTTP method: {method}")
+
+
+# Font checksum exceptions
+class ChecksumVerificationFailedError(StorageError):
+    """Exception raised when font checksum verification fails."""
+
+    def __init__(self, font_file: str):
+        super().__init__(f"Checksum verification failed for {font_file}")
+
+
+# Text rendering exceptions
+class EmptyTextError(ValidationError):
+    """Exception raised when text cannot be empty."""
+
+    def __init__(self):
+        super().__init__("Text cannot be empty")
+
+
+class TextRenderingFailedError(PreprocessingError):
+    """Exception raised when text rendering fails."""
+
+    def __init__(self, error: str):
+        super().__init__(f"Text rendering failed: {error}")
+
+
+class EmptyTextListError(ValidationError):
+    """Exception raised when text list cannot be empty."""
+
+    def __init__(self):
+        super().__init__("Text list cannot be empty")
+
+
 # Image operations exceptions
 class ImageProcessingError(ProcessingError):
     """Exception raised during image processing operations."""
@@ -930,14 +1087,14 @@ class DownloadError(NetworkError):
         super().__init__("Download failed")
 
 
-class ConnectionError(NetworkError):
+class NetworkConnectionError(NetworkError):
     """Exception raised when connection fails."""
 
     def __init__(self):
         super().__init__("Connection failed")
 
 
-class TimeoutError(NetworkError):
+class NetworkTimeoutError(NetworkError):
     """Exception raised when operation times out."""
 
     def __init__(self):
@@ -952,18 +1109,18 @@ class HTTPError(NetworkError):
 
 
 # Memory exceptions
-class MemoryError(AnonymizerError):
+class AnonymizerMemoryError(AnonymizerError):
     """Exception raised for memory-related errors."""
 
 
-class OutOfMemoryError(MemoryError):
+class OutOfMemoryError(AnonymizerMemoryError):
     """Exception raised when out of memory."""
 
     def __init__(self):
         super().__init__("Out of memory")
 
 
-class MemoryLimitExceededError(MemoryError):
+class MemoryLimitExceededError(AnonymizerMemoryError):
     """Exception raised when memory limit is exceeded."""
 
     def __init__(self, limit: int):
@@ -990,13 +1147,6 @@ class CudaDeviceError(CudaError):
 
 
 # Additional specific exceptions for image dimensions and memory
-class ImageTooLargeError(ValidationError):
-    """Exception raised when image dimensions are too large."""
-
-    def __init__(self, width: int, height: int):
-        super().__init__(f"Image too large: {width}x{height}")
-
-
 class ImageMemoryTooLargeError(ValidationError):
     """Exception raised when image memory usage is too large."""
 
@@ -1103,13 +1253,6 @@ class ModelLoadingError(ModelLoadError):
         super().__init__("Failed to load model")
 
 
-class UnsupportedImageFormatError(ValidationError):
-    """Exception raised for unsupported image formats."""
-
-    def __init__(self):
-        super().__init__("Unsupported image format")
-
-
 class MissingOCRResultsError(ValidationError):
     """Exception raised when OCR results are missing."""
 
@@ -1129,13 +1272,6 @@ class TensorValidationError(ValidationError):
 
     def __init__(self):
         super().__init__("Tensor validation failed")
-
-
-class MemoryLimitExceededError(InferenceError):
-    """Exception raised when memory limit is exceeded."""
-
-    def __init__(self):
-        super().__init__("Memory limit exceeded")
 
 
 class InferenceSetupFailedError(InferenceError):

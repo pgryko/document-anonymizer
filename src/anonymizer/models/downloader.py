@@ -20,7 +20,21 @@ from urllib.parse import urlparse
 import requests
 from tqdm import tqdm
 
-from src.anonymizer.core.exceptions import InferenceError, ValidationError
+try:
+    from huggingface_hub import hf_hub_download, hf_hub_url
+except ImportError:
+    hf_hub_download = None
+    hf_hub_url = None
+
+from src.anonymizer.core.exceptions import (
+    ChecksumVerificationError,
+    DownloadFailedAfterRetriesError,
+    DownloadSizeMismatchError,
+    InferenceError,
+    InsufficientDiskSpaceError,
+    UnsupportedChecksumTypeError,
+    ValidationError,
+)
 
 from .config import ModelConfig, ModelFormat, ModelMetadata, ModelSource, ModelType
 
@@ -108,7 +122,7 @@ class ModelDownloader:
             ModelMetadata for the downloaded model
         """
         if not self._is_url_allowed(source.url):
-            raise ValidationError(f"URL not allowed: {source.url}")
+            raise ValidationError()
 
         # Determine target path
         if target_path is None:
@@ -125,9 +139,7 @@ class ModelDownloader:
             except Exception as e:
                 logger.warning(f"Download attempt {attempt + 1} failed: {e}")
                 if attempt == self.config.max_retries - 1:
-                    raise InferenceError(
-                        f"Download failed after {self.config.max_retries} attempts: {e}"
-                    ) from e
+                    raise DownloadFailedAfterRetriesError() from e
                 time.sleep(2**attempt)  # Exponential backoff
         return None
 
@@ -193,9 +205,7 @@ class ModelDownloader:
 
             # Verify download
             if total_size > 0 and downloaded_size != total_size:
-                raise InferenceError(
-                    f"Download size mismatch: expected {total_size}, got {downloaded_size}"
-                )
+                raise DownloadSizeMismatchError()
 
             # Verify checksum if provided
             if source.checksum and self.config.verify_checksums:
@@ -223,14 +233,13 @@ class ModelDownloader:
 
             # Save metadata
             self._save_metadata(metadata)
-
-            return metadata
-
         except Exception:
             # Cleanup temp file on error
             if temp_path.exists():
                 temp_path.unlink()
             raise
+        else:
+            return metadata
 
     def _is_url_allowed(self, url: str) -> bool:
         """Check if URL is allowed based on security settings."""
@@ -247,10 +256,10 @@ class ModelDownloader:
                     return True
 
             logger.warning(f"URL domain not in trusted list: {domain}")
-            return False
-
         except Exception:
             logger.exception(f"Error parsing URL {url}")
+            return False
+        else:
             return False
 
     def _get_default_path(self, source: ModelSource) -> Path:
@@ -277,10 +286,7 @@ class ModelDownloader:
             required_with_buffer = int(required_bytes * 1.1)
 
             if available < required_with_buffer:
-                raise InferenceError(
-                    f"Insufficient disk space. Required: {required_with_buffer / 1024**3:.2f}GB, "
-                    f"Available: {available / 1024**3:.2f}GB"
-                )
+                raise InsufficientDiskSpaceError()
 
         except Exception as e:
             logger.warning(f"Could not check disk space: {e}")
@@ -301,9 +307,7 @@ class ModelDownloader:
         elif checksum_type.lower() == "sha512":
             hasher = hashlib.sha512()
         else:
-            raise ValidationError(
-                f"Unsupported checksum type: {checksum_type}. Use sha256 or sha512."
-            )
+            raise UnsupportedChecksumTypeError()
 
         # Calculate checksum
         with file_path.open("rb") as f:
@@ -313,10 +317,7 @@ class ModelDownloader:
         actual_checksum = hasher.hexdigest()
 
         if actual_checksum.lower() != expected_checksum.lower():
-            raise ValidationError(
-                f"Checksum verification failed. Expected: {expected_checksum}, "
-                f"Actual: {actual_checksum}"
-            )
+            raise ChecksumVerificationError()
 
         logger.info("Checksum verification passed")
 
@@ -363,9 +364,10 @@ class ModelDownloader:
         Returns:
             ModelMetadata for downloaded model
         """
-        try:
-            from huggingface_hub import hf_hub_download, hf_hub_url
+        if hf_hub_download is None or hf_hub_url is None:
+            raise InferenceError()
 
+        try:
             if filename:
                 # Download specific file
                 url = hf_hub_url(model_id, filename=filename, revision=revision)
@@ -401,12 +403,8 @@ class ModelDownloader:
 
             raise NotImplementedError("Full model download not yet implemented")
 
-        except ImportError:
-            raise InferenceError(
-                "huggingface_hub not available. Install with: pip install huggingface_hub"
-            )
         except Exception as e:
-            raise InferenceError(f"Hugging Face download failed: {e}")
+            raise InferenceError() from e
 
     def cleanup(self):
         """Cleanup downloader resources."""

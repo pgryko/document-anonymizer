@@ -314,9 +314,9 @@ class TestE2EAnonymization:
                 try:
                     result = engine.anonymize(image_data)
                     del result  # Explicit cleanup
-                except Exception:
+                except Exception as e:
                     # Expected if models not available
-                    pass
+                    logging.debug(f"Expected exception during memory test: {e}")
 
             # Force garbage collection
             gc.collect()

@@ -193,11 +193,11 @@ class AnonymizationBenchmark:
         self.profiler = profiler or PerformanceProfiler()
 
     def create_test_document(
-        self, size: tuple[int, int] = (1024, 768), format: str = "RGB"
+        self, size: tuple[int, int] = (1024, 768), image_format: str = "RGB"
     ) -> Image.Image:
         """Create a synthetic test document image."""
         # Create a white background
-        return Image.new(format, size, color="white")
+        return Image.new(image_format, size, color="white")
 
         # In a real implementation, this could:
         # - Add realistic text content

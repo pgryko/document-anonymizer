@@ -4,6 +4,7 @@ Unit tests for UNet trainer - Imperative style.
 Tests the corrected UNet trainer with proper hyperparameters.
 """
 
+import logging
 from unittest.mock import Mock, patch
 
 import pytest
@@ -575,8 +576,8 @@ class TestUNetTrainer:
             # This should trigger memory cleanup in the finally block
             try:
                 trainer.train([], None)
-            except Exception:
-                pass  # Expected since we don't have real data
+            except Exception as e:
+                logging.debug(f"Expected exception during test cleanup: {e}")
 
             # Memory cleanup should have been called
             mock_empty_cache.assert_called()

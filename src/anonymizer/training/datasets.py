@@ -156,10 +156,10 @@ class ImageValidator:
 
             return True
 
-        except UnidentifiedImageError:
-            raise InvalidImageDataError()
+        except UnidentifiedImageError as e:
+            raise InvalidImageDataError() from e
         except Exception as e:
-            raise ValidationError(f"Image validation failed: {e}")
+            raise ValidationError(f"Image validation failed: {e}") from e
 
     @classmethod
     def load_image_safely(cls, image_path: Path) -> np.ndarray:
@@ -167,7 +167,7 @@ class ImageValidator:
         try:
             cls.validate_image_file(image_path)
         except ValidationError as e:
-            raise PreprocessingError(f"Failed to load image: {e}")
+            raise PreprocessingError(f"Failed to load image: {e}") from e
 
         try:
             # Load image
@@ -189,7 +189,7 @@ class ImageValidator:
             # Re-raise validation errors as-is
             raise
         except Exception as e:
-            raise PreprocessingError(f"Failed to load image {image_path}: {e}")
+            raise PreprocessingError(f"Failed to load image {image_path}: {e}") from e
 
 
 class TextRegionValidator:
@@ -517,7 +517,7 @@ class AnonymizerDataset(Dataset):
             }
 
         except Exception as e:
-            raise PreprocessingError(f"Failed to prepare training data: {e}")
+            raise PreprocessingError(f"Failed to prepare training data: {e}") from e
 
 
 def create_dummy_batch() -> dict[str, Any]:

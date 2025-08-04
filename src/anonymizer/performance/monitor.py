@@ -17,7 +17,25 @@ from typing import Any
 
 import psutil
 
+try:
+    import pynvml
+except ImportError:
+    pynvml = None
+
 logger = logging.getLogger(__name__)
+
+# Performance monitoring constants
+HIGH_MEMORY_THRESHOLD_MB = 8000  # 8GB
+MEMORY_CRITICAL_THRESHOLD_PERCENT = 90
+LOW_CPU_THRESHOLD_PERCENT = 30
+HIGH_CPU_THRESHOLD_PERCENT = 80
+HIGH_GPU_MEMORY_THRESHOLD_MB = 20000  # 20GB
+LOW_GPU_UTILIZATION_THRESHOLD_PERCENT = 50
+HIGH_DISK_IO_THRESHOLD_MB = 1000  # 1GB
+VERY_HIGH_MEMORY_THRESHOLD_MB = 16000  # 16GB
+HIGH_CPU_LONG_DURATION_THRESHOLD_PERCENT = 70
+LONG_DURATION_THRESHOLD_SECONDS = 60
+LOW_GPU_UTILIZATION_RECOMMENDATION_THRESHOLD_PERCENT = 60
 
 
 @dataclass
@@ -85,16 +103,20 @@ class ResourceMonitor:
         # Initialize process reference
         self.process = psutil.Process()
 
-        # Try to import GPU monitoring
-        try:
-            import pynvml
-
-            pynvml.nvmlInit()
-            self.gpu_available = True
-            self._pynvml = pynvml
-            self.gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-            logger.info("GPU monitoring enabled")
-        except (ImportError, Exception):
+        # Setup GPU monitoring if available
+        if pynvml is not None:
+            try:
+                pynvml.nvmlInit()
+                self.gpu_available = True
+                self._pynvml = pynvml
+                self.gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+                logger.info("GPU monitoring enabled")
+            except Exception:
+                self.gpu_available = False
+                self._pynvml = None
+                self.gpu_handle = None
+                logger.info("GPU monitoring not available")
+        else:
             self.gpu_available = False
             self._pynvml = None
             self.gpu_handle = None
@@ -119,12 +141,11 @@ class ResourceMonitor:
             # Utilization info
             util_info = self._pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
             utilization = util_info.gpu
-
-            return memory_mb, utilization
-
         except Exception as e:
             logger.warning(f"Error getting GPU stats: {e}")
             return None, None
+        else:
+            return memory_mb, utilization
 
     def _take_sample(self) -> ResourceSample:
         """Take a resource usage sample."""
@@ -329,11 +350,11 @@ class ResourceMonitor:
                 json.dump(data, f, indent=2)
 
             logger.info(f"Exported {len(self.samples)} samples to {filepath}")
-            return True
-
         except Exception:
             logger.exception("Failed to export samples")
             return False
+        else:
+            return True
 
 
 class PerformanceMonitor:
@@ -444,29 +465,29 @@ class PerformanceMonitor:
         insights = []
 
         # Memory insights
-        if summary.peak_memory_mb > 8000:  # 8GB
+        if summary.peak_memory_mb > HIGH_MEMORY_THRESHOLD_MB:
             insights.append(
                 "High memory usage detected - consider batch processing smaller documents"
             )
 
-        if summary.memory_percent["max"] > 90:
+        if summary.memory_percent["max"] > MEMORY_CRITICAL_THRESHOLD_PERCENT:
             insights.append("Memory usage exceeded 90% - risk of OOM errors")
 
         # CPU insights
-        if summary.cpu_percent["avg"] < 30:
+        if summary.cpu_percent["avg"] < LOW_CPU_THRESHOLD_PERCENT:
             insights.append("Low CPU utilization - workload may be I/O bound")
-        elif summary.cpu_percent["avg"] > 80:
+        elif summary.cpu_percent["avg"] > HIGH_CPU_THRESHOLD_PERCENT:
             insights.append("High CPU utilization - consider parallel processing")
 
         # GPU insights
-        if summary.gpu_peak_memory_mb and summary.gpu_peak_memory_mb > 20000:  # 20GB
+        if summary.gpu_peak_memory_mb and summary.gpu_peak_memory_mb > HIGH_GPU_MEMORY_THRESHOLD_MB:
             insights.append("High GPU memory usage - consider reducing batch size")
 
-        if summary.gpu_avg_utilization and summary.gpu_avg_utilization < 50:
+        if summary.gpu_avg_utilization and summary.gpu_avg_utilization < LOW_GPU_UTILIZATION_THRESHOLD_PERCENT:
             insights.append("Low GPU utilization - workload may not be GPU-optimized")
 
         # I/O insights
-        if summary.total_disk_io_mb > 1000:  # 1GB
+        if summary.total_disk_io_mb > HIGH_DISK_IO_THRESHOLD_MB:
             insights.append("High disk I/O detected - consider using faster storage")
 
         return insights
@@ -476,17 +497,17 @@ class PerformanceMonitor:
         recommendations = []
 
         # Memory recommendations
-        if summary.peak_memory_mb > 16000:  # 16GB
+        if summary.peak_memory_mb > VERY_HIGH_MEMORY_THRESHOLD_MB:
             recommendations.append("Consider implementing memory optimization techniques")
             recommendations.append("Use gradient checkpointing for model training")
 
         # Performance recommendations
-        if summary.cpu_percent["avg"] > 70 and summary.duration_seconds > 60:
+        if summary.cpu_percent["avg"] > HIGH_CPU_LONG_DURATION_THRESHOLD_PERCENT and summary.duration_seconds > LONG_DURATION_THRESHOLD_SECONDS:
             recommendations.append("Consider using multiple worker processes")
             recommendations.append("Implement asynchronous processing for I/O operations")
 
         # GPU recommendations
-        if summary.gpu_avg_utilization and summary.gpu_avg_utilization < 60:
+        if summary.gpu_avg_utilization and summary.gpu_avg_utilization < LOW_GPU_UTILIZATION_RECOMMENDATION_THRESHOLD_PERCENT:
             recommendations.append("Increase batch size to improve GPU utilization")
             recommendations.append("Consider mixed precision training")
 

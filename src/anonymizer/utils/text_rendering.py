@@ -192,7 +192,7 @@ class TextRenderer:
             return image
 
         except Exception as e:
-            raise PreprocessingError(f"Text rendering failed: {e}")
+            raise PreprocessingError(f"Text rendering failed: {e}") from e
 
     def render_text_batch(self, texts: list[str], **kwargs) -> list[Image.Image]:
         """Render multiple texts efficiently."""

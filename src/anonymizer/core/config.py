@@ -37,7 +37,7 @@ MAX_WORKER_THREADS = 8
 MIN_CREDENTIAL_LENGTH = 8
 
 
-def validate_secure_path(
+def validate_secure_path(  # noqa: PLR0912  # Complex path validation function
     path: str | Path, field_name: str = "path", allowed_base_dirs: list[str] | None = None
 ) -> Path:
     """

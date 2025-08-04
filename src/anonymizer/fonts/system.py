@@ -35,6 +35,14 @@ class SystemFontProvider:
     across different operating systems.
     """
 
+    # Allowed executables for security validation
+    ALLOWED_EXECUTABLES = {
+        "system_profiler": ["system_profiler"],
+        "fc-match": ["fc-match"],
+        "fc-cache": ["fc-cache"],
+        "atsutil": ["atsutil"],
+    }
+
     def __init__(self):
         """Initialize system font provider."""
         self.system = platform.system().lower()
@@ -43,6 +51,26 @@ class SystemFontProvider:
 
         logger.debug(f"SystemFontProvider initialized for {self.system}")
         logger.debug(f"Font directories: {self.font_directories}")
+
+    def _validate_executable(self, exe_name: str, exe_path: str) -> bool:
+        """Validate that an executable is allowed and safe to use."""
+        if exe_name not in self.ALLOWED_EXECUTABLES:
+            logger.warning(f"Executable '{exe_name}' not in allowed list")
+            return False
+
+        # Check if the executable name matches expected values
+        exe_basename = Path(exe_path).name
+        if exe_basename not in self.ALLOWED_EXECUTABLES[exe_name]:
+            logger.warning(f"Executable basename '{exe_basename}' doesn't match expected values")
+            return False
+
+        # Ensure the executable exists and is executable
+        exe_path_obj = Path(exe_path)
+        if not exe_path_obj.exists() or not os.access(exe_path, os.X_OK):
+            logger.warning(f"Executable '{exe_path}' doesn't exist or isn't executable")
+            return False
+
+        return True
 
     def _get_system_font_directories(self) -> list[Path]:
         """Get system font directories based on operating system."""
@@ -238,7 +266,12 @@ class SystemFontProvider:
                 logger.warning("system_profiler not found in PATH")
                 return None
 
-            result = subprocess.run(
+            # Validate executable before using
+            if not self._validate_executable("system_profiler", system_profiler_path):
+                logger.warning("system_profiler failed security validation")
+                return None
+
+            result = subprocess.run(  # noqa: S603  # Validated executable
                 [system_profiler_path, "SPFontsDataType", "-json"],
                 capture_output=True,
                 text=True,
@@ -265,7 +298,12 @@ class SystemFontProvider:
                 logger.warning("fc-match not found in PATH")
                 return None
 
-            result = subprocess.run(
+            # Validate executable before using
+            if not self._validate_executable("fc-match", fc_match_path):
+                logger.warning("fc-match failed security validation")
+                return None
+
+            result = subprocess.run(  # noqa: S603  # Validated executable
                 [fc_match_path, f"{font_name}:style={style}", "--format=%{file}"],
                 capture_output=True,
                 text=True,
@@ -312,7 +350,11 @@ class SystemFontProvider:
                 # Refresh fontconfig cache
                 fc_cache_path = shutil.which("fc-cache")
                 if fc_cache_path:
-                    subprocess.run([fc_cache_path, "-f"], timeout=30, check=False)
+                    # Validate executable before using
+                    if self._validate_executable("fc-cache", fc_cache_path):
+                        subprocess.run([fc_cache_path, "-f"], timeout=30, check=False)  # noqa: S603  # Validated executable
+                    else:
+                        logger.warning("fc-cache failed security validation")
                 else:
                     logger.warning("fc-cache not found in PATH")
                 logger.info("Refreshed fontconfig cache")
@@ -321,7 +363,11 @@ class SystemFontProvider:
                 # Clear macOS font cache
                 atsutil_path = shutil.which("atsutil")
                 if atsutil_path:
-                    subprocess.run([atsutil_path, "databases", "-remove"], timeout=30, check=False)
+                    # Validate executable before using
+                    if self._validate_executable("atsutil", atsutil_path):
+                        subprocess.run([atsutil_path, "databases", "-remove"], timeout=30, check=False)  # noqa: S603  # Validated executable
+                    else:
+                        logger.warning("atsutil failed security validation")
                 else:
                     logger.warning("atsutil not found in PATH")
                 logger.info("Cleared macOS font cache")

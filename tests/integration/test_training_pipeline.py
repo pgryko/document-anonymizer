@@ -425,9 +425,9 @@ class TestTrainingPipelineIntegration:
                 try:
                     metrics = trainer.train_step(batch)
                     del metrics, batch
-                except Exception:
+                except Exception as e:
                     # Expected if training fails, just testing memory
-                    pass
+                    logging.debug(f"Expected exception during memory test: {e}")
 
             # Force cleanup
             del trainer

@@ -242,7 +242,7 @@ def _parse_style_weight(style_name: str) -> tuple[str, int]:
     return style, weight
 
 
-def detect_font(image_region: Any, ocr_result: Any | None = None) -> dict[str, Any] | None:
+def detect_font(_image_region: Any, _ocr_result: Any | None = None) -> dict[str, Any] | None:
     """
     Detect font characteristics from image region.
 
@@ -448,7 +448,7 @@ def _get_font_metrics_freetype(font_path: str, size: int) -> dict[str, Any] | No
         return None
 
 
-def _get_font_metrics_fallback(font_path: str, size: int) -> dict[str, Any] | None:
+def _get_font_metrics_fallback(_font_path: str, size: int) -> dict[str, Any] | None:
     """Fallback font metrics based on font size."""
     try:
         # Approximate metrics based on common font characteristics
