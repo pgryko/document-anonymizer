@@ -1,5 +1,4 @@
-"""
-CLI Integration Tests
+"""CLI Integration Tests
 =====================
 
 Tests the complete CLI interface including command parsing, configuration loading,
@@ -129,7 +128,7 @@ class TestCLIIntegration:
                     "padding_mode": "reflect",
                     "interpolation": "lanczos",
                 },
-            }
+            },
         }
 
         config_path = temp_config_dir / "app_test_config.yaml"
@@ -264,11 +263,13 @@ class TestCLIIntegration:
         assert "does not exist" not in result.output
 
     def test_anonymize_config_loading(
-        self, runner, sample_app_config, sample_image, temp_config_dir
+        self,
+        runner,
+        sample_app_config,
+        sample_image,
+        temp_config_dir,
     ):
         """Test anonymize command config and image validation without heavy initialization."""
-        output_path = temp_config_dir / "output.png"
-
         # Test help command to verify CLI is working
         result = runner.invoke(cli, ["anonymize", "--help"])
         assert result.exit_code == 0
@@ -339,8 +340,6 @@ class TestCLIIntegration:
         temp_config_dir,
     ):
         """Test running multiple CLI commands in sequence."""
-        output_path = temp_config_dir / "output.png"
-
         # Test VAE training help command
         result1 = runner.invoke(cli, ["train-vae", "--help"])
         assert result1.exit_code == 0
@@ -379,7 +378,11 @@ class TestCLIIntegration:
                 config_path.chmod(0o644)
 
     def test_output_directory_creation(
-        self, runner, sample_app_config, sample_image, temp_config_dir
+        self,
+        runner,
+        sample_app_config,
+        sample_image,
+        temp_config_dir,
     ):
         """Test that CLI can handle output directory creation."""
         # Create nested output path that doesn't exist

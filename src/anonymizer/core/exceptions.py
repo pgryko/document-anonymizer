@@ -111,7 +111,7 @@ class PathNotAllowedError(ValidationError):
     def __init__(self, field_name: str, path: str, allowed_bases: list):
         super().__init__(
             f"Path not within allowed directories for {field_name}: {path}. "
-            f"Allowed bases: {allowed_bases}"
+            f"Allowed bases: {allowed_bases}",
         )
 
 
@@ -595,7 +595,7 @@ class InvalidLossDetectedError(TrainingError):
 
     def __init__(self, total_loss: float, recon_loss: float, kl_loss: float):
         super().__init__(
-            f"Invalid loss detected: total={total_loss}, recon={recon_loss}, kl={kl_loss}"
+            f"Invalid loss detected: total={total_loss}, recon={recon_loss}, kl={kl_loss}",
         )
 
 
@@ -640,7 +640,7 @@ class InsufficientDiskSpaceError(InferenceError):
 
     def __init__(self, required_gb: float, available_gb: float):
         super().__init__(
-            f"Insufficient disk space. Required: {required_gb:.2f}GB, Available: {available_gb:.2f}GB"
+            f"Insufficient disk space. Required: {required_gb:.2f}GB, Available: {available_gb:.2f}GB",
         )
 
 
@@ -1400,7 +1400,7 @@ class OrientationOutOfRangeError(ValidationError):
 
     def __init__(self, orientation: float, min_degrees: float, max_degrees: float):
         super().__init__(
-            f"Orientation must be between {min_degrees} and {max_degrees} degrees, got {orientation}"
+            f"Orientation must be between {min_degrees} and {max_degrees} degrees, got {orientation}",
         )
 
 
@@ -1409,7 +1409,7 @@ class MinConfidenceOutOfRangeError(ValidationError):
 
     def __init__(self, min_conf: float, min_allowed: float, max_allowed: float):  # noqa: ARG002
         super().__init__(
-            f"min_confidence_threshold must be between {min_allowed} and {max_allowed}"
+            f"min_confidence_threshold must be between {min_allowed} and {max_allowed}",
         )
 
 
@@ -1440,3 +1440,18 @@ class TrainingDataPreparationFailedError(PreprocessingError):
 
     def __init__(self):
         super().__init__("Failed to prepare training data")
+
+
+# Validation-specific errors for TRY003 compliance
+class EmptyTextRegionsError(ValidationError):
+    """Exception raised when no text regions are provided."""
+
+    def __init__(self):
+        super().__init__("At least one text region is required")
+
+
+class TooManyTextRegionsError(ValidationError):
+    """Exception raised when too many text regions are provided."""
+
+    def __init__(self, max_regions: int):
+        super().__init__(f"Too many text regions (maximum {max_regions})")

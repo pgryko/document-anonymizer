@@ -1,5 +1,4 @@
-"""
-Model Configuration
+"""Model Configuration
 ===================
 
 Configuration classes for model management, downloading, and validation.

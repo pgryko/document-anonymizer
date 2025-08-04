@@ -1,5 +1,4 @@
-"""
-UNet Trainer with Corrected Hyperparameters
+"""UNet Trainer with Corrected Hyperparameters
 ==========================================
 
 This implementation fixes critical bugs in the reference UNet training:
@@ -137,8 +136,7 @@ class UNetTrainer:
             raise DistributedTrainingSetupError(str(e)) from e
 
     def _initialize_unet(self) -> UNet2DConditionModel:
-        """
-        Initialize UNet model.
+        """Initialize UNet model.
 
         Note: SD 2.0 inpainting already has 9-channel input (correct architecture):
         - 4 channels: noisy latent
@@ -214,7 +212,7 @@ class UNetTrainer:
             raise NoiseSchedulerInitializationError(str(e)) from e
         else:
             logger.info(
-                f"Noise scheduler initialized with {self.config.num_train_timesteps} timesteps"
+                f"Noise scheduler initialized with {self.config.num_train_timesteps} timesteps",
             )
             return scheduler
 
@@ -277,7 +275,7 @@ class UNetTrainer:
             raise UnsupportedOptimizerError(optimizer_config.type)
 
         logger.info(
-            f"Optimizer setup: {optimizer_config.type} with LR {optimizer_config.learning_rate}"
+            f"Optimizer setup: {optimizer_config.type} with LR {optimizer_config.learning_rate}",
         )
         return optimizer
 
@@ -297,7 +295,7 @@ class UNetTrainer:
         )
 
         logger.info(
-            f"Scheduler setup: {scheduler_config.type} with {num_training_steps} total steps"
+            f"Scheduler setup: {scheduler_config.type} with {num_training_steps} total steps",
         )
         return scheduler
 
@@ -313,7 +311,7 @@ class UNetTrainer:
             # Process with TrOCR
             with torch.no_grad():
                 inputs = self.trocr_processor(images=text_images, return_tensors="pt").to(
-                    self.device
+                    self.device,
                 )
 
                 # Get encoder features
@@ -330,7 +328,9 @@ class UNetTrainer:
             return features
 
     def _prepare_latents(
-        self, images: torch.Tensor, masks: torch.Tensor
+        self,
+        images: torch.Tensor,
+        masks: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
         """Prepare latent inputs for diffusion training."""
         if self.vae is None or self.noise_scheduler is None:
@@ -565,10 +565,11 @@ class UNetTrainer:
             return artifacts
 
     def train(  # noqa: PLR0912, PLR0915  # Complex training loop requires many branches/statements
-        self, train_dataloader: DataLoader, val_dataloader: DataLoader | None = None
+        self,
+        train_dataloader: DataLoader,
+        val_dataloader: DataLoader | None = None,
     ):  # Complex training loop
-        """
-        Main training loop with corrected hyperparameters.
+        """Main training loop with corrected hyperparameters.
 
         Key improvements:
         1. Corrected learning rate (1e-4 instead of 1e-5)
@@ -599,7 +600,10 @@ class UNetTrainer:
 
             if self.accelerator:
                 prepared = self.accelerator.prepare(
-                    *models_to_prepare, self.optimizer, train_dataloader, self.scheduler
+                    *models_to_prepare,
+                    self.optimizer,
+                    train_dataloader,
+                    self.scheduler,
                 )
                 self.unet = prepared[0]
                 if self.text_projection is not None:
@@ -632,7 +636,8 @@ class UNetTrainer:
                         # Log metrics
                         if self.global_step % 100 == 0:
                             self.metrics_collector.record_training_metrics(
-                                metrics.to_dict(), self.global_step
+                                metrics.to_dict(),
+                                self.global_step,
                             )
                             logger.info(f"Step {self.global_step}: Loss={metrics.total_loss:.4f}")
 

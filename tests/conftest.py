@@ -1,6 +1,4 @@
-"""
-Pytest configuration and fixtures for document anonymization tests.
-"""
+"""Pytest configuration and fixtures for document anonymization tests."""
 
 import io
 import json
@@ -127,7 +125,7 @@ def mock_dataset_dir(temp_dir, sample_image, sample_text_region):
                 "original_text": sample_text_region.original_text,
                 "replacement_text": sample_text_region.replacement_text,
                 "confidence": sample_text_region.confidence,
-            }
+            },
         ],
     }
 

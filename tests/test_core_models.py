@@ -1,5 +1,4 @@
-"""
-Unit tests for core models - Imperative style.
+"""Unit tests for core models - Imperative style.
 
 Tests all critical data structures and validation logic.
 """
@@ -152,7 +151,6 @@ class TestAnonymizationRequest:
 
     def test_anonymization_request_validation_empty_regions(self, sample_image):
         """Test that text regions cannot be empty."""
-
         pil_image = Image.fromarray(sample_image)
         buffer = io.BytesIO()
         pil_image.save(buffer, format="PNG")
@@ -167,10 +165,11 @@ class TestAnonymizationRequest:
             )
 
     def test_anonymization_request_validation_too_many_regions(
-        self, sample_image, sample_text_region
+        self,
+        sample_image,
+        sample_text_region,
     ):
         """Test that too many text regions are rejected."""
-
         pil_image = Image.fromarray(sample_image)
         buffer = io.BytesIO()
         pil_image.save(buffer, format="PNG")
@@ -203,7 +202,8 @@ class TestProcessedImage:
     def test_processed_image_validation_scale_factor(self, sample_image, sample_bbox):
         """Test that scale factor must be positive."""
         crop = sample_image[
-            sample_bbox.top : sample_bbox.bottom, sample_bbox.left : sample_bbox.right
+            sample_bbox.top : sample_bbox.bottom,
+            sample_bbox.left : sample_bbox.right,
         ]
         mask = np.ones((crop.shape[0], crop.shape[1]), dtype=np.float32)
 
@@ -521,7 +521,8 @@ class TestCropData:
     def test_valid_crop_data(self, sample_image, sample_bbox):
         """Test creating valid crop data."""
         crop = sample_image[
-            sample_bbox.top : sample_bbox.bottom, sample_bbox.left : sample_bbox.right
+            sample_bbox.top : sample_bbox.bottom,
+            sample_bbox.left : sample_bbox.right,
         ]
         relative_bbox = BoundingBox(left=0, top=0, right=crop.shape[1], bottom=crop.shape[0])
 
@@ -534,7 +535,8 @@ class TestCropData:
     def test_crop_data_validation_scale_factor(self, sample_image, sample_bbox):
         """Test that scale factor must be positive."""
         crop = sample_image[
-            sample_bbox.top : sample_bbox.bottom, sample_bbox.left : sample_bbox.right
+            sample_bbox.top : sample_bbox.bottom,
+            sample_bbox.left : sample_bbox.right,
         ]
         relative_bbox = BoundingBox(left=0, top=0, right=crop.shape[1], bottom=crop.shape[0])
 

@@ -1,5 +1,4 @@
-"""
-OCR Data Models
+"""OCR Data Models
 ===============
 
 Data structures for OCR processing and results.
@@ -62,7 +61,9 @@ class DetectedText:
             MIN_ORIENTATION_DEGREES <= self.orientation <= MAX_ORIENTATION_DEGREES
         ):
             raise OrientationOutOfRangeError(
-                self.orientation, MIN_ORIENTATION_DEGREES, MAX_ORIENTATION_DEGREES
+                self.orientation,
+                MIN_ORIENTATION_DEGREES,
+                MAX_ORIENTATION_DEGREES,
             )
 
 
@@ -172,7 +173,9 @@ class OCRConfig:
         # Validate parameters
         if not (MIN_CONFIDENCE <= self.min_confidence_threshold <= MAX_CONFIDENCE):
             raise MinConfidenceOutOfRangeError(
-                self.min_confidence_threshold, MIN_CONFIDENCE, MAX_CONFIDENCE
+                self.min_confidence_threshold,
+                MIN_CONFIDENCE,
+                MAX_CONFIDENCE,
             )
 
         if self.min_text_length < 0:

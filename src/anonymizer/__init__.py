@@ -1,5 +1,4 @@
-"""
-Document Anonymization System
+"""Document Anonymization System
 ============================
 
 A production-ready document anonymization system using diffusion models

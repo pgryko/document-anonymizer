@@ -1,5 +1,4 @@
-"""
-Model Registry
+"""Model Registry
 ==============
 
 Manages a registry of available models for document anonymization.
@@ -16,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class ModelRegistry:
-    """
-    Registry of available and recommended models for document anonymization.
+    """Registry of available and recommended models for document anonymization.
 
     Features:
     - Predefined model configurations
@@ -40,7 +38,6 @@ class ModelRegistry:
 
     def _load_predefined_models(self):
         """Load predefined model configurations."""
-
         # Stable Diffusion 2.0 Inpainting - Main pipeline
         self._models["sd2-inpainting"] = ModelSource(
             name="sd2-inpainting",
@@ -168,7 +165,7 @@ class ModelRegistry:
                             "requires_auth": source.requires_auth,
                             "license": source.license,
                             "description": source.description,
-                        }
+                        },
                     )
 
             # Save metadata
@@ -248,7 +245,6 @@ class ModelRegistry:
 
     def get_recommended_models(self, use_case: str = "default") -> dict[str, ModelSource]:
         """Get recommended models for specific use cases."""
-
         if use_case == "fast":
             # Fast inference setup
             return {"pipeline": self._models["sd1.5-inpainting"]}

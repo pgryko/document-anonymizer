@@ -1,5 +1,4 @@
-"""
-Inference Engine for Document Anonymization
+"""Inference Engine for Document Anonymization
 ==========================================
 
 Production-ready inference engine with comprehensive security and error handling.
@@ -306,8 +305,7 @@ DEFAULT_TEMP_PATH_LINUX = "/tmp"  # noqa: S108
 
 
 class InferenceEngine:
-    """
-    Production-ready inference engine for document anonymization.
+    """Production-ready inference engine for document anonymization.
 
     Features:
     - Secure model loading with path validation
@@ -342,23 +340,22 @@ class InferenceEngine:
         logger.info(f"InferenceEngine initialized on device: {self.device}")
         logger.info(
             f"Engine configuration: num_inference_steps={config.num_inference_steps}, "
-            f"guidance_scale={config.guidance_scale}, strength={config.strength}"
+            f"guidance_scale={config.guidance_scale}, strength={config.strength}",
         )
         logger.info(
             f"Memory management: efficient_attention={config.enable_memory_efficient_attention}, "
             f"cpu_offload={config.enable_sequential_cpu_offload}, "
-            f"max_batch_size={config.max_batch_size}"
+            f"max_batch_size={config.max_batch_size}",
         )
 
         if torch.cuda.is_available():
             logger.info(
                 f"CUDA device: {torch.cuda.get_device_name()}, "
-                f"memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB"
+                f"memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB",
             )
 
     def _get_secure_temp_dir(self) -> Path:
         """Get or create secure temporary directory for the inference engine."""
-
         # Define base temp directory name
         temp_dir_name = "document-anonymizer"
 
@@ -422,7 +419,7 @@ class InferenceEngine:
                 logger.info("OCR processor initialized successfully")
             else:
                 logger.warning(
-                    "OCR processor initialization failed - falling back to dummy detection"
+                    "OCR processor initialization failed - falling back to dummy detection",
                 )
                 self.ocr_processor = None
 
@@ -446,7 +443,7 @@ class InferenceEngine:
                     except (ImportError, ModelLoadError, SystemExit) as e:
                         logger.warning(f"NER processor initialization failed: {e}")
                         logger.warning(
-                            "Continuing without NER processor - text detection will be limited"
+                            "Continuing without NER processor - text detection will be limited",
                         )
                         self.ner_processor = None
 
@@ -555,7 +552,7 @@ class InferenceEngine:
                         self.pipeline.enable_sequential_cpu_offload()
                     else:
                         logger.warning(
-                            "Sequential CPU offload not available in this diffusers version"
+                            "Sequential CPU offload not available in this diffusers version",
                         )
                 except Exception as e:
                     logger.warning(f"Failed to enable sequential CPU offload: {e}")
@@ -570,10 +567,11 @@ class InferenceEngine:
             raise ModelLoadingError() from e
 
     def anonymize(
-        self, image_data: bytes, text_regions: list[TextRegion] | None = None
+        self,
+        image_data: bytes,
+        text_regions: list[TextRegion] | None = None,
     ) -> AnonymizationResult:
-        """
-        Main anonymization function with comprehensive error handling.
+        """Main anonymization function with comprehensive error handling.
 
         Args:
             image_data: Input image as bytes
@@ -582,6 +580,7 @@ class InferenceEngine:
 
         Returns:
             AnonymizationResult with anonymized image and metadata
+
         """
         start_time = time.time()
         errors = []
@@ -632,7 +631,7 @@ class InferenceEngine:
                             text_preview += "..."
                         logger.debug(
                             f"Anonymizing region {i+1}/{len(text_regions)}: "
-                            f"bbox={region.bbox}, text='{text_preview}'"
+                            f"bbox={region.bbox}, text='{text_preview}'",
                         )
 
                         patch = self._anonymize_region(anonymized_image, region)
@@ -644,7 +643,7 @@ class InferenceEngine:
                         logger.debug(
                             f"Successfully anonymized region {i+1} - "
                             f"patch confidence: {patch.confidence:.3f}, "
-                            f"processing time: {patch.metadata.processing_time_ms:.1f}ms"
+                            f"processing time: {patch.metadata.processing_time_ms:.1f}ms",
                         )
 
                     except Exception as e:
@@ -656,13 +655,14 @@ class InferenceEngine:
                 # Record metrics
                 processing_time_ms = (time.time() - start_time) * 1000
                 self.metrics_collector.record_inference_metrics(
-                    processing_time_ms, success=len(errors) == 0
+                    processing_time_ms,
+                    success=len(errors) == 0,
                 )
 
                 logger.info(
                     f"Anonymization completed - total time: {processing_time_ms:.1f}ms, "
                     f"regions processed: {len(generated_patches)}/{len(text_regions)}, "
-                    f"errors: {len(errors)}"
+                    f"errors: {len(errors)}",
                 )
 
                 return AnonymizationResult(
@@ -692,7 +692,10 @@ class InferenceEngine:
             # Create secure temporary file with proper permissions
             secure_temp_dir = self._get_secure_temp_dir()
             with tempfile.NamedTemporaryFile(
-                suffix=".png", delete=False, dir=secure_temp_dir, mode="wb"
+                suffix=".png",
+                delete=False,
+                dir=secure_temp_dir,
+                mode="wb",
             ) as tmp_file:
                 # Set secure permissions (owner read/write only)
                 Path(tmp_file.name).chmod(0o600)
@@ -771,7 +774,7 @@ class InferenceEngine:
 
                 logger.info(
                     f"OCR detected {len(detected_texts)} text regions, "
-                    f"{len(text_regions)} marked for anonymization"
+                    f"{len(text_regions)} marked for anonymization",
                 )
 
             else:
@@ -856,7 +859,10 @@ class InferenceEngine:
         return mask
 
     def _apply_patch(
-        self, image: np.ndarray, patch: GeneratedPatch, bbox: BoundingBox
+        self,
+        image: np.ndarray,
+        patch: GeneratedPatch,
+        bbox: BoundingBox,
     ) -> np.ndarray:
         """Apply generated patch to image."""
         try:

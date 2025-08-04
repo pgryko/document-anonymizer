@@ -1,5 +1,4 @@
-"""
-Model Validator
+"""Model Validator
 ===============
 
 Validates downloaded models for integrity, compatibility, and functionality.
@@ -30,8 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class ModelValidator:
-    """
-    Validates diffusion models for use in document anonymization.
+    """Validates diffusion models for use in document anonymization.
 
     Features:
     - File integrity validation
@@ -46,10 +44,11 @@ class ModelValidator:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def validate_model(
-        self, model_path: Path, metadata: ModelMetadata | None = None
+        self,
+        model_path: Path,
+        metadata: ModelMetadata | None = None,
     ) -> ValidationResult:
-        """
-        Comprehensive model validation.
+        """Comprehensive model validation.
 
         Args:
             model_path: Path to model file
@@ -57,6 +56,7 @@ class ModelValidator:
 
         Returns:
             ValidationResult with detailed validation information
+
         """
         result = ValidationResult(valid=True, model_path=model_path, errors=[], warnings=[])
 
@@ -233,7 +233,7 @@ class ModelValidator:
                 if size_diff > tolerance:
                     result.add_error(
                         f"File size mismatch. Expected: {expected_size}, "
-                        f"Actual: {actual_size}, Difference: {size_diff}"
+                        f"Actual: {actual_size}, Difference: {size_diff}",
                     )
                 else:
                     result.size_valid = True
@@ -251,7 +251,10 @@ class ModelValidator:
             result.add_error(f"File size validation failed: {e}")
 
     def _validate_checksum(
-        self, model_path: Path, metadata: ModelMetadata, result: ValidationResult
+        self,
+        model_path: Path,
+        metadata: ModelMetadata,
+        result: ValidationResult,
     ):
         """Validate file checksum."""
         if not metadata.checksum:
@@ -271,7 +274,7 @@ class ModelValidator:
             if actual_checksum.lower() != metadata.checksum.lower():
                 result.add_error(
                     f"Checksum mismatch. Expected: {metadata.checksum}, "
-                    f"Actual: {actual_checksum}"
+                    f"Actual: {actual_checksum}",
                 )
             else:
                 result.checksum_valid = True
@@ -381,7 +384,10 @@ class ModelValidator:
             result.add_error(f"Diffusers content validation failed: {e}")
 
     def _validate_tensor_structure(
-        self, tensor_names: list[str], model_type: ModelType, result: ValidationResult
+        self,
+        tensor_names: list[str],
+        model_type: ModelType,
+        result: ValidationResult,
     ):
         """Validate tensor structure for specific model types."""
         if model_type == ModelType.VAE:
@@ -446,7 +452,8 @@ class ModelValidator:
                         )
 
                     pipeline = DiffusionPipeline.from_pretrained(
-                        str(model_path), torch_dtype=torch.float32
+                        str(model_path),
+                        torch_dtype=torch.float32,
                     )
                     if pipeline is None:
                         result.add_error("Failed to load Diffusers pipeline")

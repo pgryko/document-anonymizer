@@ -141,7 +141,6 @@ def setup_wandb(
     platform: str = "modal.com",
 ) -> WandbLogger:
     """Setup W&B logger for training."""
-
     # Generate run name
     model_type = training_config.model_type
     timestamp = int(time.time())
@@ -173,7 +172,6 @@ def log_training_metrics(
     phase: str = "train",
 ) -> None:
     """Log training metrics with proper formatting."""
-
     # Format metrics with phase prefix
     formatted_metrics = {}
     for key, value in metrics.items():

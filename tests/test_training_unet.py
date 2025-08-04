@@ -1,5 +1,4 @@
-"""
-Unit tests for UNet trainer - Imperative style.
+"""Unit tests for UNet trainer - Imperative style.
 
 Tests the corrected UNet trainer with proper hyperparameters.
 """
@@ -107,7 +106,8 @@ class TestUNetTrainer:
 
         assert unet is not None
         mock_unet_class.from_pretrained.assert_called_once_with(
-            unet_config.base_model, subfolder="unet"
+            unet_config.base_model,
+            subfolder="unet",
         )
 
         # CRITICAL VERIFICATION: 9-channel input (correct for SD 2.0 inpainting)
@@ -142,7 +142,8 @@ class TestUNetTrainer:
 
         assert vae is not None
         mock_vae_class.from_pretrained.assert_called_once_with(
-            unet_config.base_model, subfolder="vae"
+            unet_config.base_model,
+            subfolder="vae",
         )
 
         # VAE should be frozen for UNet training
@@ -155,7 +156,10 @@ class TestUNetTrainer:
     @patch("src.anonymizer.training.unet_trainer.VisionEncoderDecoderModel")
     @patch("src.anonymizer.training.unet_trainer.TrOCRProcessor")
     def test_unet_trainer_initialize_trocr(
-        self, mock_processor_class, mock_trocr_class, unet_config
+        self,
+        mock_processor_class,
+        mock_trocr_class,
+        unet_config,
     ):
         """Test TrOCR initialization for text conditioning."""
         # Mock TrOCR components
@@ -191,7 +195,8 @@ class TestUNetTrainer:
 
         assert scheduler is not None
         mock_scheduler_class.from_pretrained.assert_called_once_with(
-            unet_config.base_model, subfolder="scheduler"
+            unet_config.base_model,
+            subfolder="scheduler",
         )
         mock_scheduler.set_timesteps.assert_called_once_with(unet_config.num_train_timesteps)
 

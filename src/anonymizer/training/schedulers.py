@@ -52,10 +52,11 @@ class CosineAnnealingWithRestartsLR(_LRScheduler):
 
 
 def create_scheduler(
-    scheduler_config: SchedulerConfig, optimizer: Optimizer, num_training_steps: int
+    scheduler_config: SchedulerConfig,
+    optimizer: Optimizer,
+    num_training_steps: int,
 ) -> Any:
     """Create learning rate scheduler."""
-
     scheduler_type = scheduler_config.type.lower()
 
     try:

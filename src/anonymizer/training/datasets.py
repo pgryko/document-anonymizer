@@ -1,5 +1,4 @@
-"""
-Robust Dataset Loading and Preprocessing
+"""Robust Dataset Loading and Preprocessing
 ======================================
 
 This implementation provides safe, efficient dataset loading for document anonymization:
@@ -241,7 +240,9 @@ class SafeAugmentation:
         self.rng = random.Random(42)  # Fixed seed for deterministic behavior  # noqa: S311
 
     def augment_image(
-        self, image: np.ndarray, text_regions: list[TextRegion]
+        self,
+        image: np.ndarray,
+        text_regions: list[TextRegion],
     ) -> tuple[np.ndarray, list[TextRegion]]:
         """Apply safe augmentations that preserve text readability."""
         try:
@@ -252,7 +253,8 @@ class SafeAugmentation:
             # Apply brightness adjustment (conservative)
             if self.config.brightness_range > 0:
                 brightness_factor = self.rng.uniform(
-                    1 - self.config.brightness_range, 1 + self.config.brightness_range
+                    1 - self.config.brightness_range,
+                    1 + self.config.brightness_range,
                 )
                 enhancer = ImageEnhance.Brightness(pil_image)
                 pil_image = enhancer.enhance(brightness_factor)
@@ -260,7 +262,8 @@ class SafeAugmentation:
             # Apply contrast adjustment (conservative)
             if self.config.contrast_range > 0:
                 contrast_factor = self.rng.uniform(
-                    1 - self.config.contrast_range, 1 + self.config.contrast_range
+                    1 - self.config.contrast_range,
+                    1 + self.config.contrast_range,
                 )
                 enhancer = ImageEnhance.Contrast(pil_image)
                 pil_image = enhancer.enhance(contrast_factor)
@@ -289,8 +292,7 @@ class SafeAugmentation:
 
 
 class AnonymizerDataset(Dataset):
-    """
-    Robust dataset for document anonymization training.
+    """Robust dataset for document anonymization training.
 
     Features:
     - Comprehensive input validation
@@ -444,7 +446,9 @@ class AnonymizerDataset(Dataset):
         return {}
 
     def _prepare_training_data(
-        self, image: np.ndarray, text_regions: list[TextRegion]
+        self,
+        image: np.ndarray,
+        text_regions: list[TextRegion],
     ) -> dict[str, Any]:
         """Prepare data for training."""
         try:

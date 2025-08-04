@@ -1,5 +1,4 @@
-"""
-Model Management Module
+"""Model Management Module
 =======================
 
 Handles downloading, validation, and management of diffusion models

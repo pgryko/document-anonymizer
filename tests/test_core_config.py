@@ -1,5 +1,4 @@
-"""
-Unit tests for core configuration - Imperative style.
+"""Unit tests for core configuration - Imperative style.
 
 Tests configuration loading, validation, and defaults.
 """
@@ -34,7 +33,10 @@ class TestOptimizerConfig:
     def test_valid_optimizer_config(self):
         """Test creating valid optimizer configuration."""
         config = OptimizerConfig(
-            type="AdamW", learning_rate=1e-4, weight_decay=0.01, betas=[0.9, 0.999]
+            type="AdamW",
+            learning_rate=1e-4,
+            weight_decay=0.01,
+            betas=[0.9, 0.999],
         )
 
         assert config.type == "AdamW"
@@ -660,7 +662,9 @@ learning_rate: 0.002
             f.write(vae_yaml_content)
 
         config = AppConfig.load_with_overrides(
-            env_file=env_file, vae_yaml=vae_yaml, device="custom"
+            env_file=env_file,
+            vae_yaml=vae_yaml,
+            device="custom",
         )
 
         assert config.environment == "production"  # From .env

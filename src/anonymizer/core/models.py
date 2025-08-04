@@ -2,15 +2,17 @@
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 from .exceptions import (
     BottomNotGreaterThanTopError,
+    EmptyTextRegionsError,
     InvalidStyleError,
     RightNotGreaterThanLeftError,
+    TooManyTextRegionsError,
 )
 
 
@@ -103,18 +105,21 @@ class AnonymizationRequest(BaseModel):
 
     image_data: bytes = Field(..., description="Input image data")
     text_regions: list[TextRegion] = Field(
-        default_factory=list, description="Text regions to anonymize"
+        default_factory=list,
+        description="Text regions to anonymize",
     )
     preserve_formatting: bool = Field(True, description="Preserve text formatting")
     quality_check: bool = Field(True, description="Enable quality verification")
+
+    MAX_TEXT_REGIONS: ClassVar[int] = 50
 
     @field_validator("text_regions")
     @classmethod
     def validate_text_regions(cls, v: list[TextRegion]) -> list[TextRegion]:
         if len(v) == 0:
-            raise ValueError("At least one text region is required")
-        if len(v) > 50:
-            raise ValueError("Too many text regions (maximum 50)")
+            raise EmptyTextRegionsError()
+        if len(v) > cls.MAX_TEXT_REGIONS:
+            raise TooManyTextRegionsError(cls.MAX_TEXT_REGIONS)
         return v
 
     class Config:
@@ -285,7 +290,9 @@ class BatchItem(BaseModel):
     item_id: str = Field(..., min_length=1, description="Unique identifier for this item")
     image_path: Path = Field(..., description="Path to input image file")
     text_regions: list[TextRegion] = Field(
-        default_factory=list, max_items=50, description="Text regions to anonymize"
+        default_factory=list,
+        max_items=50,
+        description="Text regions to anonymize",
     )
     output_path: Path | None = Field(None, description="Optional output path for this item")
     preserve_formatting: bool = Field(True, description="Preserve text formatting")

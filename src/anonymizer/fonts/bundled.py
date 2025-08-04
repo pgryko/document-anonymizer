@@ -1,5 +1,4 @@
-"""
-Bundled Font Provider
+"""Bundled Font Provider
 ====================
 
 Provider for bundled fonts included with the anonymization system.
@@ -24,19 +23,18 @@ logger = logging.getLogger(__name__)
 
 
 class BundledFontProvider:
-    """
-    Provider for bundled fonts included with the system.
+    """Provider for bundled fonts included with the system.
 
     These are carefully selected fonts that are freely redistributable
     and provide good coverage for common use cases.
     """
 
     def __init__(self, fonts_dir: Path):
-        """
-        Initialize bundled font provider.
+        """Initialize bundled font provider.
 
         Args:
             fonts_dir: Directory containing bundled fonts
+
         """
         self.fonts_dir = fonts_dir
         self.bundled_fonts_dir = fonts_dir / "bundled"
@@ -141,7 +139,6 @@ class BundledFontProvider:
 
     def _download_font(self, font_file: str, source_info: dict[str, str]) -> None:
         """Download a single font file."""
-
         font_path = self.bundled_fonts_dir / font_file
 
         if font_path.exists():
@@ -293,14 +290,14 @@ class BundledFontProvider:
         return licenses
 
     def create_font_bundle(self, output_path: str) -> bool:
-        """
-        Create a distributable font bundle.
+        """Create a distributable font bundle.
 
         Args:
             output_path: Output bundle path
 
         Returns:
             True if successful, False otherwise
+
         """
         try:
             with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -365,7 +362,7 @@ class BundledFontProvider:
                     "size_bytes": font.size_bytes,
                     "checksum": font.checksum,
                     "license": font.license_info,
-                }
+                },
             )
 
         return json.dumps(manifest, indent=2)

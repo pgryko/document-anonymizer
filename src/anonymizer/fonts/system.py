@@ -1,5 +1,4 @@
-"""
-System Font Provider
+"""System Font Provider
 ===================
 
 Provider for system fonts available on the local machine.
@@ -29,8 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class SystemFontProvider:
-    """
-    Provider for system fonts available on the local machine.
+    """Provider for system fonts available on the local machine.
 
     Detects and loads fonts from standard system font directories
     across different operating systems.
@@ -83,7 +81,7 @@ class SystemFontProvider:
                 [
                     Path(os.environ.get("WINDIR", "C:\\Windows")) / "Fonts",
                     Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "Windows" / "Fonts",
-                ]
+                ],
             )
 
         elif self.system == "darwin":  # macOS
@@ -94,7 +92,7 @@ class SystemFontProvider:
                     Path("/Library/Fonts"),
                     Path.home() / "Library" / "Fonts",
                     Path("/System/Library/Assets/com_apple_MobileAsset_Font6"),
-                ]
+                ],
             )
 
         else:  # Linux and other Unix-like systems
@@ -109,7 +107,7 @@ class SystemFontProvider:
                     Path("/usr/share/fonts/opentype"),
                     Path("/usr/share/fonts/TTF"),
                     Path("/usr/share/fonts/OTF"),
-                ]
+                ],
             )
 
         # Filter to existing directories
@@ -198,8 +196,7 @@ class SystemFontProvider:
             ]  # Truncate for lightweight usage
 
     def find_font(self, font_name: str, style: str = "normal") -> FontMetadata | None:
-        """
-        Find a specific system font.
+        """Find a specific system font.
 
         Args:
             font_name: Font family name
@@ -207,6 +204,7 @@ class SystemFontProvider:
 
         Returns:
             FontMetadata if found, None otherwise
+
         """
         # Use system-specific font finding methods
         if self.system == "windows":
@@ -239,7 +237,7 @@ class SystemFontProvider:
                         if not Path(font_path).is_absolute():
                             # Relative path, make absolute
                             font_path = str(
-                                Path(os.environ.get("WINDIR", "C:\\Windows")) / "Fonts" / font_path
+                                Path(os.environ.get("WINDIR", "C:\\Windows")) / "Fonts" / font_path,
                             )
 
                         if Path(font_path).exists():
@@ -354,7 +352,9 @@ class SystemFontProvider:
                     # Validate executable before using
                     if self._validate_executable("fc-cache", fc_cache_path):
                         subprocess.run(  # noqa: S603  # Security: executable path validated via _validate_executable()
-                            [fc_cache_path, "-f"], timeout=30, check=False
+                            [fc_cache_path, "-f"],
+                            timeout=30,
+                            check=False,
                         )  # Validated executable
                     else:
                         logger.warning("fc-cache failed security validation")
@@ -369,7 +369,9 @@ class SystemFontProvider:
                     # Validate executable before using
                     if self._validate_executable("atsutil", atsutil_path):
                         subprocess.run(  # noqa: S603  # Security: executable path validated via _validate_executable()
-                            [atsutil_path, "databases", "-remove"], timeout=30, check=False
+                            [atsutil_path, "databases", "-remove"],
+                            timeout=30,
+                            check=False,
                         )  # Validated executable
                     else:
                         logger.warning("atsutil failed security validation")
@@ -385,14 +387,14 @@ class SystemFontProvider:
             logger.warning(f"Failed to refresh font cache: {e}")
 
     def install_system_font(self, font_path: str) -> bool:
-        """
-        Install font to system font directory.
+        """Install font to system font directory.
 
         Args:
             font_path: Path to font file to install
 
         Returns:
             True if successful, False otherwise
+
         """
         try:
             source_path = Path(font_path)

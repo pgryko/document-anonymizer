@@ -64,14 +64,14 @@ def _get_default_allowed_base_dirs() -> list[str]:
             [
                 os.path.expandvars("%TEMP%\\document-anonymizer\\"),
                 os.path.expandvars("%APPDATA%\\document-anonymizer\\"),
-            ]
+            ],
         )
     else:  # Unix-like systems
         allowed_base_dirs.extend(
             [
                 DEFAULT_SYSTEM_TEMP_DIR,  # System temp directory
                 DEFAULT_VAR_SYSTEM_TEMP_DIR,  # Alternative temp directory
-            ]
+            ],
         )
     return allowed_base_dirs
 
@@ -87,10 +87,11 @@ def _resolve_base_dir_cached(base_dir: str) -> Path | None:
 
 
 def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation function
-    path: str | Path, field_name: str = "path", allowed_base_dirs: list[str] | None = None
+    path: str | Path,
+    field_name: str = "path",
+    allowed_base_dirs: list[str] | None = None,
 ) -> Path:
-    """
-    Validate path for security using whitelist approach.
+    """Validate path for security using whitelist approach.
 
     Args:
         path: Path to validate
@@ -102,6 +103,7 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
 
     Raises:
         ValidationError: If path contains security risks
+
     """
     if path is None:
         return None
@@ -192,7 +194,9 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
 
         def _raise_not_allowed_error() -> None:
             raise PathNotAllowedError(  # noqa: TRY301
-                field_name, str(resolved_path), allowed_base_dirs
+                field_name,
+                str(resolved_path),
+                allowed_base_dirs,
             )
 
         if not path_allowed:
@@ -226,7 +230,9 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
 
 
 def validate_model_path(
-    path: str | Path, field_name: str = "model_path", allowed_base_dirs: list[str] | None = None
+    path: str | Path,
+    field_name: str = "model_path",
+    allowed_base_dirs: list[str] | None = None,
 ) -> Path | None:
     """Validate model file path with additional security checks."""
     if path is None:
@@ -494,7 +500,8 @@ class EngineConfig(BaseSettings):
 
     # Memory management
     enable_memory_efficient_attention: bool = Field(
-        True, description="Enable memory efficient attention"
+        True,
+        description="Enable memory efficient attention",
     )
     enable_sequential_cpu_offload: bool = Field(False, description="Enable CPU offload")
     max_batch_size: int = Field(4, ge=1, description="Maximum batch size")
@@ -592,7 +599,8 @@ class AppConfig(BaseSettings):
 
     # Environment settings
     environment: str = Field(
-        "development", description="Environment (development, staging, production)"
+        "development",
+        description="Environment (development, staging, production)",
     )
     debug: bool = Field(True, description="Debug mode")
     log_level: str = Field("INFO", description="Application log level")

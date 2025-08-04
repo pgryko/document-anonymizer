@@ -111,8 +111,7 @@ class TextRenderer:
         text_color: str | tuple[int, int, int] = "black",
         align: str = "center",
     ) -> Image.Image:
-        """
-        Render text as PIL Image.
+        """Render text as PIL Image.
 
         Args:
             text: Text to render
@@ -125,6 +124,7 @@ class TextRenderer:
 
         Returns:
             PIL Image with rendered text
+
         """
         # Validate inputs
         if not text or not text.strip():
@@ -265,7 +265,9 @@ class TextRenderer:
 
 # Convenience functions
 def render_text_simple(
-    text: str, size: int = 32, image_size: tuple[int, int] = (384, 384)
+    text: str,
+    size: int = 32,
+    image_size: tuple[int, int] = (384, 384),
 ) -> np.ndarray:
     """Simple text rendering function."""
     renderer = TextRenderer(default_font_size=size, default_image_size=image_size)

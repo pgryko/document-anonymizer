@@ -1,5 +1,4 @@
-"""
-Unit tests for text rendering utilities - Imperative style.
+"""Unit tests for text rendering utilities - Imperative style.
 
 Tests text rendering for training data generation.
 """

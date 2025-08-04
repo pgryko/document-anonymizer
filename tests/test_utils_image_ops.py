@@ -1,5 +1,4 @@
-"""
-Unit tests for image operations utilities - Imperative style.
+"""Unit tests for image operations utilities - Imperative style.
 
 Tests safe image processing with bounds checking and error handling.
 """
@@ -356,7 +355,8 @@ class TestImageProcessor:
         gray_image = np.random.randint(0, 255, (100, 100), dtype=np.uint8)
 
         with pytest.raises(
-            ColorConversionChannelError, match="Color conversion requires correct channel count"
+            ColorConversionChannelError,
+            match="Color conversion requires correct channel count",
         ):
             ImageProcessor.convert_color_space(gray_image, "BGR", "RGB")
 
@@ -404,7 +404,10 @@ class TestConvenienceFunctions:
         image = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
 
         resized = safe_resize(
-            image, (128, 128), interpolation=cv2.INTER_LINEAR, max_scale_factor=2.0
+            image,
+            (128, 128),
+            interpolation=cv2.INTER_LINEAR,
+            max_scale_factor=2.0,
         )
 
         assert resized.shape == (128, 128, 3)

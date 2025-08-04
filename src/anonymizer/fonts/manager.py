@@ -1,5 +1,4 @@
-"""
-Font Management System
+"""Font Management System
 ======================
 
 Central font management system for handling font detection, loading, and fallbacks
@@ -21,19 +20,18 @@ logger = logging.getLogger(__name__)
 
 
 class FontManager:
-    """
-    Central font management system.
+    """Central font management system.
 
     Handles font detection, loading, caching, and fallback mechanisms
     to ensure consistent text rendering across different systems.
     """
 
     def __init__(self, fonts_dir: Path | None = None):
-        """
-        Initialize font manager.
+        """Initialize font manager.
 
         Args:
             fonts_dir: Optional custom fonts directory
+
         """
         self.fonts_dir = fonts_dir or self._get_default_fonts_dir()
         self.fonts_cache: dict[str, FontMetadata] = {}
@@ -119,10 +117,12 @@ class FontManager:
         }
 
     def get_font(
-        self, font_name: str, style: str = "normal", _visited: set[str] | None = None
+        self,
+        font_name: str,
+        style: str = "normal",
+        _visited: set[str] | None = None,
     ) -> FontMetadata | None:
-        """
-        Get font by name and style.
+        """Get font by name and style.
 
         Args:
             font_name: Font family name
@@ -131,6 +131,7 @@ class FontManager:
 
         Returns:
             FontMetadata if found, None otherwise
+
         """
         if _visited is None:
             _visited = set()
@@ -163,8 +164,7 @@ class FontManager:
         return None
 
     def get_font_path(self, font_name: str, style: str = "normal") -> str | None:
-        """
-        Get font file path.
+        """Get font file path.
 
         Args:
             font_name: Font family name
@@ -172,6 +172,7 @@ class FontManager:
 
         Returns:
             Font file path if found, None otherwise
+
         """
         font = self.get_font(font_name, style)
         return font.path if font else None
@@ -188,8 +189,7 @@ class FontManager:
         return sorted(families)
 
     def install_font(self, font_path: str, metadata: dict | None = None) -> bool:
-        """
-        Install a font file.
+        """Install a font file.
 
         Args:
             font_path: Path to font file
@@ -197,6 +197,7 @@ class FontManager:
 
         Returns:
             True if installed successfully, False otherwise
+
         """
         try:
             source_path = Path(font_path)
@@ -224,7 +225,9 @@ class FontManager:
             return False
 
     def _create_font_metadata(
-        self, font_path: str, metadata: dict | None = None
+        self,
+        font_path: str,
+        metadata: dict | None = None,
     ) -> FontMetadata | None:
         """Create font metadata from font file."""
         try:
@@ -257,8 +260,7 @@ class FontManager:
             return None
 
     def find_similar_fonts(self, target_font: str, max_results: int = 5) -> list[FontMetadata]:
-        """
-        Find fonts similar to target font.
+        """Find fonts similar to target font.
 
         Args:
             target_font: Target font name
@@ -266,8 +268,8 @@ class FontManager:
 
         Returns:
             List of similar fonts sorted by similarity
-        """
 
+        """
         target_meta = self.get_font(target_font)
         if not target_meta:
             logger.warning(f"Target font not found: {target_font}")
@@ -302,14 +304,14 @@ class FontManager:
         return stats
 
     def cleanup_fonts(self, dry_run: bool = True) -> dict[str, int]:
-        """
-        Clean up unused or duplicate fonts.
+        """Clean up unused or duplicate fonts.
 
         Args:
             dry_run: If True, only report what would be cleaned
 
         Returns:
             Cleanup statistics
+
         """
         stats = {
             "fonts_checked": 0,
@@ -362,14 +364,14 @@ class FontManager:
         return stats
 
     def export_font_list(self, output_path: str) -> bool:
-        """
-        Export font list to file.
+        """Export font list to file.
 
         Args:
             output_path: Output file path
 
         Returns:
             True if successful, False otherwise
+
         """
         try:
 
@@ -385,7 +387,7 @@ class FontManager:
                         "size_bytes": font.size_bytes,
                         "is_bundled": font.is_bundled,
                         "checksum": font.checksum,
-                    }
+                    },
                 )
 
             with Path(output_path).open("w") as f:

@@ -220,7 +220,9 @@ class ImageProcessor:
 
     @classmethod
     def normalize_image(
-        cls, image: np.ndarray, target_range: tuple[float, float] = (-1.0, 1.0)
+        cls,
+        image: np.ndarray,
+        target_range: tuple[float, float] = (-1.0, 1.0),
     ) -> np.ndarray:
         """Normalize image to target range."""
         cls.validate_image_array(image)
@@ -251,7 +253,10 @@ class ImageProcessor:
 
     @classmethod
     def convert_color_space(
-        cls, image: np.ndarray, source: str = "BGR", target: str = "RGB"
+        cls,
+        image: np.ndarray,
+        source: str = "BGR",
+        target: str = "RGB",
     ) -> np.ndarray:
         """Convert between color spaces."""
         cls.validate_image_array(image)

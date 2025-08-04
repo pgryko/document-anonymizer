@@ -1,5 +1,4 @@
-"""
-Performance Tests
+"""Performance Tests
 =================
 
 Comprehensive performance and memory tests for the document anonymization pipeline.
@@ -207,7 +206,9 @@ class TestAnonymizationBenchmark:
     def test_inpainting_benchmark(self, benchmark):
         """Test diffusion inpainting benchmark."""
         result = benchmark.benchmark_inpainting(
-            image_size=(256, 256), num_regions=3, num_iterations=2
+            image_size=(256, 256),
+            num_regions=3,
+            num_iterations=2,
         )
 
         assert result.success
@@ -289,7 +290,9 @@ class TestModelBenchmark:
     def test_inference_speed_benchmark(self, model_benchmark):
         """Test model inference speed benchmark."""
         result = model_benchmark.benchmark_inference_speed(
-            model_type="test_model", input_size=(256, 256), num_iterations=5
+            model_type="test_model",
+            input_size=(256, 256),
+            num_iterations=5,
         )
 
         assert result.benchmark_name == "test_model_inference_speed"
@@ -336,7 +339,8 @@ class TestPerformanceMonitor:
         """Test resource limits checking."""
         # Test with very high limits (should not exceed)
         violations = monitor.check_resource_limits(
-            max_memory_mb=100000, max_cpu_percent=100  # 100GB
+            max_memory_mb=100000,
+            max_cpu_percent=100,  # 100GB
         )
 
         assert "memory_exceeded" in violations

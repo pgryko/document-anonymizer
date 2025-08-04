@@ -1,5 +1,4 @@
-"""
-Unit tests for VAE trainer - Imperative style.
+"""Unit tests for VAE trainer - Imperative style.
 
 Tests the corrected VAE trainer with KL divergence loss fix.
 """
@@ -40,7 +39,7 @@ class TestPerceptualLoss:
 
     def test_perceptual_loss_initialization_without_torchvision(self, device):
         """Test perceptual loss initialization when torchvision is not available."""
-        with patch("torchvision.models.vgg16", side_effect=ImportError):
+        with patch("src.anonymizer.training.vae_trainer.models", None):
             perceptual_loss = PerceptualLoss(device)
 
             assert perceptual_loss.vgg is None
@@ -133,7 +132,8 @@ class TestVAETrainer:
 
         assert vae is not None
         mock_vae_class.from_pretrained.assert_called_once_with(
-            vae_config.base_model, subfolder="vae"
+            vae_config.base_model,
+            subfolder="vae",
         )
         mock_vae.train.assert_called_once()
 

@@ -119,7 +119,10 @@ class MetricsCollector:
             logger.warning(f"DataDog metrics failed: {e}")
 
     def _record_logging_metrics(
-        self, metrics: dict[str, float], step: int | None = None, prefix: str = ""
+        self,
+        metrics: dict[str, float],
+        step: int | None = None,
+        prefix: str = "",
     ):
         """Record metrics via logging."""
         prefix_str = f"{prefix}." if prefix else ""

@@ -1,5 +1,4 @@
-"""
-VAE Trainer with Critical Bug Fixes
+"""VAE Trainer with Critical Bug Fixes
 ==================================
 
 This implementation fixes the most critical bug in the reference implementations:
@@ -186,7 +185,7 @@ class VAETrainer:
             raise UnsupportedOptimizerError(optimizer_config.type)
 
         logger.info(
-            f"Optimizer setup: {optimizer_config.type} with LR {optimizer_config.learning_rate}"
+            f"Optimizer setup: {optimizer_config.type} with LR {optimizer_config.learning_rate}",
         )
         return optimizer
 
@@ -206,13 +205,12 @@ class VAETrainer:
         )
 
         logger.info(
-            f"Scheduler setup: {scheduler_config.type} with {num_training_steps} total steps"
+            f"Scheduler setup: {scheduler_config.type} with {num_training_steps} total steps",
         )
         return scheduler
 
     def _compute_loss(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        """
-        CRITICAL FIX: Compute VAE loss with proper KL divergence term.
+        """CRITICAL FIX: Compute VAE loss with proper KL divergence term.
 
         This was the most critical bug in the reference implementations:
         VAE training only used reconstruction loss, completely ignoring KL divergence.
@@ -283,11 +281,13 @@ class VAETrainer:
             if self.config.gradient_clipping > 0:
                 if self.accelerator:
                     self.accelerator.clip_grad_norm_(
-                        self.vae.parameters(), self.config.gradient_clipping
+                        self.vae.parameters(),
+                        self.config.gradient_clipping,
                     )
                 else:
                     torch.nn.utils.clip_grad_norm_(
-                        self.vae.parameters(), self.config.gradient_clipping
+                        self.vae.parameters(),
+                        self.config.gradient_clipping,
                     )
 
             # Optimizer step
@@ -373,13 +373,18 @@ class VAETrainer:
                 # Create comparison grid
                 comparison = torch.cat([images_vis, reconstructed_vis], dim=0)
                 grid = vutils.make_grid(
-                    comparison, nrow=num_images, normalize=True, scale_each=True
+                    comparison,
+                    nrow=num_images,
+                    normalize=True,
+                    scale_each=True,
                 )
 
                 # Log to TensorBoard
                 if self.tb_writer:
                     self.tb_writer.add_image(
-                        "Reconstructions/Original_vs_Reconstructed", grid, step
+                        "Reconstructions/Original_vs_Reconstructed",
+                        grid,
+                        step,
                     )
                 elif self.accelerator:
                     self.accelerator.log({"reconstructions": grid}, step=step)
@@ -479,8 +484,7 @@ class VAETrainer:
         val_dataloader: DataLoader | None = None,
         wandb_logger: Any | None = None,
     ):
-        """
-        Main training loop with all critical fixes applied.
+        """Main training loop with all critical fixes applied.
 
         Key improvements:
         1. KL divergence loss properly included
@@ -502,7 +506,10 @@ class VAETrainer:
             if self.accelerator:
                 self.vae, self.optimizer, train_dataloader, self.scheduler = (
                     self.accelerator.prepare(
-                        self.vae, self.optimizer, train_dataloader, self.scheduler
+                        self.vae,
+                        self.optimizer,
+                        train_dataloader,
+                        self.scheduler,
                     )
                 )
                 if val_dataloader:
@@ -529,11 +536,12 @@ class VAETrainer:
                         # Log metrics
                         if self.global_step % 100 == 0:
                             self.metrics_collector.record_training_metrics(
-                                metrics.to_dict(), self.global_step
+                                metrics.to_dict(),
+                                self.global_step,
                             )
                             logger.info(
                                 f"Step {self.global_step}: Loss={metrics.total_loss:.4f}, "
-                                f"Recon={metrics.recon_loss:.4f}, KL={metrics.kl_loss:.4f}"
+                                f"Recon={metrics.recon_loss:.4f}, KL={metrics.kl_loss:.4f}",
                             )
 
                         # Save checkpoint

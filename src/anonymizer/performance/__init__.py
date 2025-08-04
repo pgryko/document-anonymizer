@@ -1,5 +1,4 @@
-"""
-Performance Testing Module
+"""Performance Testing Module
 ===========================
 
 Tools for benchmarking and profiling the document anonymization pipeline.

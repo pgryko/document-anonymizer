@@ -1,5 +1,4 @@
-"""
-OCR Processor
+"""OCR Processor
 =============
 
 Main OCR processing class with multi-engine support, fallback strategies,
@@ -21,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class OCRProcessor:
-    """
-    Main OCR processor with multi-engine support and fallback strategies.
+    """Main OCR processor with multi-engine support and fallback strategies.
 
     Features:
     - Multiple OCR engine support (PaddleOCR, EasyOCR, TrOCR, Tesseract)
@@ -54,7 +52,7 @@ class OCRProcessor:
 
             if not primary_success:
                 logger.warning(
-                    f"Primary engine {self.config.primary_engine.value} failed to initialize"
+                    f"Primary engine {self.config.primary_engine.value} failed to initialize",
                 )
 
             # Initialize fallback engines
@@ -89,10 +87,11 @@ class OCRProcessor:
             return False
 
     def extract_text_regions(
-        self, image: np.ndarray, min_confidence: float | None = None
+        self,
+        image: np.ndarray,
+        min_confidence: float | None = None,
     ) -> list[DetectedText]:
-        """
-        Extract text regions from an image using OCR.
+        """Extract text regions from an image using OCR.
 
         Args:
             image: Input image as numpy array
@@ -100,6 +99,7 @@ class OCRProcessor:
 
         Returns:
             List of DetectedText objects with bounding boxes and metadata
+
         """
         if not self.is_initialized:
             msg = "OCR processor not initialized"
@@ -122,7 +122,7 @@ class OCRProcessor:
                     logger.debug(f"Primary engine {self.config.primary_engine.value} succeeded")
                 else:
                     logger.warning(
-                        f"Primary engine {self.config.primary_engine.value} returned no results"
+                        f"Primary engine {self.config.primary_engine.value} returned no results",
                     )
 
             except Exception as e:
@@ -143,7 +143,7 @@ class OCRProcessor:
                         logger.info(f"Fallback engine {result.engine_used.value} succeeded")
                         break
                     logger.warning(
-                        f"Fallback engine {result.engine_used.value} returned no results"
+                        f"Fallback engine {result.engine_used.value} returned no results",
                     )
 
                 except Exception as e:
@@ -172,16 +172,17 @@ class OCRProcessor:
             self.successful_detections += 1
 
         logger.info(
-            f"OCR completed: {len(filtered_texts)} text regions detected in {processing_time:.2f}s"
+            f"OCR completed: {len(filtered_texts)} text regions detected in {processing_time:.2f}s",
         )
 
         return filtered_texts
 
     def convert_to_text_regions(
-        self, detected_texts: list[DetectedText], replacement_strategy: str = "generic"
+        self,
+        detected_texts: list[DetectedText],
+        replacement_strategy: str = "generic",
     ) -> list[TextRegion]:
-        """
-        Convert DetectedText objects to TextRegion objects for anonymization.
+        """Convert DetectedText objects to TextRegion objects for anonymization.
 
         Args:
             detected_texts: List of DetectedText from OCR
@@ -189,6 +190,7 @@ class OCRProcessor:
 
         Returns:
             List of TextRegion objects ready for anonymization
+
         """
         text_regions = []
 
@@ -215,10 +217,11 @@ class OCRProcessor:
         return text_regions
 
     def detect_and_convert(
-        self, image: np.ndarray, replacement_strategy: str = "generic"
+        self,
+        image: np.ndarray,
+        replacement_strategy: str = "generic",
     ) -> list[TextRegion]:
-        """
-        One-step function to detect text and convert to TextRegion objects.
+        """One-step function to detect text and convert to TextRegion objects.
 
         Args:
             image: Input image
@@ -226,6 +229,7 @@ class OCRProcessor:
 
         Returns:
             List of TextRegion objects ready for anonymization
+
         """
         detected_texts = self.extract_text_regions(image)
         return self.convert_to_text_regions(detected_texts, replacement_strategy)

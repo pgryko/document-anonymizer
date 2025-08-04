@@ -1,5 +1,4 @@
-"""
-Batch Processing Module
+"""Batch Processing Module
 ======================
 
 Batch processing capabilities for document anonymization.

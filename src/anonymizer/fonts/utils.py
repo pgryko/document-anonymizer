@@ -1,5 +1,4 @@
-"""
-Font Utilities
+"""Font Utilities
 ==============
 
 Utility functions for font detection, analysis, and manipulation.
@@ -32,14 +31,14 @@ BOLD_WEIGHT_THRESHOLD = 700
 
 
 def get_font_info(font_path: str) -> dict[str, Any] | None:
-    """
-    Extract font information from font file.
+    """Extract font information from font file.
 
     Args:
         font_path: Path to font file
 
     Returns:
         Dictionary with font information or None if failed
+
     """
     try:
         # Try different font libraries in order of preference
@@ -190,13 +189,13 @@ def _extract_style_from_name(name: str) -> tuple[str, str]:
 
 
 def _parse_style_weight(style_name: str) -> tuple[str, int]:
-    """
-    Parse style name into style and weight.
+    """Parse style name into style and weight.
 
     Returns:
         Tuple of (style, weight) where style is one of:
         normal, italic, bold, bold-italic
         And weight is a number from 100-900
+
     """
     style_name_lower = style_name.lower()
 
@@ -246,8 +245,7 @@ def _parse_style_weight(style_name: str) -> tuple[str, int]:
 
 
 def detect_font(_image_region: Any, _ocr_result: Any | None = None) -> dict[str, Any] | None:
-    """
-    Detect font characteristics from image region.
+    """Detect font characteristics from image region.
 
     Args:
         image_region: Image region containing text
@@ -255,6 +253,7 @@ def detect_font(_image_region: Any, _ocr_result: Any | None = None) -> dict[str,
 
     Returns:
         Dictionary with detected font characteristics
+
     """
     try:
         # This is a placeholder for font detection from images
@@ -278,8 +277,7 @@ def detect_font(_image_region: Any, _ocr_result: Any | None = None) -> dict[str,
 
 
 def find_similar_font(target_font: str, available_fonts: list[str]) -> str | None:
-    """
-    Find the most similar font from available fonts.
+    """Find the most similar font from available fonts.
 
     Args:
         target_font: Target font name
@@ -287,6 +285,7 @@ def find_similar_font(target_font: str, available_fonts: list[str]) -> str | Non
 
     Returns:
         Most similar font name or None
+
     """
     try:
         target_lower = target_font.lower()
@@ -336,8 +335,7 @@ def _calculate_string_similarity(s1: str, s2: str) -> float:
 
 
 def calculate_font_similarity(font1: dict, font2: dict) -> float:
-    """
-    Calculate similarity between two fonts.
+    """Calculate similarity between two fonts.
 
     Args:
         font1: First font metadata
@@ -345,6 +343,7 @@ def calculate_font_similarity(font1: dict, font2: dict) -> float:
 
     Returns:
         Similarity score between 0 and 1
+
     """
     try:
         scores = []
@@ -370,8 +369,7 @@ def calculate_font_similarity(font1: dict, font2: dict) -> float:
 
 
 def get_font_metrics(font_path: str, size: int = 12) -> dict[str, Any] | None:
-    """
-    Get font metrics for text rendering.
+    """Get font metrics for text rendering.
 
     Args:
         font_path: Path to font file
@@ -379,6 +377,7 @@ def get_font_metrics(font_path: str, size: int = 12) -> dict[str, Any] | None:
 
     Returns:
         Dictionary with font metrics
+
     """
     try:
         # Try different approaches to get font metrics
@@ -471,14 +470,14 @@ def _get_font_metrics_fallback(_font_path: str, size: int) -> dict[str, Any] | N
 
 
 def validate_font_file(font_path: str) -> bool:
-    """
-    Validate that a file is a valid font file.
+    """Validate that a file is a valid font file.
 
     Args:
         font_path: Path to font file
 
     Returns:
         True if valid font file, False otherwise
+
     """
     try:
         # Check if file exists
@@ -502,8 +501,7 @@ def validate_font_file(font_path: str) -> bool:
 
 
 def create_font_sample(font_path: str, text: str = "Sample Text", size: int = 24):
-    """
-    Create a sample image showing the font.
+    """Create a sample image showing the font.
 
     Args:
         font_path: Path to font file
@@ -512,6 +510,7 @@ def create_font_sample(font_path: str, text: str = "Sample Text", size: int = 24
 
     Returns:
         PIL Image with font sample or None if failed
+
     """
     try:
 

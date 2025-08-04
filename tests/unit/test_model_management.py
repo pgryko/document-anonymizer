@@ -1,5 +1,4 @@
-"""
-Model Management Tests
+"""Model Management Tests
 ======================
 
 Tests for model downloading, validation, and management functionality.
@@ -11,6 +10,13 @@ from pathlib import Path
 
 import pytest
 
+from src.anonymizer.core.exceptions import (
+    MaxCacheSizePositiveError,
+    MaxWorkersPositiveError,
+    ModelNameAndUrlRequiredError,
+    TimeoutSecondsPositiveError,
+    UnsupportedChecksumTypeError,
+)
 from src.anonymizer.models.config import (
     ModelConfig,
     ModelFormat,
@@ -49,15 +55,18 @@ class TestModelConfig:
     def test_model_source_validation(self):
         """Test ModelSource validation."""
         # Test empty name
-        with pytest.raises(ValueError, match="name cannot be empty"):
+        with pytest.raises(ModelNameAndUrlRequiredError, match="Model name and URL are required"):
             ModelSource(name="", url="https://example.com", format=ModelFormat.SAFETENSORS)
 
         # Test empty URL
-        with pytest.raises(ValueError, match="url cannot be empty"):
+        with pytest.raises(ModelNameAndUrlRequiredError, match="Model name and URL are required"):
             ModelSource(name="test", url="", format=ModelFormat.SAFETENSORS)
 
         # Test invalid checksum type
-        with pytest.raises(ValueError, match="invalid checksum_type"):
+        with pytest.raises(
+            UnsupportedChecksumTypeError,
+            match="Unsupported checksum type: invalid",
+        ):
             ModelSource(
                 name="test",
                 url="https://example.com",
@@ -79,15 +88,15 @@ class TestModelConfig:
     def test_model_config_validation(self):
         """Test ModelConfig validation."""
         # Test invalid max_workers
-        with pytest.raises(ValueError, match="max_workers must be positive"):
+        with pytest.raises(MaxWorkersPositiveError, match="max_workers must be positive"):
             ModelConfig(max_workers=0)
 
         # Test invalid timeout
-        with pytest.raises(ValueError, match="timeout_seconds must be positive"):
+        with pytest.raises(TimeoutSecondsPositiveError, match="timeout_seconds must be positive"):
             ModelConfig(timeout_seconds=0)
 
         # Test invalid cache size
-        with pytest.raises(ValueError, match="max_cache_size_gb must be positive"):
+        with pytest.raises(MaxCacheSizePositiveError, match="max_cache_size_gb must be positive"):
             ModelConfig(max_cache_size_gb=0)
 
     def test_model_metadata_serialization(self):

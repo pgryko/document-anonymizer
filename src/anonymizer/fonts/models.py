@@ -1,6 +1,4 @@
-"""
-Font data models and types.
-"""
+"""Font data models and types."""
 
 from dataclasses import dataclass
 from pathlib import Path

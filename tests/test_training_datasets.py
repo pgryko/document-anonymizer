@@ -1,5 +1,4 @@
-"""
-Unit tests for dataset loading and preprocessing - Imperative style.
+"""Unit tests for dataset loading and preprocessing - Imperative style.
 
 Tests robust dataset loading with comprehensive validation.
 """
@@ -41,7 +40,9 @@ class TestDatasetSample:
         Image.fromarray(sample_image).save(image_path)
 
         sample = DatasetSample(
-            image_path=image_path, image=sample_image, text_regions=[sample_text_region]
+            image_path=image_path,
+            image=sample_image,
+            text_regions=[sample_text_region],
         )
 
         assert sample.image_path == image_path
@@ -122,7 +123,7 @@ class TestImageValidator:
         with patch.object(Path, "stat") as mock_stat:
             mock_stat.return_value.st_size = ImageValidator.MAX_IMAGE_SIZE + 1
 
-            with pytest.raises(ValidationError, match="Image too large"):
+            with pytest.raises(ValidationError, match="Image validation failed"):
                 ImageValidator.validate_image_file(image_path)
 
     def test_validate_image_file_unsupported_format(self, temp_dir):
@@ -147,7 +148,7 @@ class TestImageValidator:
             image_path = temp_dir / "large_dims.png"
             image_path.touch()
 
-            with pytest.raises(ValidationError, match="Image too large"):
+            with pytest.raises(ValidationError, match="Image validation failed"):
                 ImageValidator.validate_image_file(image_path)
 
     def test_validate_image_file_too_small_dimensions(self, temp_dir):
@@ -161,7 +162,7 @@ class TestImageValidator:
             image_path = temp_dir / "small_dims.png"
             image_path.touch()
 
-            with pytest.raises(ValidationError, match="Image too small"):
+            with pytest.raises(ValidationError, match="Image validation failed"):
                 ImageValidator.validate_image_file(image_path)
 
     def test_load_image_safely_rgb(self, temp_dir):
@@ -338,7 +339,8 @@ class TestSafeAugmentation:
         augmentation = SafeAugmentation(dataset_config)
 
         augmented_image, augmented_regions = augmentation.augment_image(
-            sample_image, [sample_text_region]
+            sample_image,
+            [sample_text_region],
         )
 
         # Image dimensions should be preserved
@@ -353,7 +355,8 @@ class TestSafeAugmentation:
         augmentation = SafeAugmentation(dataset_config)
 
         augmented_image, augmented_regions = augmentation.augment_image(
-            sample_image, [sample_text_region]
+            sample_image,
+            [sample_text_region],
         )
 
         # Image dimensions should be preserved
@@ -368,7 +371,8 @@ class TestSafeAugmentation:
         augmentation = SafeAugmentation(dataset_config)
 
         augmented_image, augmented_regions = augmentation.augment_image(
-            sample_image, [sample_text_region]
+            sample_image,
+            [sample_text_region],
         )
 
         # Should be identical to original
@@ -382,7 +386,8 @@ class TestSafeAugmentation:
         with patch("PIL.Image.fromarray", side_effect=Exception("PIL error")):
             # Should return original image on error
             augmented_image, augmented_regions = augmentation.augment_image(
-                sample_image, [sample_text_region]
+                sample_image,
+                [sample_text_region],
             )
 
             assert np.array_equal(augmented_image, sample_image)
@@ -395,7 +400,8 @@ class TestSafeAugmentation:
 
         # Currently rotation is skipped to avoid coordinate transformation complexity
         augmented_image, augmented_regions = augmentation.augment_image(
-            sample_image, [sample_text_region]
+            sample_image,
+            [sample_text_region],
         )
 
         # Regions should be unchanged (rotation skipped)
@@ -491,7 +497,7 @@ class TestAnonymizerDataset:
                         "original_text": "Test",
                         "replacement_text": "REDACTED",
                         "confidence": 1.0,
-                    }
+                    },
                 ],
             }
 
@@ -799,7 +805,7 @@ class TestDatasetIntegration:
                     "original_text": "Valid Text",
                     "replacement_text": "REDACTED",
                     "confidence": 1.0,
-                }
+                },
             ],
         }
 
@@ -815,7 +821,7 @@ class TestDatasetIntegration:
                     "original_text": "Invalid Text",
                     "replacement_text": "REDACTED",
                     "confidence": 1.0,
-                }
+                },
             ],
         }
 
@@ -931,7 +937,7 @@ class TestDatasetPreprocessingFixes:
                     "original_text": text_region.original_text,
                     "replacement_text": text_region.replacement_text,
                     "confidence": text_region.confidence,
-                }
+                },
             ],
         }
 
@@ -976,7 +982,10 @@ class TestDatasetPreprocessingFixes:
 
         # Create small bbox that will be valid but small after scaling down
         tiny_bbox = BoundingBox(
-            left=100, top=100, right=115, bottom=115
+            left=100,
+            top=100,
+            right=115,
+            bottom=115,
         )  # 15x15 pixels (larger than MIN_BBOX_SIZE)
         text_region = TextRegion(
             bbox=tiny_bbox,
@@ -999,7 +1008,7 @@ class TestDatasetPreprocessingFixes:
                     "original_text": text_region.original_text,
                     "replacement_text": text_region.replacement_text,
                     "confidence": text_region.confidence,
-                }
+                },
             ],
         }
 
@@ -1171,7 +1180,7 @@ class TestDatasetErrorHandling:
                     "original_text": valid_region.original_text,
                     "replacement_text": valid_region.replacement_text,
                     "confidence": valid_region.confidence,
-                }
+                },
             ],
         }
 
@@ -1223,7 +1232,7 @@ class TestDatasetErrorHandling:
                     "original_text": dummy_region.original_text,
                     "replacement_text": dummy_region.replacement_text,
                     "confidence": dummy_region.confidence,
-                }
+                },
             ],
         }
 

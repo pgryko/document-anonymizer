@@ -58,7 +58,7 @@ if HAS_MODAL:
                 "presidio-anonymizer>=2.2.358",
                 "presidio-image-redactor>=0.0.56",
                 "spacy>=3.8.4",
-            ]
+            ],
         )
         .apt_install("git", "wget", "curl", "libgl1-mesa-glx", "libglib2.0-0")
         .run_commands("pip install --upgrade pip")
@@ -105,7 +105,6 @@ if HAS_MODAL:
         compile_model: bool = False,
     ):
         """Train VAE model on Modal.com."""
-
         # Set up Python path
         sys.path.insert(0, "/root/anonymizer")
 
@@ -238,7 +237,6 @@ if HAS_MODAL:
         compile_model: bool = False,
     ):
         """Train UNet model on Modal.com."""
-
         # Set up Python path
         sys.path.insert(0, "/root/anonymizer")
 

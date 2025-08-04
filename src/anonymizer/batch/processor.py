@@ -1,5 +1,4 @@
-"""
-Batch Processor
+"""Batch Processor
 ===============
 
 High-performance batch processing for document anonymization with
@@ -117,7 +116,7 @@ class ConsoleProgressCallback(BatchProgressCallback):
                 f"\nProgress: {progress.completed_items}/{progress.total_items} "
                 f"({progress.progress_percentage:.1f}%) "
                 f"- Success rate: {progress.success_rate:.1f}% "
-                f"- Elapsed: {elapsed:.1f}s"
+                f"- Elapsed: {elapsed:.1f}s",
             )
 
             if progress.estimated_remaining_ms:
@@ -141,13 +140,12 @@ class ConsoleProgressCallback(BatchProgressCallback):
         print(f"Success rate: {result.success_rate:.1f}%")
         print(f"Total time: {elapsed:.1f}s")
         print(
-            f"Average time per item: {result.total_processing_time_ms / result.total_items:.1f}ms"
+            f"Average time per item: {result.total_processing_time_ms / result.total_items:.1f}ms",
         )
 
 
 class BatchProcessor:
-    """
-    High-performance batch processor for document anonymization.
+    """High-performance batch processor for document anonymization.
 
     Features:
     - Memory-efficient processing with configurable batch sizes
@@ -163,13 +161,13 @@ class BatchProcessor:
         max_memory_mb: float = 4096.0,
         cleanup_interval: int = 10,
     ):
-        """
-        Initialize batch processor.
+        """Initialize batch processor.
 
         Args:
             inference_engine: Optional pre-initialized inference engine
             max_memory_mb: Maximum memory usage in MB before triggering cleanup
             cleanup_interval: Number of items between memory cleanup
+
         """
         self.inference_engine = inference_engine
         self.max_memory_mb = max_memory_mb
@@ -182,8 +180,7 @@ class BatchProcessor:
         request: BatchAnonymizationRequest,
         progress_callback: BatchProgressCallback | None = None,
     ) -> BatchAnonymizationResult:
-        """
-        Process a batch of documents for anonymization.
+        """Process a batch of documents for anonymization.
 
         Args:
             request: Batch processing request
@@ -191,6 +188,7 @@ class BatchProcessor:
 
         Returns:
             Batch processing result
+
         """
         start_time = time.time()
 
@@ -243,7 +241,9 @@ class BatchProcessor:
                     completed_items=completed_items,
                     failed_items=failed_items,
                     estimated_remaining_ms=self._estimate_remaining_time(
-                        completed_items, len(request.items), start_time
+                        completed_items,
+                        len(request.items),
+                        start_time,
                     ),
                     current_memory_mb=self._get_memory_usage(),
                 )
@@ -305,7 +305,10 @@ class BatchProcessor:
             # Sequential processing
             for i, item in enumerate(items):
                 result = self._process_single_item(
-                    item, request, progress_callback, batch_start_index + i
+                    item,
+                    request,
+                    progress_callback,
+                    batch_start_index + i,
                 )
                 results.append(result)
         else:
@@ -376,30 +379,29 @@ class BatchProcessor:
                     errors=[],
                 )
                 progress_callback.on_item_complete(item.item_id, result.success, processing_time_ms)
-                return result
+            else:
+                # Process with inference engine
+                with self._lock:
+                    anon_result = self.inference_engine.anonymize(image_data, text_regions)
 
-            # Process with inference engine
-            with self._lock:
-                anon_result = self.inference_engine.anonymize(image_data, text_regions)
+                # Determine output path
+                output_path = self._get_output_path(item, request)
 
-            # Determine output path
-            output_path = self._get_output_path(item, request)
+                # Save result
+                self._save_anonymized_image(anon_result.anonymized_image, output_path)
 
-            # Save result
-            self._save_anonymized_image(anon_result.anonymized_image, output_path)
+                processing_time_ms = (time.time() - start_time) * 1000
 
-            processing_time_ms = (time.time() - start_time) * 1000
+                result = BatchItemResult(
+                    item_id=item.item_id,
+                    success=anon_result.success,
+                    output_path=output_path,
+                    processing_time_ms=processing_time_ms,
+                    generated_patches=anon_result.generated_patches,
+                    errors=anon_result.errors,
+                )
 
-            result = BatchItemResult(
-                item_id=item.item_id,
-                success=anon_result.success,
-                output_path=output_path,
-                processing_time_ms=processing_time_ms,
-                generated_patches=anon_result.generated_patches,
-                errors=anon_result.errors,
-            )
-
-            progress_callback.on_item_complete(item.item_id, result.success, processing_time_ms)
+                progress_callback.on_item_complete(item.item_id, result.success, processing_time_ms)
 
         except Exception as e:
             processing_time_ms = (time.time() - start_time) * 1000
@@ -407,7 +409,7 @@ class BatchProcessor:
 
             progress_callback.on_error(item.item_id, e)
 
-            return BatchItemResult(
+            result = BatchItemResult(
                 item_id=item.item_id,
                 success=False,
                 output_path=None,
@@ -415,6 +417,8 @@ class BatchProcessor:
                 generated_patches=[],
                 errors=[error_msg],
             )
+
+        return result
 
     def _get_output_path(self, item: BatchItem, request: BatchAnonymizationRequest) -> Path:
         """Determine output path for an item."""
@@ -442,7 +446,6 @@ class BatchProcessor:
 
     def _save_anonymized_image(self, image_array, output_path: Path) -> None:
         """Save anonymized image to file."""
-
         # Convert numpy array to PIL Image
         if image_array.dtype != np.uint8:
             image_array = (image_array * 255).astype(np.uint8)
@@ -451,7 +454,10 @@ class BatchProcessor:
         image.save(output_path)
 
     def _estimate_remaining_time(
-        self, completed: int, total: int, start_time: float
+        self,
+        completed: int,
+        total: int,
+        start_time: float,
     ) -> float | None:
         """Estimate remaining processing time."""
         if completed == 0:
@@ -483,7 +489,7 @@ class BatchProcessor:
             if current_memory and current_memory > self.max_memory_mb:
                 logger.warning(
                     f"Memory usage ({current_memory:.1f}MB) exceeds limit "
-                    f"({self.max_memory_mb:.1f}MB)"
+                    f"({self.max_memory_mb:.1f}MB)",
                 )
 
                 # Additional cleanup could be performed here
@@ -500,8 +506,7 @@ def create_batch_from_directory(
     max_parallel: int = 4,
     batch_size: int = 8,
 ) -> BatchAnonymizationRequest:
-    """
-    Create a batch request from directory of images.
+    """Create a batch request from directory of images.
 
     Args:
         input_dir: Input directory containing images
@@ -513,8 +518,8 @@ def create_batch_from_directory(
 
     Returns:
         BatchAnonymizationRequest ready for processing
-    """
 
+    """
     # Find all matching files
     image_files = []
     for ext in ["jpg", "jpeg", "png", "tiff", "pdf"]:

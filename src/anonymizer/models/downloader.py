@@ -1,5 +1,4 @@
-"""
-Model Downloader
+"""Model Downloader
 ================
 
 Handles downloading models from various sources with progress tracking,
@@ -79,8 +78,7 @@ class DownloadProgress:
 
 
 class ModelDownloader:
-    """
-    Downloads and manages diffusion models for document anonymization.
+    """Downloads and manages diffusion models for document anonymization.
 
     Features:
     - Progressive download with resume capability
@@ -110,8 +108,7 @@ class ModelDownloader:
         target_path: Path | None = None,
         progress_callback: Callable[[int, int], None] | None = None,
     ) -> ModelMetadata:
-        """
-        Download a model from the specified source.
+        """Download a model from the specified source.
 
         Args:
             source: Model source configuration
@@ -120,6 +117,7 @@ class ModelDownloader:
 
         Returns:
             ModelMetadata for the downloaded model
+
         """
         if not self._is_url_allowed(source.url):
             raise ValidationError()
@@ -134,7 +132,10 @@ class ModelDownloader:
         for attempt in range(self.config.max_retries):
             try:
                 return self._download_with_progress(
-                    source, target_path, progress_callback, attempt + 1
+                    source,
+                    target_path,
+                    progress_callback,
+                    attempt + 1,
                 )
             except Exception as e:
                 logger.warning(f"Download attempt {attempt + 1} failed: {e}")
@@ -153,7 +154,9 @@ class ModelDownloader:
         """Download model with progress tracking."""
         # Create temp file for download
         with tempfile.NamedTemporaryFile(
-            dir=self.config.temp_dir, delete=False, suffix=".tmp"
+            dir=self.config.temp_dir,
+            delete=False,
+            suffix=".tmp",
         ) as temp_file:
             temp_path = Path(temp_file.name)
 
@@ -173,7 +176,9 @@ class ModelDownloader:
             logger.info(f"Downloading to temporary file: {temp_path}")
 
             response = self.session.get(
-                source.url, stream=True, timeout=self.config.timeout_seconds
+                source.url,
+                stream=True,
+                timeout=self.config.timeout_seconds,
             )
             response.raise_for_status()
 
@@ -196,7 +201,7 @@ class ModelDownloader:
 
                 progress.close()
                 logger.info(
-                    f"Download completed: {downloaded_size} bytes in {progress.elapsed_time:.2f}s"
+                    f"Download completed: {downloaded_size} bytes in {progress.elapsed_time:.2f}s",
                 )
 
             except Exception:
@@ -351,10 +356,12 @@ class ModelDownloader:
             logger.warning(f"Could not save metadata: {e}")
 
     def download_from_huggingface(
-        self, model_id: str, filename: str | None = None, revision: str = "main"
+        self,
+        model_id: str,
+        filename: str | None = None,
+        revision: str = "main",
     ) -> ModelMetadata:
-        """
-        Download model from Hugging Face Hub.
+        """Download model from Hugging Face Hub.
 
         Args:
             model_id: Hugging Face model ID (e.g., "stabilityai/stable-diffusion-2-inpainting")
@@ -363,6 +370,7 @@ class ModelDownloader:
 
         Returns:
             ModelMetadata for downloaded model
+
         """
         if hf_hub_download is None or hf_hub_url is None:
             raise InferenceError()

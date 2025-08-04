@@ -1,5 +1,4 @@
-"""
-Resource Monitor
+"""Resource Monitor
 ================
 
 Real-time monitoring of system resources during anonymization operations.
@@ -80,8 +79,7 @@ class ResourceSummary:
 
 
 class ResourceMonitor:
-    """
-    Monitors system resource usage in real-time.
+    """Monitors system resource usage in real-time.
 
     Features:
     - CPU, memory, disk, and network monitoring
@@ -377,8 +375,7 @@ class ResourceMonitor:
 
 
 class PerformanceMonitor:
-    """
-    High-level performance monitoring coordinator.
+    """High-level performance monitoring coordinator.
 
     Combines resource monitoring with operation profiling
     to provide comprehensive performance insights.
@@ -428,7 +425,7 @@ class PerformanceMonitor:
 
         logger.info(
             f"Ended performance session: {self.session_name} "
-            f"(duration: {session_duration:.1f}s, samples: {len(samples)})"
+            f"(duration: {session_duration:.1f}s, samples: {len(samples)})",
         )
 
         # Auto-export if enabled
@@ -486,7 +483,7 @@ class PerformanceMonitor:
         # Memory insights
         if summary.peak_memory_mb > HIGH_MEMORY_THRESHOLD_MB:
             insights.append(
-                "High memory usage detected - consider batch processing smaller documents"
+                "High memory usage detected - consider batch processing smaller documents",
             )
 
         if summary.memory_percent["max"] > MEMORY_CRITICAL_THRESHOLD_PERCENT:

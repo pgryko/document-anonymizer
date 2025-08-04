@@ -1,5 +1,4 @@
-"""
-End-to-End Integration Tests for Document Anonymization
+"""End-to-End Integration Tests for Document Anonymization
 ======================================================
 
 Tests the complete anonymization workflow from image input to anonymized output.
@@ -177,7 +176,10 @@ class TestE2EAnonymization:
 
     @pytest.mark.slow
     def test_anonymization_with_text_regions(
-        self, engine_config, sample_document_image, sample_text_regions
+        self,
+        engine_config,
+        sample_document_image,
+        sample_text_regions,
     ):
         """Test anonymization with provided text regions."""
         pytest.skip("Heavy integration test - requires model downloads")

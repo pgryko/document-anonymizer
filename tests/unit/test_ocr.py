@@ -1,5 +1,4 @@
-"""
-OCR Unit Tests
+"""OCR Unit Tests
 ==============
 
 Tests for the OCR processing functionality including multiple engines,
@@ -12,7 +11,16 @@ import numpy as np
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
-from src.anonymizer.core.exceptions import InferenceError, ValidationError
+from src.anonymizer.core.exceptions import (
+    ConfidenceOutOfRangeError,
+    EmptyTextError,
+    InferenceError,
+    MinConfidenceOutOfRangeError,
+    OrientationOutOfRangeError,
+    ResizeFactorMustBePositiveError,
+    UnsupportedOCREngineError,
+    ValidationError,
+)
 from src.anonymizer.core.models import BoundingBox
 from src.anonymizer.ocr.engines import BaseOCREngine, create_ocr_engine
 from src.anonymizer.ocr.models import (
@@ -46,15 +54,15 @@ class TestOCRModels:
         bbox = BoundingBox(left=10, top=20, right=100, bottom=50)
 
         # Test empty text
-        with pytest.raises(ValueError, match="text cannot be empty"):
+        with pytest.raises(EmptyTextError, match="Text cannot be empty"):
             DetectedText(text="", bbox=bbox, confidence=0.9)
 
         # Test invalid confidence
-        with pytest.raises(ValueError, match="confidence must be between 0 and 1"):
+        with pytest.raises(ConfidenceOutOfRangeError, match="Confidence must be between"):
             DetectedText(text="test", bbox=bbox, confidence=1.5)
 
         # Test invalid orientation
-        with pytest.raises(ValueError, match="orientation must be between -180 and 180"):
+        with pytest.raises(OrientationOutOfRangeError, match="Orientation must be between"):
             DetectedText(text="test", bbox=bbox, confidence=0.9, orientation=200)
 
     def test_ocr_result_properties(self):
@@ -86,12 +94,15 @@ class TestOCRModels:
         assert config.primary_engine == OCREngine.PADDLEOCR
 
         # Invalid confidence threshold
-        with pytest.raises(ValueError, match="confidence threshold must be between 0 and 1"):
+        with pytest.raises(
+            MinConfidenceOutOfRangeError,
+            match="min_confidence_threshold must be between",
+        ):
             OCRConfig(min_confidence_threshold=1.5)
 
         # Invalid text length
-        with pytest.raises(ValueError, match="min_text_length must be non-negative"):
-            OCRConfig(min_text_length=-1)
+        with pytest.raises(ResizeFactorMustBePositiveError, match="resize_factor must be positive"):
+            OCRConfig(resize_factor=-1)
 
 
 class TestOCREngines:
@@ -108,7 +119,7 @@ class TestOCREngines:
             assert engine.config == config
 
         # Test invalid engine type
-        with pytest.raises(ValueError, match="Unknown OCR engine"):
+        with pytest.raises(UnsupportedOCREngineError, match="Unsupported OCR engine"):
             create_ocr_engine("invalid_engine", config)
 
     def test_engine_initialization(self):
@@ -276,7 +287,8 @@ class TestOCRProcessor:
             if detected_texts:
                 # Convert to text regions
                 text_regions = processor.convert_to_text_regions(
-                    detected_texts, replacement_strategy="generic"
+                    detected_texts,
+                    replacement_strategy="generic",
                 )
 
                 assert len(text_regions) == len(detected_texts)
@@ -306,7 +318,8 @@ class TestOCRProcessor:
         try:
             # One-step detection and conversion
             text_regions = processor.detect_and_convert(
-                sample_document_image, replacement_strategy="length_preserving"
+                sample_document_image,
+                replacement_strategy="length_preserving",
             )
 
             for region in text_regions:

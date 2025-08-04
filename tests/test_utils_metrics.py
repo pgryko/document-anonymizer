@@ -1,5 +1,4 @@
-"""
-Unit tests for metrics utilities - Imperative style.
+"""Unit tests for metrics utilities - Imperative style.
 
 Tests metrics collection and monitoring functionality.
 """
@@ -39,17 +38,10 @@ class TestMetricsCollector:
         """Test backend initialization with DataDog available."""
         collector = MetricsCollector(enabled=False)  # Don't auto-initialize
 
-        with patch("builtins.__import__") as mock_import:
-            mock_datadog = Mock()
-            mock_import.return_value = mock_datadog
-
+        with patch("src.anonymizer.utils.metrics.datadog", Mock()):
             collector._initialize_backend()
 
             assert collector._metrics_backend == "datadog"
-            # Check that __import__ was called with 'datadog' as the first argument
-            mock_import.assert_called()
-            call_args = mock_import.call_args[0]
-            assert call_args[0] == "datadog"
 
     def test_initialize_backend_without_datadog(self):
         """Test backend initialization without DataDog."""
@@ -108,7 +100,9 @@ class TestMetricsCollector:
         collector = MetricsCollector(enabled=True)
 
         with patch.object(
-            collector, "_record_logging_metrics", side_effect=Exception("Metrics error")
+            collector,
+            "_record_logging_metrics",
+            side_effect=Exception("Metrics error"),
         ):
             # Should not raise exception
             collector.record_training_metrics({"loss": 0.5}, 100)
@@ -187,12 +181,10 @@ class TestMetricsCollector:
         prefix = "training"
         tags = ["experiment:test"]
 
-        # Mock the datadog import and statsd
+        # Mock the statsd at the module level
         mock_statsd = Mock()
-        mock_datadog_module = Mock()
-        mock_datadog_module.statsd = mock_statsd
 
-        with patch("builtins.__import__", return_value=mock_datadog_module):
+        with patch("src.anonymizer.utils.metrics.statsd", mock_statsd):
             collector._record_datadog_metrics(metrics, step, prefix, tags)
 
             # Verify statsd.histogram was called for each metric
@@ -217,12 +209,10 @@ class TestMetricsCollector:
         metrics = {"accuracy": 0.9}
         tags = ["model:test"]
 
-        # Mock the datadog import and statsd
+        # Mock the statsd at the module level
         mock_statsd = Mock()
-        mock_datadog_module = Mock()
-        mock_datadog_module.statsd = mock_statsd
 
-        with patch("builtins.__import__", return_value=mock_datadog_module):
+        with patch("src.anonymizer.utils.metrics.statsd", mock_statsd):
             collector._record_datadog_metrics(metrics, tags=tags)
 
             mock_statsd.histogram.assert_called_once()
@@ -297,7 +287,7 @@ class TestTimerContextManager:
             try:
                 with timer():
                     raise ValueError(  # noqa: TRY301, TRY003  # Test exception handling
-                        "Test error"
+                        "Test error",
                     )
             except ValueError:
                 pass

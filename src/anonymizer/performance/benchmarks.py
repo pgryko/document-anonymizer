@@ -1,5 +1,4 @@
-"""
-Benchmark Suite
+"""Benchmark Suite
 ===============
 
 Standardized benchmarks for the document anonymization pipeline.
@@ -42,8 +41,7 @@ class BenchmarkResult:
 
 
 class ModelBenchmark:
-    """
-    Benchmarks for individual model components.
+    """Benchmarks for individual model components.
 
     Tests loading time, inference speed, and memory usage
     for VAE, UNet, and text encoder models.
@@ -178,8 +176,7 @@ class ModelBenchmark:
 
 
 class AnonymizationBenchmark:
-    """
-    End-to-end benchmarks for the document anonymization pipeline.
+    """End-to-end benchmarks for the document anonymization pipeline.
 
     Tests complete workflow performance including:
     - Document loading and preprocessing
@@ -193,7 +190,9 @@ class AnonymizationBenchmark:
         self.profiler = profiler or PerformanceProfiler()
 
     def create_test_document(
-        self, size: tuple[int, int] = (1024, 768), image_format: str = "RGB"
+        self,
+        size: tuple[int, int] = (1024, 768),
+        image_format: str = "RGB",
     ) -> Image.Image:
         """Create a synthetic test document image."""
         # Create a white background
@@ -206,7 +205,9 @@ class AnonymizationBenchmark:
         # - Include different document types (invoices, forms, etc.)
 
     def benchmark_document_loading(
-        self, image_size: tuple[int, int] = (1024, 768), num_documents: int = 5
+        self,
+        image_size: tuple[int, int] = (1024, 768),
+        num_documents: int = 5,
     ) -> BenchmarkResult:
         """Benchmark document loading and preprocessing."""
         benchmark_name = "document_loading"
@@ -270,7 +271,9 @@ class AnonymizationBenchmark:
         )
 
     def benchmark_text_detection(
-        self, image_size: tuple[int, int] = (1024, 768), num_images: int = 10
+        self,
+        image_size: tuple[int, int] = (1024, 768),
+        num_images: int = 10,
     ) -> BenchmarkResult:
         """Benchmark OCR text detection performance."""
         benchmark_name = "text_detection_ocr"
@@ -427,7 +430,7 @@ class AnonymizationBenchmark:
                         right = left + width
                         bottom = top + height
                         mask_regions.append(
-                            BoundingBox(left=left, top=top, right=right, bottom=bottom)
+                            BoundingBox(left=left, top=top, right=right, bottom=bottom),
                         )
 
                     # Simulate diffusion inpainting
@@ -484,7 +487,9 @@ class AnonymizationBenchmark:
         )
 
     def benchmark_end_to_end(
-        self, image_size: tuple[int, int] = (1024, 768), num_documents: int = 3
+        self,
+        image_size: tuple[int, int] = (1024, 768),
+        num_documents: int = 3,
     ) -> BenchmarkResult:
         """Benchmark the complete end-to-end anonymization pipeline."""
         benchmark_name = "end_to_end_anonymization"

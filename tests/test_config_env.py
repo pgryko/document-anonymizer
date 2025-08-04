@@ -1,5 +1,4 @@
-"""
-Unit tests for configuration environment variable support - Imperative style.
+"""Unit tests for configuration environment variable support - Imperative style.
 
 Tests pydantic-settings integration for .env files and environment variables.
 """
@@ -388,7 +387,8 @@ class TestValidationWithEnvVars:
         monkeypatch.setenv("VAE_LEARNING_RATE", "0.0")  # Invalid: must be > 0
 
         with pytest.raises(
-            ValidationError, match="validation error"
+            ValidationError,
+            match="validation error",
         ):  # Should raise validation error
             VAEConfig()
 

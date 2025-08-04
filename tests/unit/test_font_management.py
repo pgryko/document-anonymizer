@@ -1,5 +1,4 @@
-"""
-Tests for Font Management System
+"""Tests for Font Management System
 ================================
 
 Unit tests for font detection, loading, and management functionality.
@@ -117,7 +116,7 @@ class TestFontManager:
                 size_bytes=60000,
                 checksum="system123",
                 is_bundled=False,
-            )
+            ),
         ]
 
         bundled_provider.list_fonts.return_value = bundled_fonts
@@ -348,7 +347,6 @@ class TestFontUtils:
 
     def test_font_info_fallback(self):
         """Test fallback font info extraction."""
-
         # Test with standard font filename
         font_info = _get_font_info_fallback("/path/to/Arial-Bold.ttf")
 
@@ -359,7 +357,6 @@ class TestFontUtils:
 
     def test_parse_style_weight(self):
         """Test style and weight parsing."""
-
         # Test normal style
         style, weight = _parse_style_weight("Regular")
         assert style == "normal"
@@ -443,7 +440,6 @@ class TestFontUtils:
 
     def test_validate_font_file(self):
         """Test font file validation."""
-
         # Test with invalid extension - should return False immediately
         assert validate_font_file("notafont.txt") is False
 

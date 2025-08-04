@@ -1,5 +1,4 @@
-"""
-OCR Module for Document Anonymization
+"""OCR Module for Document Anonymization
 =====================================
 
 Provides optical character recognition capabilities for detecting text regions

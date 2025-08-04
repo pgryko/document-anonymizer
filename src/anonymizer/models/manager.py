@@ -1,5 +1,4 @@
-"""
-Model Manager
+"""Model Manager
 =============
 
 High-level interface for managing diffusion models including downloading,
@@ -27,8 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class ModelManager:
-    """
-    High-level interface for managing diffusion models.
+    """High-level interface for managing diffusion models.
 
     Features:
     - Model discovery and downloading
@@ -54,8 +52,7 @@ class ModelManager:
         progress_callback: Callable[[int, int], None] | None = None,
         validate: bool = True,
     ) -> ModelMetadata:
-        """
-        Download a model by name from the registry.
+        """Download a model by name from the registry.
 
         Args:
             model_name: Name of model in registry
@@ -64,6 +61,7 @@ class ModelManager:
 
         Returns:
             ModelMetadata for downloaded model
+
         """
         # Get model source from registry
         source = self.registry.get_model(model_name)
@@ -76,12 +74,13 @@ class ModelManager:
         existing_metadata = self.registry.get_metadata(model_name)
         if existing_metadata and existing_metadata.local_path.exists():
             logger.info(
-                f"Model '{model_name}' already downloaded to {existing_metadata.local_path}"
+                f"Model '{model_name}' already downloaded to {existing_metadata.local_path}",
             )
 
             if validate:
                 validation = self.validator.validate_model(
-                    existing_metadata.local_path, existing_metadata
+                    existing_metadata.local_path,
+                    existing_metadata,
                 )
                 if not validation.valid:
                     logger.warning("Existing model failed validation, re-downloading...")
@@ -120,10 +119,12 @@ class ModelManager:
             return metadata
 
     def download_from_huggingface(
-        self, model_id: str, filename: str | None = None, validate: bool = True
+        self,
+        model_id: str,
+        filename: str | None = None,
+        validate: bool = True,
     ) -> ModelMetadata:
-        """
-        Download model directly from Hugging Face Hub.
+        """Download model directly from Hugging Face Hub.
 
         Args:
             model_id: Hugging Face model ID
@@ -132,6 +133,7 @@ class ModelManager:
 
         Returns:
             ModelMetadata for downloaded model
+
         """
         try:
             metadata = self.downloader.download_from_huggingface(model_id, filename)
@@ -206,14 +208,14 @@ class ModelManager:
         return info
 
     def get_recommended_setup(self, use_case: str = "default") -> dict[str, ModelMetadata]:
-        """
-        Get recommended model setup for specific use cases.
+        """Get recommended model setup for specific use cases.
 
         Args:
             use_case: One of 'default', 'fast', 'quality', 'custom'
 
         Returns:
             Dictionary mapping component names to ModelMetadata
+
         """
         recommended_sources = self.registry.get_recommended_models(use_case)
         setup = {}
@@ -228,14 +230,14 @@ class ModelManager:
         return setup
 
     def ensure_models_available(self, use_case: str = "default") -> bool:
-        """
-        Ensure all recommended models for a use case are downloaded.
+        """Ensure all recommended models for a use case are downloaded.
 
         Args:
             use_case: Use case identifier
 
         Returns:
             True if all models are available
+
         """
         recommended_sources = self.registry.get_recommended_models(use_case)
         all_available = True
@@ -254,8 +256,7 @@ class ModelManager:
         return all_available
 
     def cleanup_models(self, unused_days: int = 30, dry_run: bool = True) -> dict[str, Any]:
-        """
-        Clean up unused models to free disk space.
+        """Clean up unused models to free disk space.
 
         Args:
             unused_days: Remove models not used in this many days
@@ -263,6 +264,7 @@ class ModelManager:
 
         Returns:
             Dictionary with cleanup statistics
+
         """
         unused_models = self.registry.cleanup_unused_models(unused_days)
         total_size = 0
@@ -303,12 +305,12 @@ class ModelManager:
         if dry_run:
             logger.info(
                 f"Dry run: Would delete {len(unused_models)} models "
-                f"({results['total_size_mb']:.1f} MB)"
+                f"({results['total_size_mb']:.1f} MB)",
             )
         else:
             logger.info(
                 f"Cleanup completed: Deleted {deleted_count} models "
-                f"({results['total_size_mb']:.1f} MB)"
+                f"({results['total_size_mb']:.1f} MB)",
             )
 
         return results

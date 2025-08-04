@@ -1,5 +1,4 @@
-"""
-Performance Profiler
+"""Performance Profiler
 =====================
 
 Tools for profiling memory usage and performance characteristics
@@ -63,8 +62,7 @@ class MemorySnapshot:
 
 
 class MemoryProfiler:
-    """
-    Profiles memory usage during operations.
+    """Profiles memory usage during operations.
 
     Features:
     - Real-time memory monitoring
@@ -180,8 +178,7 @@ class MemoryProfiler:
 
 
 class PerformanceProfiler:
-    """
-    Comprehensive performance profiler for the anonymization pipeline.
+    """Comprehensive performance profiler for the anonymization pipeline.
 
     Features:
     - Operation timing
@@ -253,7 +250,7 @@ class PerformanceProfiler:
 
             logger.info(
                 f"Profiled {operation_name}: {duration_ms:.1f}ms, "
-                f"peak memory: {peak_memory:.1f}MB, CPU: {cpu_percent:.1f}%"
+                f"peak memory: {peak_memory:.1f}MB, CPU: {cpu_percent:.1f}%",
             )
 
             # Auto-save if enabled
@@ -286,8 +283,7 @@ class PerformanceProfiler:
         baseline_duration_ms: float,
         tolerance_percent: float = 20.0,
     ) -> bool:
-        """
-        Detect if there's a performance regression compared to baseline.
+        """Detect if there's a performance regression compared to baseline.
 
         Args:
             operation_name: Name of operation to check
@@ -296,6 +292,7 @@ class PerformanceProfiler:
 
         Returns:
             True if regression detected
+
         """
         recent_metrics = self.get_metrics_for_operation(operation_name)
         if not recent_metrics:
@@ -308,7 +305,7 @@ class PerformanceProfiler:
         if latest_duration > threshold:
             logger.warning(
                 f"Performance regression detected for {operation_name}: "
-                f"{latest_duration:.1f}ms > {threshold:.1f}ms threshold"
+                f"{latest_duration:.1f}ms > {threshold:.1f}ms threshold",
             )
             return True
 

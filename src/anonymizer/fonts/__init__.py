@@ -1,5 +1,4 @@
-"""
-Font Management Module
+"""Font Management Module
 ======================
 
 This module provides font management capabilities for consistent text rendering

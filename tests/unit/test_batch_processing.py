@@ -1,5 +1,4 @@
-"""
-Tests for Batch Processing System
+"""Tests for Batch Processing System
 =================================
 
 Unit tests for batch processing functionality including progress tracking,
@@ -21,6 +20,7 @@ from src.anonymizer.batch.processor import (
     ConsoleProgressCallback,
     create_batch_from_directory,
 )
+from src.anonymizer.core.exceptions import DuplicateItemError, EmptyBatchError, NoImageFilesError
 from src.anonymizer.core.models import (
     AnonymizationResult,
     BatchAnonymizationRequest,
@@ -251,7 +251,7 @@ class TestBatchProcessor:
             continue_on_error=True,
         )
 
-        with pytest.raises(ValueError, match="No items to process"):
+        with pytest.raises(EmptyBatchError, match="No items to process"):
             processor.process_batch(empty_request)
 
         # Test duplicate item IDs
@@ -277,7 +277,7 @@ class TestBatchProcessor:
             continue_on_error=True,
         )
 
-        with pytest.raises(ValueError, match="Duplicate item IDs"):
+        with pytest.raises(DuplicateItemError, match="Duplicate item IDs found"):
             processor.process_batch(duplicate_request)
 
     def test_single_item_processing(self, mock_inference_engine, temp_files):
@@ -497,7 +497,7 @@ class TestBatchDirectoryUtility:
             temp_path = Path(temp_dir)
             output_dir = temp_path / "output"
 
-            with pytest.raises(ValueError, match="No image files found"):
+            with pytest.raises(NoImageFilesError, match="No image files found"):
                 create_batch_from_directory(
                     input_dir=temp_path,
                     output_dir=output_dir,

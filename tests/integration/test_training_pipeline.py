@@ -1,5 +1,4 @@
-"""
-Training Pipeline Integration Tests
+"""Training Pipeline Integration Tests
 ===================================
 
 Tests the complete training pipeline including VAE trainer, UNet trainer,
@@ -164,7 +163,10 @@ class TestTrainingPipelineIntegration:
         """Test dataset creation and validation."""
         try:
             dataset = AnonymizerDataset(
-                mock_dataset_dir, dataset_config, split="train", transform=None
+                mock_dataset_dir,
+                dataset_config,
+                split="train",
+                transform=None,
             )
 
             # The dataset may be empty due to missing annotation files
@@ -407,7 +409,6 @@ class TestTrainingPipelineIntegration:
 
     def test_memory_cleanup(self, vae_config):
         """Test memory cleanup during training."""
-
         trainer = VAETrainer(vae_config)
 
         # Get initial memory
@@ -487,7 +488,7 @@ class TestTrainingPipelineIntegration:
             assert all(isinstance(v, float) for v in val_losses.values())
 
             logger.info(
-                f"✅ Validation pipeline test passed - Val loss: {val_losses['total_loss']:.4f}"
+                f"✅ Validation pipeline test passed - Val loss: {val_losses['total_loss']:.4f}",
             )
 
         except Exception as e:

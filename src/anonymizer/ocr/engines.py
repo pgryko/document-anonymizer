@@ -1,5 +1,4 @@
-"""
-OCR Engine Implementations
+"""OCR Engine Implementations
 ===========================
 
 Multiple OCR engine implementations with consistent interfaces.
@@ -406,7 +405,7 @@ class TrOCREngine(BaseOCREngine):
 
             # Set device
             self.device = torch.device(
-                "cuda" if torch.cuda.is_available() and self.config.use_gpu else "cpu"
+                "cuda" if torch.cuda.is_available() and self.config.use_gpu else "cpu",
             )
 
             # Load TrOCR model and processor
@@ -415,7 +414,7 @@ class TrOCREngine(BaseOCREngine):
             self.model = VisionEncoderDecoderModel.from_pretrained(model_name).to(self.device)
         except ImportError:
             self.logger.warning(
-                "TrOCR not available - install with: pip install transformers torch"
+                "TrOCR not available - install with: pip install transformers torch",
             )
             return False
         except Exception:
@@ -445,14 +444,16 @@ class TrOCREngine(BaseOCREngine):
 
                 # Process with TrOCR
                 pixel_values = self.processor(
-                    images=pil_image, return_tensors="pt"
+                    images=pil_image,
+                    return_tensors="pt",
                 ).pixel_values.to(self.device)
 
                 # Generate text
                 with torch.no_grad():
                     generated_ids = self.model.generate(pixel_values)
                     generated_text = self.processor.batch_decode(
-                        generated_ids, skip_special_tokens=True
+                        generated_ids,
+                        skip_special_tokens=True,
                     )[0]
 
                 # Estimate confidence (TrOCR doesn't provide confidence scores)
