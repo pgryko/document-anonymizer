@@ -10,6 +10,7 @@ This implementation fixes critical bugs in the reference UNet training:
 - Memory efficient training with proper cleanup
 """
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -150,7 +151,7 @@ class UNetTrainer:
 
             # Verify architecture is correct (9 channels for inpainting)
             if unet.conv_in.in_channels != EXPECTED_UNET_INPUT_CHANNELS:
-                raise UNetChannelMismatchError(unet.conv_in.in_channels)
+                raise UNetChannelMismatchError(unet.conv_in.in_channels)  # noqa: TRY301
 
         except Exception as e:
             raise UNetInitializationError(str(e)) from e
@@ -517,7 +518,6 @@ class UNetTrainer:
             }
 
             state_path = save_path.with_suffix(".json")
-            import json
 
             with state_path.open("w") as f:
                 json.dump(training_state, f, indent=2, default=str)
@@ -541,8 +541,6 @@ class UNetTrainer:
             # Save config
             config_path = model_dir / "config.json"
             with config_path.open("w") as f:
-                import json
-
                 json.dump(self.config.dict(), f, indent=2, default=str)
 
             # Create artifacts
@@ -566,7 +564,9 @@ class UNetTrainer:
             logger.info(f"Model artifacts saved: {artifacts.model_name} v{artifacts.version}")
             return artifacts
 
-    def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader | None = None):  # noqa: PLR0912  # Complex training loop
+    def train(
+        self, train_dataloader: DataLoader, val_dataloader: DataLoader | None = None
+    ):  # noqa: PLR0912, PLR0915  # Complex training loop
         """
         Main training loop with corrected hyperparameters.
 

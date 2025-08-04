@@ -593,8 +593,11 @@ class AnonymizationBenchmark:
                 json.dump(data, f, indent=2)
 
             logger.info(f"Saved benchmark results to {filepath}")
-            return True
 
         except Exception:
+            logger.exception(f"Failed to save benchmark results to {filepath}")
+            return False
+        else:
+            return True
             logger.exception("Failed to save benchmark results")
             return False

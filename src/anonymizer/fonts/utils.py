@@ -26,6 +26,10 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Constants for font parsing
+MIN_FONT_NAME_PARTS = 2
+BOLD_WEIGHT_THRESHOLD = 700
+
 
 def get_font_info(font_path: str) -> dict[str, Any] | None:
     """
@@ -87,10 +91,9 @@ def _get_font_name(name_table, name_id: int) -> str | None:
     try:
         # Try to get English name first
         for record in name_table.names:
-            if record.nameID == name_id:
+            if record.nameID == name_id and record.langID in {1033, 0}:
                 # Prefer English (language ID 1033 for US English)
-                if record.langID in {1033, 0}:
-                    return str(record)
+                return str(record)
 
         # Fallback to any available name
         for record in name_table.names:
@@ -117,6 +120,13 @@ def _get_font_info_freetype(font_path: str) -> dict[str, Any] | None:
         # Parse style and weight
         style, weight = _parse_style_weight(style_name)
 
+    except ImportError:
+        logger.debug("freetype-py not available")
+        return None
+    except Exception as e:
+        logger.debug(f"freetype failed for {font_path}: {e}")
+        return None
+    else:
         return {
             "name": f"{font_family} {style_name}",
             "family": font_family,
@@ -124,13 +134,6 @@ def _get_font_info_freetype(font_path: str) -> dict[str, Any] | None:
             "weight": weight,
             "subfamily": style_name,
         }
-
-    except ImportError:
-        logger.debug("freetype-py not available")
-        return None
-    except Exception as e:
-        logger.debug(f"freetype failed for {font_path}: {e}")
-        return None
 
 
 def _get_font_info_fallback(font_path: str) -> dict[str, Any] | None:
@@ -144,7 +147,7 @@ def _get_font_info_fallback(font_path: str) -> dict[str, Any] | None:
         # Split on common delimiters
         parts = re.split(r"[-_\s]+", name_without_ext)
 
-        if len(parts) >= 2:
+        if len(parts) >= MIN_FONT_NAME_PARTS:
             family = parts[0]
             style_part = "-".join(parts[1:])
         else:
@@ -153,6 +156,10 @@ def _get_font_info_fallback(font_path: str) -> dict[str, Any] | None:
 
         style, weight = _parse_style_weight(style_part)
 
+    except Exception as e:
+        logger.debug(f"Fallback font info failed for {font_path}: {e}")
+        return None
+    else:
         return {
             "name": name_without_ext,
             "family": family,
@@ -160,10 +167,6 @@ def _get_font_info_fallback(font_path: str) -> dict[str, Any] | None:
             "weight": weight,
             "subfamily": style_part,
         }
-
-    except Exception as e:
-        logger.debug(f"Fallback font info failed for {font_path}: {e}")
-        return None
 
 
 def _extract_style_from_name(name: str) -> tuple[str, str]:
@@ -228,7 +231,7 @@ def _parse_style_weight(style_name: str) -> tuple[str, int]:
             break
 
     # Determine style
-    is_bold = weight >= 700
+    is_bold = weight >= BOLD_WEIGHT_THRESHOLD
 
     if is_bold and is_italic:
         style = "bold-italic"
@@ -307,13 +310,15 @@ def find_similar_font(target_font: str, available_fonts: list[str]) -> str | Non
 
         if similarities:
             similarities.sort(key=lambda x: x[0], reverse=True)
-            return similarities[0][1]
-
-        return None
+            best_match = similarities[0][1]
+        else:
+            best_match = None
 
     except Exception as e:
         logger.debug(f"Similar font search failed: {e}")
         return None
+    else:
+        return best_match
 
 
 def _calculate_string_similarity(s1: str, s2: str) -> float:
@@ -489,10 +494,11 @@ def validate_font_file(font_path: str) -> bool:
 
         # Check if we can read font info
         font_info = get_font_info(font_path)
-        return font_info is not None
 
     except Exception:
         return False
+    else:
+        return font_info is not None
 
 
 def create_font_sample(font_path: str, text: str = "Sample Text", size: int = 24):
@@ -530,8 +536,8 @@ def create_font_sample(font_path: str, text: str = "Sample Text", size: int = 24
         # Draw text
         draw.text((padding, padding), text, font=font, fill="black")
 
-        return img
-
     except Exception as e:
         logger.debug(f"Font sample creation failed: {e}")
         return None
+    else:
+        return img

@@ -15,7 +15,7 @@ from pathlib import Path
 from .bundled import BundledFontProvider
 from .models import FontMetadata
 from .system import SystemFontProvider
-from .utils import calculate_font_similarity
+from .utils import calculate_font_similarity, get_font_info
 
 logger = logging.getLogger(__name__)
 
@@ -228,8 +228,6 @@ class FontManager:
     ) -> FontMetadata | None:
         """Create font metadata from font file."""
         try:
-            from .utils import get_font_info
-
             font_info = get_font_info(font_path)
             if not font_info:
                 return None
@@ -394,8 +392,9 @@ class FontManager:
                 json.dump(font_data, f, indent=2)
 
             logger.info(f"Exported font list to {output_path}")
-            return True
 
         except Exception:
             logger.exception("Failed to export font list")
             return False
+        else:
+            return True

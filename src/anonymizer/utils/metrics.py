@@ -5,6 +5,21 @@ import time
 from contextlib import contextmanager
 from typing import Any
 
+# Optional dependencies
+try:
+    import datadog
+    from datadog import statsd
+except ImportError:
+    datadog = None
+    statsd = None
+
+try:
+    import torch
+    import torch.nn.functional as F
+except ImportError:
+    torch = None
+    F = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,13 +35,10 @@ class MetricsCollector:
 
     def _initialize_backend(self):
         """Initialize metrics backend (e.g., DataDog, Prometheus)."""
-        try:
-            # Try to initialize DataDog (optional dependency)
-            import datadog  # noqa: F401
-
+        if datadog is not None:
             self._metrics_backend = "datadog"
             logger.info("Initialized DataDog metrics backend")
-        except ImportError:
+        else:
             logger.info("DataDog not available, using logging backend")
             self._metrics_backend = "logging"
 
@@ -88,7 +100,9 @@ class MetricsCollector:
     ):
         """Record metrics to DataDog."""
         try:
-            from datadog import statsd
+            if statsd is None:
+                logger.warning("DataDog statsd not available")
+                return
 
             for metric_name, value in metrics.items():
                 full_name = f"{prefix}.{metric_name}" if prefix else metric_name
@@ -130,8 +144,9 @@ def timer():
 def calculate_similarity_metrics(pred: Any, target: Any) -> dict[str, float]:
     """Calculate similarity metrics between prediction and target."""
     try:
-        import torch
-        import torch.nn.functional as F
+        if torch is None or F is None:
+            logger.warning("PyTorch not available for similarity metrics")
+            return {"error": "PyTorch not available"}
 
         if isinstance(pred, torch.Tensor) and isinstance(target, torch.Tensor):
             # MSE
@@ -144,7 +159,6 @@ def calculate_similarity_metrics(pred: Any, target: Any) -> dict[str, float]:
             # For full SSIM, would need additional implementation
 
             return {"mse": mse, "psnr": psnr}
-        return {"mse": 0.0, "psnr": 0.0}
 
     except Exception as e:
         logger.warning(f"Failed to calculate similarity metrics: {e}")

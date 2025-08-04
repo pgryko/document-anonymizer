@@ -394,7 +394,7 @@ def monitor(ctx, duration: int, interval: float):
 def analyze(results_file: Path):
     """Analyze benchmark results from a JSON file."""
     try:
-        with open(results_file) as f:
+        with Path(results_file).open() as f:
             data = json.load(f)
 
         if "results" not in data:

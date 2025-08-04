@@ -18,6 +18,12 @@ from typing import Any
 
 import psutil
 
+# Optional torch dependency
+try:
+    import torch
+except ImportError:
+    torch = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -73,13 +79,11 @@ class MemoryProfiler:
         self.snapshots: list[MemorySnapshot] = []
         self._monitor_thread: threading.Thread | None = None
 
-        # Try to import torch for GPU monitoring
-        try:
-            import torch
-
+        # Check for GPU monitoring capability
+        if torch is not None:
             self.has_gpu = torch.cuda.is_available()
             self._torch = torch
-        except ImportError:
+        else:
             self.has_gpu = False
             self._torch = None
 
@@ -347,9 +351,12 @@ class PerformanceProfiler:
                 json.dump(data, f, indent=2)
 
             logger.info(f"Exported {len(self.metrics)} metrics to {filepath}")
-            return True
 
         except Exception:
+            logger.exception(f"Failed to export metrics to {filepath}")
+            return False
+        else:
+            return True
             logger.exception("Failed to export metrics")
             return False
 

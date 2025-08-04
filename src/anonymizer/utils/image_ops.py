@@ -91,20 +91,30 @@ class ImageProcessor:
             scale_h = new_h / h
             max_scale = max(scale_w, scale_h)
 
+            def _raise_scale_error() -> None:
+                raise ScaleFactorTooLargeError(max_scale)  # noqa: TRY301
+
             if max_scale > max_scale_factor:
-                raise ScaleFactorTooLargeError(max_scale)
+                _raise_scale_error()
 
             # Check output dimensions
+            def _raise_size_error() -> None:
+                raise OutputSizeTooLargeError(new_w, new_h)  # noqa: TRY301
+
             if new_w > cls.MAX_DIMENSION or new_h > cls.MAX_DIMENSION:
-                raise OutputSizeTooLargeError(new_w, new_h)
+                _raise_size_error()
 
             # Estimate output memory
             channels = (
                 GRAYSCALE_CHANNELS if len(image.shape) == MIN_IMAGE_DIMENSIONS else image.shape[2]
             )
             estimated_memory = new_w * new_h * channels * image.itemsize
+
+            def _raise_memory_error() -> None:
+                raise OutputMemoryTooLargeError(estimated_memory)  # noqa: TRY301
+
             if estimated_memory > cls.MAX_MEMORY_BYTES:
-                raise OutputMemoryTooLargeError(estimated_memory)
+                _raise_memory_error()
 
             # Perform resize
             if len(image.shape) == MIN_IMAGE_DIMENSIONS:
@@ -113,12 +123,13 @@ class ImageProcessor:
                 resized = cv2.resize(image, (new_w, new_h), interpolation=interpolation)
 
             logger.debug(f"Resized image from {w}x{h} to {new_w}x{new_h}")
-            return resized
 
         except cv2.error as e:
             raise ImageResizeError() from e
         except Exception as e:
             raise ImageResizeError() from e
+        else:
+            return resized
 
     @classmethod
     def safe_crop(
@@ -137,8 +148,11 @@ class ImageProcessor:
             img_h, img_w = image.shape[:2]
 
             # Validate crop parameters
+            def _raise_crop_size_error() -> None:
+                raise InvalidCropSizeError(width, height)  # noqa: TRY301
+
             if width <= 0 or height <= 0:
-                raise InvalidCropSizeError(width, height)
+                _raise_crop_size_error()
 
             # Calculate actual crop bounds
             x1, y1 = max(0, x), max(0, y)
@@ -157,10 +171,11 @@ class ImageProcessor:
                 crop = cls._pad_image(crop, width, height, padding_mode)
 
             logger.debug(f"Cropped image to {crop.shape}")
-            return crop
 
         except Exception as e:
             raise ImageCropError() from e
+        else:
+            return crop
 
     @classmethod
     def _pad_image(
@@ -260,19 +275,24 @@ class ImageProcessor:
             }
 
             conversion_key = (source.upper(), target.upper())
+
+            def _raise_conversion_error() -> None:
+                raise UnsupportedColorConversionError(source, target)  # noqa: TRY301
+
             if conversion_key not in conversion_map:
-                raise UnsupportedColorConversionError(source, target)
+                _raise_conversion_error()
 
             conversion_code = conversion_map[conversion_key]
             converted = cv2.cvtColor(image, conversion_code)
 
             logger.debug(f"Converted color space: {source} -> {target}")
-            return converted
 
         except cv2.error as e:
             raise ChannelConversionError() from e
         except Exception as e:
             raise ChannelConversionError() from e
+        else:
+            return converted
 
 
 # Convenience functions

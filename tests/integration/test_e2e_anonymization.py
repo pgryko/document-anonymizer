@@ -115,7 +115,7 @@ class TestE2EAnonymization:
         pil_image = Image.fromarray(sample_document_image)
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
             pil_image.save(tmp_file.name, "PNG")
-            with open(tmp_file.name, "rb") as f:
+            with Path(tmp_file.name).open("rb") as f:
                 image_data = f.read()
 
         # Test preprocessing
@@ -186,7 +186,7 @@ class TestE2EAnonymization:
         pil_image = Image.fromarray(sample_document_image)
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
             pil_image.save(tmp_file.name, "PNG")
-            with open(tmp_file.name, "rb") as f:
+            with Path(tmp_file.name).open("rb") as f:
                 image_data = f.read()
 
         start_time = time.time()
@@ -234,7 +234,7 @@ class TestE2EAnonymization:
         pil_image = Image.fromarray(sample_document_image)
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
             pil_image.save(tmp_file.name, "PNG")
-            with open(tmp_file.name, "rb") as f:
+            with Path(tmp_file.name).open("rb") as f:
                 image_data = f.read()
 
         start_time = time.time()
@@ -305,7 +305,7 @@ class TestE2EAnonymization:
         pil_image = Image.fromarray(sample_document_image)
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
             pil_image.save(tmp_file.name, "PNG")
-            with open(tmp_file.name, "rb") as f:
+            with Path(tmp_file.name).open("rb") as f:
                 image_data = f.read()
 
         try:
@@ -356,7 +356,7 @@ class TestPerformanceBenchmarks:
             # Convert to bytes
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
                 image.save(tmp_file.name, "PNG")
-                with open(tmp_file.name, "rb") as f:
+                with Path(tmp_file.name).open("rb") as f:
                     image_data = f.read()
 
             try:

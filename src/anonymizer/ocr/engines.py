@@ -139,7 +139,11 @@ class BaseOCREngine(ABC):
             gray = cv2.medianBlur(gray, MEDIAN_BLUR_KERNEL_SIZE)
 
         # Convert back to RGB if original was color
-        return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB) if len(image.shape) == MIN_CHANNEL_COUNT else gray
+        return (
+            cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+            if len(image.shape) == MIN_CHANNEL_COUNT
+            else gray
+        )
 
     def validate_image(self, image: np.ndarray) -> bool:
         """Validate input image."""
@@ -493,7 +497,11 @@ class TrOCREngine(BaseOCREngine):
     def _detect_text_regions(self, image: np.ndarray) -> list[tuple[BoundingBox, np.ndarray]]:
         """Simple text region detection using OpenCV (for TrOCR preprocessing)."""
         # Convert to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY) if len(image.shape) == MIN_CHANNEL_COUNT else image.copy()
+        gray = (
+            cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            if len(image.shape) == MIN_CHANNEL_COUNT
+            else image.copy()
+        )
 
         # Apply morphological operations to find text regions
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (17, 7))
@@ -591,7 +599,8 @@ class TesseractEngine(BaseOCREngine):
                 if (
                     text
                     and confidence
-                    >= self.config.min_confidence_threshold * TESSERACT_CONFIDENCE_SCALE  # Tesseract uses 0-100 scale
+                    >= self.config.min_confidence_threshold
+                    * TESSERACT_CONFIDENCE_SCALE  # Tesseract uses 0-100 scale
                     and self.config.min_text_length <= len(text) <= self.config.max_text_length
                 ):
                     # Create bounding box

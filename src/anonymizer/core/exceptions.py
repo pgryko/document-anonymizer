@@ -1371,3 +1371,72 @@ class UnsupportedOCREngineError(ValidationError):
 
     def __init__(self, engine_type: str):
         super().__init__(f"Unsupported OCR engine: {engine_type}")
+
+
+class ModelNotFoundInRegistryError(ValidationError):
+    """Exception raised when model is not found in registry."""
+
+    def __init__(self, model_name: str):
+        super().__init__(f"Model '{model_name}' not found in registry")
+
+
+class ModelNotFoundLocallyError(ValidationError):
+    """Exception raised when model is not found locally."""
+
+    def __init__(self, model_name: str):
+        super().__init__(f"Model '{model_name}' not found locally")
+
+
+# OCR validation specific exceptions
+class ConfidenceOutOfRangeError(ValidationError):
+    """Exception raised when confidence is out of valid range."""
+
+    def __init__(self, confidence: float, min_conf: float, max_conf: float):
+        super().__init__(f"Confidence must be between {min_conf} and {max_conf}, got {confidence}")
+
+
+class OrientationOutOfRangeError(ValidationError):
+    """Exception raised when orientation is out of valid range."""
+
+    def __init__(self, orientation: float, min_degrees: float, max_degrees: float):
+        super().__init__(
+            f"Orientation must be between {min_degrees} and {max_degrees} degrees, got {orientation}"
+        )
+
+
+class MinConfidenceOutOfRangeError(ValidationError):
+    """Exception raised when min_confidence_threshold is out of valid range."""
+
+    def __init__(self, min_conf: float, min_allowed: float, max_allowed: float):  # noqa: ARG002
+        super().__init__(
+            f"min_confidence_threshold must be between {min_allowed} and {max_allowed}"
+        )
+
+
+class ResizeFactorMustBePositiveError(ValidationError):
+    """Exception raised when resize_factor is not positive."""
+
+    def __init__(self):
+        super().__init__("resize_factor must be positive")
+
+
+# Training dataset specific exceptions
+class ImageValidationFailedError(ValidationError):
+    """Exception raised when image validation fails."""
+
+    def __init__(self):
+        super().__init__("Image validation failed")
+
+
+class ImageLoadFailedError(PreprocessingError):
+    """Exception raised when image loading fails."""
+
+    def __init__(self):
+        super().__init__("Failed to load image")
+
+
+class TrainingDataPreparationFailedError(PreprocessingError):
+    """Exception raised when training data preparation fails."""
+
+    def __init__(self):
+        super().__init__("Failed to prepare training data")

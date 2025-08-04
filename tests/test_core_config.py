@@ -543,7 +543,7 @@ class TestConfigLoading:
         }
 
         config_path = temp_dir / "vae_config.yaml"
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             yaml.dump(config_data, f)
 
         config = VAEConfig.from_yaml(config_path)
@@ -560,7 +560,7 @@ class TestConfigLoading:
     def test_load_config_from_yaml_invalid_yaml(self, temp_dir):
         """Test loading config from invalid YAML."""
         config_path = temp_dir / "invalid.yaml"
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             f.write("invalid: yaml: content: [unclosed")
 
         with pytest.raises(ConfigurationError, match="Invalid YAML"):
@@ -579,7 +579,7 @@ class TestConfigLoading:
         config_data = {"batch_size": -1, "learning_rate": 1e-4}  # Invalid batch size
 
         config_path = temp_dir / "invalid_config.yaml"
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             yaml.dump(config_data, f)
 
         with pytest.raises(ConfigurationError, match="Failed to load configuration"):
@@ -646,7 +646,7 @@ APP_ENVIRONMENT=production
 APP_DEBUG=false
 VAE_BATCH_SIZE=64
 """
-        with open(env_file, "w") as f:
+        with env_file.open("w") as f:
             f.write(env_content)
 
         # Create VAE YAML
@@ -656,7 +656,7 @@ model_name: override-vae
 batch_size: 128
 learning_rate: 0.002
 """
-        with open(vae_yaml, "w") as f:
+        with vae_yaml.open("w") as f:
             f.write(vae_yaml_content)
 
         config = AppConfig.load_with_overrides(

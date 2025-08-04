@@ -36,8 +36,16 @@ BETA_PARAMETERS_COUNT = 2
 MAX_WORKER_THREADS = 8
 MIN_CREDENTIAL_LENGTH = 8
 
+# Default temp directory constants for security validation
+DEFAULT_TEMP_DIR = "/tmp/document-anonymizer/"  # noqa: S108
+DEFAULT_VAR_TEMP_DIR = "/var/tmp/document-anonymizer/"  # noqa: S108
+DEFAULT_SYSTEM_TEMP_DIR = "/tmp/"  # noqa: S108
+DEFAULT_VAR_SYSTEM_TEMP_DIR = "/var/tmp/"  # noqa: S108
+DEFAULT_MODEL_TEMP_DIR = "/tmp/document-anonymizer/models/"  # noqa: S108
+DEFAULT_MODEL_VAR_TEMP_DIR = "/var/tmp/document-anonymizer/models/"  # noqa: S108
 
-def validate_secure_path(  # noqa: PLR0912  # Complex path validation function
+
+def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation function
     path: str | Path, field_name: str = "path", allowed_base_dirs: list[str] | None = None
 ) -> Path:
     """
@@ -81,9 +89,12 @@ def validate_secure_path(  # noqa: PLR0912  # Complex path validation function
                 "\r",  # Carriage returns
             ]
 
+            def _raise_security_error(pattern: str) -> None:
+                raise PathSecurityError(field_name, pattern, str(path))  # noqa: TRY301
+
             for pattern in dangerous_patterns:
                 if pattern in path_str:
-                    raise PathSecurityError(field_name, pattern, str(path))
+                    _raise_security_error(pattern)
 
             # Return the path object for tests even if it doesn't exist
             return path_obj
@@ -106,9 +117,12 @@ def validate_secure_path(  # noqa: PLR0912  # Complex path validation function
             "\r",  # Carriage returns
         ]
 
+        def _raise_resolved_security_error(pattern: str) -> None:
+            raise PathSecurityError(field_name, pattern, str(path))  # noqa: TRY301
+
         for pattern in dangerous_patterns:
             if pattern in resolved_str:
-                raise PathSecurityError(field_name, pattern, str(path))
+                _raise_resolved_security_error(pattern)
 
         # Whitelist validation - only allow paths within specified base directories
         if allowed_base_dirs is None:
@@ -117,8 +131,8 @@ def validate_secure_path(  # noqa: PLR0912  # Complex path validation function
             allowed_base_dirs = [
                 str(Path.home()),  # User home directory
                 str(Path.cwd()),  # Current working directory
-                "/tmp/document-anonymizer/",  # Specific temp directory
-                "/var/tmp/document-anonymizer/",  # Alternative temp directory
+                DEFAULT_TEMP_DIR,  # Specific temp directory
+                DEFAULT_VAR_TEMP_DIR,  # Alternative temp directory
                 tempfile.gettempdir(),  # System temp directory (for tests)
             ]
             # Add OS-specific defaults
@@ -132,8 +146,8 @@ def validate_secure_path(  # noqa: PLR0912  # Complex path validation function
             else:  # Unix-like systems
                 allowed_base_dirs.extend(
                     [
-                        "/tmp/",  # System temp directory
-                        "/var/tmp/",  # Alternative temp directory
+                        DEFAULT_SYSTEM_TEMP_DIR,  # System temp directory
+                        DEFAULT_VAR_SYSTEM_TEMP_DIR,  # Alternative temp directory
                     ]
                 )
 
@@ -150,13 +164,22 @@ def validate_secure_path(  # noqa: PLR0912  # Complex path validation function
                 # Skip invalid base directories
                 continue
 
+        def _raise_not_allowed_error() -> None:
+            raise PathNotAllowedError(
+                field_name, str(resolved_path), allowed_base_dirs
+            )  # noqa: TRY301
+
         if not path_allowed:
-            raise PathNotAllowedError(field_name, str(resolved_path), allowed_base_dirs)
+            _raise_not_allowed_error()
 
         # Additional safety checks
         path_parts = resolved_path.parts
+
+        def _raise_depth_error() -> None:
+            raise PathDepthError(field_name, str(path))  # noqa: TRY301
+
         if len(path_parts) > MAX_PATH_DEPTH:  # Reasonable depth limit
-            raise PathDepthError(field_name, str(path))
+            _raise_depth_error()
 
         # Check for symlinks to prevent bypass
         try:
@@ -417,8 +440,8 @@ class EngineConfig(BaseSettings):
         default_factory=lambda: [
             "~/models/",
             "./models/",
-            "/tmp/document-anonymizer/models/",
-            "/var/tmp/document-anonymizer/models/",
+            DEFAULT_MODEL_TEMP_DIR,
+            DEFAULT_MODEL_VAR_TEMP_DIR,
         ],
         description="Allowed base directories for model files",
     )
@@ -680,8 +703,11 @@ def load_config_from_yaml(config_path: str | Path, config_class: type) -> BaseSe
         with config_path.open() as f:
             config_data = yaml.safe_load(f)
 
+        def _raise_empty_config_error() -> None:
+            raise EmptyConfigFileError(str(config_path))  # noqa: TRY301
+
         if config_data is None:
-            raise EmptyConfigFileError(str(config_path))
+            _raise_empty_config_error()
 
         # For BaseSettings classes, we can pass the data directly
         # but we need to disable env file loading for this specific instance

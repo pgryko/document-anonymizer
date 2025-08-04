@@ -12,7 +12,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from src.anonymizer.core.exceptions import ValidationError
+from src.anonymizer.core.exceptions import (
+    ModelNotFoundInRegistryError,
+    ModelNotFoundLocallyError,
+    ModelValidationError,
+)
 
 from .config import ModelConfig, ModelMetadata, ModelSource, ModelType, ValidationResult
 from .downloader import ModelDownloader
@@ -64,7 +68,7 @@ class ModelManager:
         # Get model source from registry
         source = self.registry.get_model(model_name)
         if not source:
-            raise ValidationError(f"Model '{model_name}' not found in registry")
+            raise ModelNotFoundInRegistryError(model_name)
 
         logger.info(f"Downloading model: {model_name}")
 
@@ -96,9 +100,11 @@ class ModelManager:
                     # Clean up failed download
                     if metadata.local_path.exists():
                         metadata.local_path.unlink()
-                    raise ValidationError(
-                        f"Downloaded model failed validation: {validation.errors}"
-                    )
+
+                    def _raise_validation_error() -> None:
+                        raise ModelValidationError()  # noqa: TRY301
+
+                    _raise_validation_error()
 
                 logger.info("Model validation passed")
 
@@ -106,11 +112,12 @@ class ModelManager:
             self.registry.register_metadata(metadata)
 
             logger.info(f"Successfully downloaded and registered: {model_name}")
-            return metadata
 
         except Exception:
-            logger.exception(f"Failed to download model '{model_name}'")
+            logger.exception(f"Failed to download model: {model_name}")
             raise
+        else:
+            return metadata
 
     def download_from_huggingface(
         self, model_id: str, filename: str | None = None, validate: bool = True
@@ -135,9 +142,11 @@ class ModelManager:
                 if not validation.valid:
                     if metadata.local_path.exists():
                         metadata.local_path.unlink()
-                    raise ValidationError(
-                        f"Downloaded model failed validation: {validation.errors}"
-                    )
+
+                    def _raise_validation_error() -> None:
+                        raise ModelValidationError()  # noqa: TRY301
+
+                    _raise_validation_error()
 
             # Register in local registry
             model_name = f"hf_{model_id.replace('/', '_')}"
@@ -154,11 +163,11 @@ class ModelManager:
             self.registry.register_model(source)
             self.registry.register_metadata(metadata)
 
-            return metadata
-
         except Exception:
             logger.exception(f"Failed to download from Hugging Face '{model_id}'")
             raise
+        else:
+            return metadata
 
     def validate_model(self, model_path: Path) -> ValidationResult:
         """Validate a model file."""
@@ -308,7 +317,7 @@ class ModelManager:
         """Benchmark a downloaded model's performance."""
         metadata = self.registry.get_metadata(model_name)
         if not metadata or not metadata.local_path.exists():
-            raise ValidationError(f"Model '{model_name}' not found locally")
+            raise ModelNotFoundLocallyError(model_name)
 
         return self.validator.benchmark_model(metadata.local_path)
 

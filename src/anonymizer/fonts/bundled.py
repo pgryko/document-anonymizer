@@ -7,6 +7,7 @@ These fonts ensure consistent rendering across different systems.
 """
 
 import hashlib
+import json
 import logging
 import tarfile
 import tempfile
@@ -14,7 +15,10 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+from src.anonymizer.core.exceptions import ChecksumVerificationFailedError
+
 from .models import FontMetadata
+from .utils import get_font_info
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +160,7 @@ class BundledFontProvider:
             archive_path = temp_path / "font_archive.zip"
 
             logger.info(f"Downloading {font_file} from {archive_url}")
-            urllib.request.urlretrieve(archive_url, archive_path)
+            urllib.request.urlretrieve(archive_url, archive_path)  # noqa: S310
 
             # Extract font file
             if archive_path.suffix == ".zip":
@@ -176,7 +180,7 @@ class BundledFontProvider:
             if not self._verify_checksum(str(font_path), source_info.get("checksum")):
                 logger.error(f"Checksum verification failed for {font_file}")
                 font_path.unlink()
-                raise ValueError(f"Checksum verification failed for {font_file}")
+                raise ChecksumVerificationFailedError(font_file)
 
             logger.info(f"Successfully downloaded {font_file}")
 
@@ -214,8 +218,6 @@ class BundledFontProvider:
     def _create_font_metadata(self, font_path: str) -> FontMetadata | None:
         """Create font metadata from font file."""
         try:
-            from .utils import get_font_info
-
             # Get font information
             font_info = get_font_info(font_path)
             if not font_info:
@@ -301,8 +303,6 @@ class BundledFontProvider:
             True if successful, False otherwise
         """
         try:
-            import zipfile
-
             with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 # Add all bundled fonts
                 for font_file in self.bundled_fonts_dir.glob("*.ttf"):
@@ -347,8 +347,6 @@ class BundledFontProvider:
 
     def _create_font_manifest(self) -> str:
         """Create font manifest JSON."""
-        import json
-
         fonts = self.list_fonts()
         manifest = {
             "version": "1.0",

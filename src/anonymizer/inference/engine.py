@@ -77,20 +77,29 @@ class SecurePathValidator:
             allowed_base = allowed_base.resolve()
 
             # Check if path is within allowed directory
+            def _raise_path_outside_error() -> None:
+                raise PathOutsideDirectoryError(str(path))  # noqa: TRY301
+
             if not str(resolved_path).startswith(str(allowed_base)):
-                raise PathOutsideDirectoryError(str(path))
+                _raise_path_outside_error()
 
             # Check if file exists and is readable
+            def _raise_file_not_found_error() -> None:
+                raise ModelFileNotFoundError(str(resolved_path))  # noqa: TRY301
+
             if not resolved_path.exists():
-                raise ModelFileNotFoundError(str(resolved_path))
+                _raise_file_not_found_error()
+
+            def _raise_not_file_error() -> None:
+                raise PathNotFileError(str(resolved_path))  # noqa: TRY301
 
             if not resolved_path.is_file():
-                raise PathNotFileError(str(resolved_path))
-
-            return resolved_path
+                _raise_not_file_error()
 
         except Exception as e:
             raise PathValidationFailedError(str(e)) from e
+        else:
+            return resolved_path
 
 
 class MemoryManager:
@@ -173,10 +182,10 @@ class NERProcessor:
                 )
                 text_regions.append(region)
 
-            return text_regions
-
         except Exception as e:
             raise OCRProcessingFailedError() from e
+        else:
+            return text_regions
 
 
 class TextRenderer:
@@ -184,7 +193,7 @@ class TextRenderer:
 
     def __init__(self, font_size: int = 32):
         # Validate font size
-        if not isinstance(font_size, int) or font_size <= 0 or font_size > 200:
+        if not isinstance(font_size, int) or font_size <= 0 or font_size > MAX_FONT_SIZE:
             raise InvalidFontSizeError(font_size)
 
         self.font_size = font_size
@@ -290,6 +299,12 @@ class TextRenderer:
             raise PostprocessingFailedError() from e
 
 
+# Constants for magic values
+MAX_FONT_SIZE = 200
+TEXT_PREVIEW_LENGTH = 50
+DEFAULT_TEMP_PATH_LINUX = "/tmp"  # noqa: S108
+
+
 class InferenceEngine:
     """
     Production-ready inference engine for document anonymization.
@@ -350,8 +365,9 @@ class InferenceEngine:
         # Try different base directories in order of preference
         base_candidates = [
             Path.home() / ".cache" / temp_dir_name,  # User cache directory
-            Path("/tmp") / temp_dir_name,  # System temp (Linux/Mac)
-            Path(os.environ.get("TEMP", "/tmp")) / temp_dir_name,  # Windows/fallback
+            Path(DEFAULT_TEMP_PATH_LINUX) / temp_dir_name,  # System temp (Linux/Mac)
+            Path(os.environ.get("TEMP", DEFAULT_TEMP_PATH_LINUX))
+            / temp_dir_name,  # Windows/fallback
         ]
 
         for base_dir in base_candidates:
@@ -367,10 +383,11 @@ class InferenceEngine:
                 try:
                     test_file.touch()
                     test_file.unlink()  # Clean up test file
-                    logger.debug(f"Using secure temp directory: {base_dir}")
-                    return base_dir
                 except (OSError, PermissionError):
                     continue
+                else:
+                    logger.debug(f"Using secure temp directory: {base_dir}")
+                    return base_dir
 
             except (OSError, PermissionError):
                 logger.debug(f"Cannot use temp directory: {base_dir}")
@@ -610,8 +627,8 @@ class InferenceEngine:
                 anonymized_image = image.copy()
                 for i, region in enumerate(text_regions):
                     try:
-                        text_preview = region.original_text[:50]
-                        if len(region.original_text) > 50:
+                        text_preview = region.original_text[:TEXT_PREVIEW_LENGTH]
+                        if len(region.original_text) > TEXT_PREVIEW_LENGTH:
                             text_preview += "..."
                         logger.debug(
                             f"Anonymizing region {i+1}/{len(text_regions)}: "
@@ -766,11 +783,11 @@ class InferenceEngine:
                 else:
                     logger.warning("Neither OCR nor NER processor available")
 
-            return text_regions
-
         except Exception:
             logger.exception("Auto-detection failed")
             return []
+        else:
+            return text_regions
 
     def _anonymize_region(self, image: np.ndarray, region: TextRegion) -> GeneratedPatch:
         """Anonymize a single text region using diffusion model."""
@@ -873,7 +890,7 @@ class InferenceEngine:
 
                 result_image[y1:y2, x1:x2] = resized_patch[patch_y1:patch_y2, patch_x1:patch_x2]
 
-            return result_image
-
         except Exception as e:
             raise PostprocessingFailedError() from e
+        else:
+            return result_image

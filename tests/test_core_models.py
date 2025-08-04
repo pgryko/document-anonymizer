@@ -490,7 +490,7 @@ class TestModelArtifacts:
             "version": "v2.0",
             "training_steps": 2000,
         }
-        with open(metadata_path, "w") as f:
+        with metadata_path.open("w") as f:
             json.dump(metadata, f)
 
         # Load from cache

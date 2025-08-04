@@ -82,9 +82,10 @@ class FontManager:
         try:
             font = ImageFont.truetype(font_path, size)
             logger.debug(f"Loaded font: {font_path}")
-            return font
         except OSError:
             return None
+        else:
+            return font
 
 
 class TextRenderer:
@@ -100,7 +101,7 @@ class TextRenderer:
         self.default_font_size = default_font_size
         self.default_image_size = default_image_size
 
-    def render_text(
+    def render_text(  # noqa: PLR0912
         self,
         text: str,
         font_name: str | None = None,
@@ -127,10 +128,12 @@ class TextRenderer:
         """
         # Validate inputs
         if not text or not text.strip():
-            raise ValidationError("Text cannot be empty")
+            msg = "Text cannot be empty"
+            raise ValidationError(msg)
 
         if len(text) > MAX_TEXT_LENGTH:
-            raise ValidationError("Text too long")
+            msg = "Text too long"
+            raise ValidationError(msg)
 
         # Use defaults if not specified
         font_size = font_size or self.default_font_size
@@ -189,15 +192,17 @@ class TextRenderer:
                 draw.text((line_x, current_y), line, font=font, fill=text_color)
                 current_y += line_heights[i] + font_size // 4
 
-            return image
-
         except Exception as e:
-            raise PreprocessingError(f"Text rendering failed: {e}") from e
+            msg = f"Text rendering failed: {e}"
+            raise PreprocessingError(msg) from e
+        else:
+            return image
 
     def render_text_batch(self, texts: list[str], **kwargs) -> list[Image.Image]:
         """Render multiple texts efficiently."""
         if not texts:
-            raise ValidationError("Text list cannot be empty")
+            msg = "Text list cannot be empty"
+            raise ValidationError(msg)
 
         images = []
         for text in texts:
@@ -251,11 +256,11 @@ class TextRenderer:
             if len(lines) > 1:
                 total_height += (len(lines) - 1) * font_size // 4
 
-            return max_width, total_height
-
         except Exception as e:
             logger.warning(f"Text size estimation failed: {e}")
             return 0, 0
+        else:
+            return max_width, total_height
 
 
 # Convenience functions

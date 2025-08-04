@@ -483,7 +483,10 @@ class PerformanceMonitor:
         if summary.gpu_peak_memory_mb and summary.gpu_peak_memory_mb > HIGH_GPU_MEMORY_THRESHOLD_MB:
             insights.append("High GPU memory usage - consider reducing batch size")
 
-        if summary.gpu_avg_utilization and summary.gpu_avg_utilization < LOW_GPU_UTILIZATION_THRESHOLD_PERCENT:
+        if (
+            summary.gpu_avg_utilization
+            and summary.gpu_avg_utilization < LOW_GPU_UTILIZATION_THRESHOLD_PERCENT
+        ):
             insights.append("Low GPU utilization - workload may not be GPU-optimized")
 
         # I/O insights
@@ -502,12 +505,18 @@ class PerformanceMonitor:
             recommendations.append("Use gradient checkpointing for model training")
 
         # Performance recommendations
-        if summary.cpu_percent["avg"] > HIGH_CPU_LONG_DURATION_THRESHOLD_PERCENT and summary.duration_seconds > LONG_DURATION_THRESHOLD_SECONDS:
+        if (
+            summary.cpu_percent["avg"] > HIGH_CPU_LONG_DURATION_THRESHOLD_PERCENT
+            and summary.duration_seconds > LONG_DURATION_THRESHOLD_SECONDS
+        ):
             recommendations.append("Consider using multiple worker processes")
             recommendations.append("Implement asynchronous processing for I/O operations")
 
         # GPU recommendations
-        if summary.gpu_avg_utilization and summary.gpu_avg_utilization < LOW_GPU_UTILIZATION_RECOMMENDATION_THRESHOLD_PERCENT:
+        if (
+            summary.gpu_avg_utilization
+            and summary.gpu_avg_utilization < LOW_GPU_UTILIZATION_RECOMMENDATION_THRESHOLD_PERCENT
+        ):
             recommendations.append("Increase batch size to improve GPU utilization")
             recommendations.append("Consider mixed precision training")
 

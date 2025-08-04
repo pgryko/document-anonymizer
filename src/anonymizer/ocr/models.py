@@ -9,7 +9,23 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from src.anonymizer.core.exceptions import (
+    ConfidenceOutOfRangeError,
+    EmptyTextError,
+    MinConfidenceOutOfRangeError,
+    OrientationOutOfRangeError,
+    ResizeFactorMustBePositiveError,
+    TextTooLongError,
+    TextTooShortError,
+    TimeoutSecondsPositiveError,
+)
 from src.anonymizer.core.models import BoundingBox
+
+# Constants for validation
+MIN_ORIENTATION_DEGREES = -180
+MAX_ORIENTATION_DEGREES = 180
+MIN_CONFIDENCE = 0.0
+MAX_CONFIDENCE = 1.0
 
 
 class OCREngine(Enum):
@@ -37,14 +53,16 @@ class DetectedText:
     def __post_init__(self):
         """Validate detected text after initialization."""
         if not self.text.strip():
-            raise ValueError("Text cannot be empty")
+            raise EmptyTextError()
 
-        if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(f"Confidence must be between 0 and 1, got {self.confidence}")
+        if not (MIN_CONFIDENCE <= self.confidence <= MAX_CONFIDENCE):
+            raise ConfidenceOutOfRangeError(self.confidence, MIN_CONFIDENCE, MAX_CONFIDENCE)
 
-        if self.orientation is not None and not (-180 <= self.orientation <= 180):
-            raise ValueError(
-                f"Orientation must be between -180 and 180 degrees, got {self.orientation}"
+        if self.orientation is not None and not (
+            MIN_ORIENTATION_DEGREES <= self.orientation <= MAX_ORIENTATION_DEGREES
+        ):
+            raise OrientationOutOfRangeError(
+                self.orientation, MIN_ORIENTATION_DEGREES, MAX_ORIENTATION_DEGREES
             )
 
 
@@ -152,20 +170,22 @@ class OCRConfig:
             self.languages = ["en"]  # Default to English
 
         # Validate parameters
-        if not (0.0 <= self.min_confidence_threshold <= 1.0):
-            raise ValueError("min_confidence_threshold must be between 0 and 1")
+        if not (MIN_CONFIDENCE <= self.min_confidence_threshold <= MAX_CONFIDENCE):
+            raise MinConfidenceOutOfRangeError(
+                self.min_confidence_threshold, MIN_CONFIDENCE, MAX_CONFIDENCE
+            )
 
         if self.min_text_length < 0:
-            raise ValueError("min_text_length cannot be negative")
+            raise TextTooShortError()
 
         if self.max_text_length < self.min_text_length:
-            raise ValueError("max_text_length must be >= min_text_length")
+            raise TextTooLongError()
 
         if self.resize_factor <= 0:
-            raise ValueError("resize_factor must be positive")
+            raise ResizeFactorMustBePositiveError()
 
         if self.timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be positive")
+            raise TimeoutSecondsPositiveError()
 
 
 @dataclass

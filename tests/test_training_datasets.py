@@ -203,7 +203,7 @@ class TestImageValidator:
         """Test that loading invalid image raises PreprocessingError."""
         # Create invalid image file
         invalid_file = temp_dir / "invalid.png"
-        with open(invalid_file, "w") as f:
+        with invalid_file.open("w") as f:
             f.write("Not an image")
 
         with pytest.raises(PreprocessingError, match="Failed to load image"):
@@ -470,7 +470,7 @@ class TestAnonymizerDataset:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             invalid_json = temp_path / "invalid.json"
-            with open(invalid_json, "w") as f:
+            with invalid_json.open("w") as f:
                 f.write("{invalid json")
 
             # Should skip invalid file and raise error if no valid samples
@@ -803,7 +803,7 @@ class TestDatasetIntegration:
             ],
         }
 
-        with open(temp_dir / "valid.json", "w") as f:
+        with (temp_dir / "valid.json").open("w") as f:
             json.dump(valid_annotation, f)
 
         # Invalid sample (missing image)
@@ -819,7 +819,7 @@ class TestDatasetIntegration:
             ],
         }
 
-        with open(temp_dir / "invalid.json", "w") as f:
+        with (temp_dir / "invalid.json").open("w") as f:
             json.dump(invalid_annotation, f)
 
         # Should load only valid samples (invalid ones are logged as errors but skipped)
@@ -936,7 +936,7 @@ class TestDatasetPreprocessingFixes:
         }
 
         annotation_path = temp_dir / "test_annotation.json"
-        with open(annotation_path, "w") as f:
+        with annotation_path.open("w") as f:
             json.dump(annotation_data, f)
 
         # Create dataset - should handle out-of-bounds gracefully
@@ -1004,7 +1004,7 @@ class TestDatasetPreprocessingFixes:
         }
 
         annotation_path = temp_dir / "test_annotation.json"
-        with open(annotation_path, "w") as f:
+        with annotation_path.open("w") as f:
             json.dump(annotation_data, f)
 
         dataset = AnonymizerDataset(data_dir=temp_dir, config=config, split="train")
@@ -1176,7 +1176,7 @@ class TestDatasetErrorHandling:
         }
 
         annotation_path = temp_dir / "valid_annotation.json"
-        with open(annotation_path, "w") as f:
+        with annotation_path.open("w") as f:
             json.dump(annotation_data, f)
 
         dataset = AnonymizerDataset(data_dir=temp_dir, config=config, split="train")
@@ -1228,7 +1228,7 @@ class TestDatasetErrorHandling:
         }
 
         annotation_path = temp_dir / "dummy.json"
-        with open(annotation_path, "w") as f:
+        with annotation_path.open("w") as f:
             json.dump(annotation_data, f)
 
         # Now create dataset

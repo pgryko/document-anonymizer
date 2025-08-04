@@ -90,9 +90,15 @@ def create_scheduler(
             )
 
         else:
-            raise ConfigurationError(f"Unsupported scheduler type: {scheduler_type}")
 
-        return scheduler
+            def _raise_unsupported_error() -> None:
+                msg = f"Unsupported scheduler type: {scheduler_type}"
+                raise ConfigurationError(msg)  # noqa: TRY301
+
+            _raise_unsupported_error()
 
     except Exception as e:
-        raise ConfigurationError(f"Failed to create scheduler: {e}") from e
+        msg = f"Failed to create scheduler: {e}"
+        raise ConfigurationError(msg) from e
+    else:
+        return scheduler

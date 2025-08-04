@@ -189,9 +189,11 @@ class ModelRegistry:
             self._models[source.name] = source
             self._save_registry()
             logger.info(f"Registered model: {source.name}")
-            return True
         except Exception:
             logger.exception(f"Failed to register model {source.name}")
+            return False
+        else:
+            return True
             return False
 
     def register_metadata(self, metadata: ModelMetadata) -> bool:
@@ -200,9 +202,11 @@ class ModelRegistry:
             self._metadata[metadata.name] = metadata
             self._save_registry()
             logger.info(f"Registered metadata for: {metadata.name}")
-            return True
         except Exception:
             logger.exception(f"Failed to register metadata for {metadata.name}")
+            return False
+        else:
+            return True
             return False
 
     def get_model(self, name: str) -> ModelSource | None:
@@ -360,8 +364,11 @@ class ModelRegistry:
                 json.dump(data, f, indent=2)
 
             logger.info(f"Registry exported to {export_path}")
-            return True
 
         except Exception:
+            logger.exception(f"Failed to export registry to {export_path}")
+            return False
+        else:
+            return True
             logger.exception("Failed to export registry")
             return False

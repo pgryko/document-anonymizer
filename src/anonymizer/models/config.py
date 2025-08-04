@@ -10,6 +10,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from src.anonymizer.core.exceptions import (
+    MaxCacheSizePositiveError,
+    MaxWorkersPositiveError,
+    ModelNameAndUrlRequiredError,
+    TimeoutSecondsPositiveError,
+    UnsupportedChecksumTypeError,
+)
+
 
 class ModelType(Enum):
     """Supported model types."""
@@ -49,10 +57,10 @@ class ModelSource:
     def __post_init__(self):
         """Validate model source configuration."""
         if not self.name or not self.url:
-            raise ValueError("Model name and URL are required")
+            raise ModelNameAndUrlRequiredError()
 
         if self.checksum and self.checksum_type not in ["md5", "sha1", "sha256"]:
-            raise ValueError(f"Unsupported checksum type: {self.checksum_type}")
+            raise UnsupportedChecksumTypeError(self.checksum_type)
 
 
 @dataclass
@@ -104,13 +112,13 @@ class ModelConfig:
 
         # Validate settings
         if self.max_workers <= 0:
-            raise ValueError("max_workers must be positive")
+            raise MaxWorkersPositiveError()
 
         if self.timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be positive")
+            raise TimeoutSecondsPositiveError()
 
         if self.max_cache_size_gb <= 0:
-            raise ValueError("max_cache_size_gb must be positive")
+            raise MaxCacheSizePositiveError()
 
 
 @dataclass

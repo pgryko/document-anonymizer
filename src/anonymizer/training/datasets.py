@@ -32,8 +32,10 @@ from src.anonymizer.core.exceptions import (
     EmptyDatasetError,
     ImageDimensionsTooLargeError,
     ImageDimensionsTooSmallError,
+    ImageLoadFailedError,
     ImageNotFoundError,
     ImageTooLargeError,
+    ImageValidationFailedError,
     InsufficientTextRegionsError,
     InvalidImageDataError,
     MissingImageNameError,
@@ -41,10 +43,10 @@ from src.anonymizer.core.exceptions import (
     NoAnnotationFilesError,
     NoValidSamplesError,
     NoValidTextRegionsError,
-    PreprocessingError,
     ScaledBoundingBoxTooSmallError,
     TextTooLongError,
     TextTooShortError,
+    TrainingDataPreparationFailedError,
     UnexpectedImageDtypeError,
     UnexpectedImageShapeError,
     UnsupportedImageFormatError,
@@ -154,12 +156,12 @@ class ImageValidator:
                 # Validate image data
                 img.verify()
 
-            return True
-
         except UnidentifiedImageError as e:
             raise InvalidImageDataError() from e
         except Exception as e:
-            raise ValidationError(f"Image validation failed: {e}") from e
+            raise ImageValidationFailedError() from e
+        else:
+            return True
 
     @classmethod
     def load_image_safely(cls, image_path: Path) -> np.ndarray:
@@ -167,7 +169,7 @@ class ImageValidator:
         try:
             cls.validate_image_file(image_path)
         except ValidationError as e:
-            raise PreprocessingError(f"Failed to load image: {e}") from e
+            raise ImageLoadFailedError() from e
 
         try:
             # Load image
@@ -183,13 +185,13 @@ class ImageValidator:
             # Validate array properties
             _validate_image_array_properties(image_array)
 
-            return image_array
-
         except ValidationError:
             # Re-raise validation errors as-is
             raise
         except Exception as e:
-            raise PreprocessingError(f"Failed to load image {image_path}: {e}") from e
+            raise ImageLoadFailedError() from e
+        else:
+            return image_array
 
 
 class TextRegionValidator:
@@ -236,7 +238,7 @@ class SafeAugmentation:
 
     def __init__(self, config: DatasetConfig):
         self.config = config
-        self.rng = random.Random(42)  # Fixed seed for deterministic behavior
+        self.rng = random.Random(42)  # Fixed seed for deterministic behavior  # noqa: S311
 
     def augment_image(
         self, image: np.ndarray, text_regions: list[TextRegion]
@@ -279,11 +281,11 @@ class SafeAugmentation:
 
             # Return augmented image with original text regions
             # (text regions unchanged for conservative augmentation)
-            return augmented_image, text_regions
-
         except Exception as e:
             logger.warning(f"Augmentation failed, using original: {e}")
             return image, text_regions
+        else:
+            return augmented_image, text_regions
 
 
 class AnonymizerDataset(Dataset):
@@ -508,6 +510,9 @@ class AnonymizerDataset(Dataset):
             # Stack masks into tensor (num_regions, height, width)
             mask_tensor = torch.from_numpy(np.stack(masks, axis=0)).float()
 
+        except Exception as e:
+            raise TrainingDataPreparationFailedError() from e
+        else:
             return {
                 "images": image_tensor,
                 "masks": mask_tensor,
@@ -515,9 +520,6 @@ class AnonymizerDataset(Dataset):
                 "original_size": (h, w),
                 "scale": scale,
             }
-
-        except Exception as e:
-            raise PreprocessingError(f"Failed to prepare training data: {e}") from e
 
 
 def create_dummy_batch() -> dict[str, Any]:

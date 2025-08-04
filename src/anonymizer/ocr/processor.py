@@ -80,9 +80,11 @@ class OCRProcessor:
             else:
                 logger.error("No OCR engines available - check dependencies")
 
-            return self.is_initialized
-
         except Exception:
+            logger.exception("OCR initialization failed")
+            return False
+        else:
+            return self.is_initialized
             logger.exception("Failed to initialize OCR processor")
             return False
 
@@ -100,10 +102,12 @@ class OCRProcessor:
             List of DetectedText objects with bounding boxes and metadata
         """
         if not self.is_initialized:
-            raise InferenceError("OCR processor not initialized")
+            msg = "OCR processor not initialized"
+            raise InferenceError(msg)
 
         if image is None or image.size == 0:
-            raise ValidationError("Invalid image provided")
+            msg = "Invalid image provided"
+            raise ValidationError(msg)
 
         start_time = time.time()
 
