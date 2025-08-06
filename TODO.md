@@ -1,16 +1,18 @@
 # TODO: Document Anonymization System
 
-## ✅ STATUS UPDATE: MAJOR PROGRESS COMPLETED
+**Last Updated:** 2025-08-06
 
-**All critical blocking issues have been resolved!** The document anonymization system is now functional with:
+## 📊 CURRENT STATUS
 
-- ✅ **Complete InferenceEngine** with NER pipeline and diffusion model integration
-- ✅ **Robust Dataset pipeline** for training with comprehensive validation
+**Significant progress made, but key components still need work:**
+
+- ✅ **VAE Training** fully implemented with corrected hyperparameters
+- ✅ **UNet Training** fully implemented with training loop
+- ⚠️ **InferenceEngine** partially complete - OCR integration needs work
+- ❌ **UNet Dataset** not implemented - needs InpaintingDataset class
+- ❌ **Test Infrastructure** has issues - tests timing out
 - ✅ **Security hardening** with path validation and secure file handling
-- ✅ **Bug fixes** including Pydantic v2 migration and font loading
 - ✅ **Configuration improvements** with project-relative paths
-
-The codebase is now production-ready for core functionality. Remaining tasks are polish and additional testing.
 
 ---
 
@@ -43,31 +45,36 @@ Use structlog for logging
 
 ## HIGH PRIORITY (Blocking) ⚠️
 
-### 1. CRITICAL: Implement missing InferenceEngine core logic
-**File**: `src/anonymizer/inference/engine.py:11`
-**Status**: ✅ Completed
+### 1. CRITICAL: Complete OCR Integration in InferenceEngine
+**File**: `src/anonymizer/inference/engine.py:158,166`
+**Status**: 🔄 Partially Complete
 **Description**: 
 - ✅ Added comprehensive NER pipeline using presidio
 - ✅ Implemented VAE/UNet inference pipeline with diffusion models
 - ✅ Added image composition logic for anonymized patches
 - ✅ Included security validation and memory management
+- ❌ OCR bounding box extraction not implemented (TODOs at lines 158, 166)
+- ❌ Need to map NER results to actual document coordinates
 
-### 2. CRITICAL: Complete data loading pipeline for trainers
-**File**: `src/anonymizer/training/`
-**Status**: ✅ Completed
+### 2. CRITICAL: Create UNet-specific Dataset Implementation
+**File**: `src/anonymizer/training/datasets.py`
+**Status**: 🔄 Partially Complete
 **Description**: 
-- ✅ Created robust Dataset classes for VAE and UNet training
+- ✅ Created generic AnonymizerDataset class
 - ✅ Implemented DataLoader integration in training loops
 - ✅ Added comprehensive data preprocessing and augmentation pipelines
 - ✅ Included security validation and error handling
+- ❌ Missing UNet-specific InpaintingDataset class
+- ❌ Need mask generation and inpainting-specific data loading
 
-### 3. CRITICAL: Fix import issues - missing modules
-**File**: Various
-**Status**: ✅ Completed
+### 3. CRITICAL: Fix Test Infrastructure
+**File**: Various test files
+**Status**: ❌ Broken
 **Description**: 
-- ✅ MetricsCollector class already existed and works correctly
-- ✅ Made torchvision imports conditional to prevent blocking errors
-- ✅ All dataset implementations are complete and functional
+- ❌ Tests timing out when running
+- ❌ Cannot measure test coverage accurately
+- ❌ Need to debug test execution issues
+- ❌ May have performance problems in test setup
 
 ### 4. SECURITY: Add path validation against directory traversal
 **File**: `src/anonymizer/core/config.py:104`
@@ -112,10 +119,11 @@ Use structlog for logging
 - ✅ Updated all configs to use project-relative paths as defaults
 - ✅ Added path validation to all configurable paths
 
-### 9. IMPROVEMENT: Add comprehensive integration tests
-**Status**: 🔄 Partially Complete
+### 9. IMPROVEMENT: Fix and expand test suite
+**Status**: ❌ Blocked by infrastructure issues
 **Description**: 
-- ✅ Comprehensive unit tests exist for all core components
+- ❌ Test infrastructure broken (timeouts)
+- ❌ Cannot run tests to measure coverage
 - ❌ End-to-end integration tests needed
 - ❌ Inference pipeline integration tests needed
 
@@ -163,11 +171,17 @@ Use structlog for logging
 
 ## Next Steps Recommendation
 
-The codebase has excellent bones but needs these critical implementations before it can function as intended. Start with HIGH PRIORITY items in order:
+**Priority Order for Remaining Work:**
 
-1. Implement the missing `MetricsCollector` class to fix import errors
-2. Complete the `InferenceEngine` implementation 
-3. Add data loading pipeline for training
-4. Address security vulnerabilities
+1. **Fix test infrastructure** - Debug timeout issues to enable proper testing
+2. **Create InpaintingDataset** - Implement UNet-specific dataset for training
+3. **Complete OCR integration** - Fix TODOs in engine.py for bounding box extraction
+4. **Improve test coverage** - Once tests run, expand coverage to 80%+
+5. **Integration testing** - Add end-to-end tests for full pipeline
 
-The configuration and architectural patterns are solid foundations to build upon.
+## Recent Discoveries (2025-08-06)
+
+- UNet trainer is MORE complete than documented - has full training loop
+- Test infrastructure has critical issues preventing execution
+- OCR TODOs remain unresolved at specific line numbers
+- Main gap is dataset implementation, not trainer logic

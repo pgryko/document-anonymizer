@@ -1,19 +1,24 @@
 # Code Review Action Items
 
+**Last Updated:** 2025-08-06  
+**Status:** Revised based on current codebase analysis
+
 ## Critical Issues (P0)
 
-### 1. Complete UNet Training Implementation
-**File:** `src/anonymizer/training/unet_trainer.py`
-**Issue:** Training loop and dataloader not implemented
+### 1. Create UNet Dataset Implementation
+**File:** `src/anonymizer/training/datasets.py` (new class needed)
+**Issue:** UNet-specific dataset/dataloader not implemented
 **Action:** 
-- Implement `_train_step()` method with proper loss calculation
-- Add dataset creation for document inpainting
-- Implement validation loop
+- Create `InpaintingDataset` class for UNet training
+- Implement proper mask generation and data loading
+- Add support for document-specific augmentations
+- Integrate with existing UNet trainer
 **Estimated effort:** 2-3 days
+**Note:** UNet trainer itself is fully implemented, only needs dataset
 
 ### 2. Fix OCR Bounding Box Integration
-**File:** `src/anonymizer/inference/engine.py:151-152`
-**Issue:** OCR bounding boxes not properly extracted for NER results
+**File:** `src/anonymizer/inference/engine.py:166-167`
+**Issue:** OCR bounding boxes not properly extracted for NER results (TODOs confirmed)
 **Action:**
 - Integrate OCR results with NER detection
 - Map detected PII to actual document coordinates
@@ -22,18 +27,20 @@
 
 ## High Priority (P1)
 
-### 3. Improve Test Coverage
-**Current:** 19% coverage
-**Target:** 80% coverage
+### 3. Fix Test Infrastructure & Improve Coverage
+**Current:** Tests timing out, coverage unmeasurable
+**Target:** Fix test execution, then achieve 80% coverage
 **Actions:**
-- Add unit tests for:
+- Debug test timeout issues
+- Fix test infrastructure problems
+- Once tests run, add unit tests for:
   - `VAETrainer` class
   - `InferenceEngine` class
   - Configuration validation
   - Security path validation
 - Add integration tests for full pipeline
 - Add performance benchmarks
-**Estimated effort:** 5-7 days
+**Estimated effort:** 1-2 days for fixes, then 5-7 days for coverage
 
 ### 4. Add Missing Error Handling
 **Files:** Multiple
@@ -146,7 +153,8 @@
 ## Implementation Order
 
 ### Phase 1 (Week 1-2)
-- Complete UNet training (P0)
+- Fix test infrastructure (P0)
+- Create UNet dataset implementation (P0)
 - Fix OCR integration (P0)
 - Start test coverage improvement (P1)
 
@@ -180,3 +188,20 @@
 - Bi-weekly code reviews
 - Monthly security audits
 - Quarterly performance reviews
+
+## Recent Changes (2025-08-06)
+
+### Completed Items
+- ✅ UNet training loop implementation (previously marked incomplete)
+- ✅ Full UNet trainer with validation and checkpointing
+- ✅ Text conditioning with TrOCR
+
+### Newly Identified Issues
+- Test infrastructure problems causing timeouts
+- Missing UNet-specific dataset implementation
+- OCR TODOs remain at lines 158, 166 in engine.py
+
+### Status Updates
+- UNet trainer is more complete than previously documented
+- Main gap is dataset implementation, not trainer logic
+- Test coverage cannot be accurately measured until infrastructure fixed
