@@ -76,7 +76,7 @@ class OCRResult:
     engine_used: OCREngine
     image_size: tuple[int, int]  # (width, height)
     success: bool = True
-    errors: list[str] = None
+    errors: list[str] | None = None
     metadata: dict[str, Any] | None = None
 
     def __post_init__(self):
@@ -119,7 +119,7 @@ class OCRConfig:
 
     # Engine selection
     primary_engine: OCREngine = OCREngine.PADDLEOCR
-    fallback_engines: list[OCREngine] = None
+    fallback_engines: list[OCREngine] | None = None
 
     # Detection parameters
     min_confidence_threshold: float = 0.5
@@ -133,7 +133,7 @@ class OCRConfig:
     noise_reduction: bool = True
 
     # Language settings
-    languages: list[str] = None  # e.g., ['en', 'es', 'fr']
+    languages: list[str] | None = None  # e.g., ['en', 'es', 'fr']
     detect_language: bool = True
 
     # Performance settings
@@ -179,10 +179,10 @@ class OCRConfig:
             )
 
         if self.min_text_length < 0:
-            raise TextTooShortError()
+            raise TextTooShortError("OCR text")
 
         if self.max_text_length < self.min_text_length:
-            raise TextTooLongError()
+            raise TextTooLongError("OCR text")
 
         if self.resize_factor <= 0:
             raise ResizeFactorMustBePositiveError()
@@ -206,7 +206,7 @@ class OCRMetrics:
 
     engine_used: OCREngine
     fallback_attempted: bool = False
-    fallback_engines_tried: list[OCREngine] = None
+    fallback_engines_tried: list[OCREngine] | None = None
 
     memory_usage_mb: float | None = None
     gpu_usage_percent: float | None = None

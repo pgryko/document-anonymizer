@@ -155,26 +155,36 @@ class NERProcessor:
             raise ModelLoadingError() from e
 
     def detect_pii(self, text: str, _image: np.ndarray) -> list[TextRegion]:
-        # TODO: integrate with other methods for pii detection
-        """Detect PII entities and return text regions."""
+        """Detect PII entities in text and return regions with metadata.
+
+        Note: This method returns TextRegion objects with placeholder bounding boxes.
+        The actual OCR-derived bounding boxes are applied by the InferenceEngine
+        when combining OCR detection results with NER analysis.
+
+        Args:
+            text: The text content to analyze for PII
+            _image: Image array (unused in current implementation)
+
+        Returns:
+            List of TextRegion objects with PII detection metadata
+        """
         try:
-            # Use Presidio to analyze text
+            # Use Presidio to analyze text for PII entities
             results = self.analyzer.analyze(text=text, entities=self.pii_entities, language="en")
 
-            # Convert to TextRegion objects
-            # For now, create dummy bounding boxes - in production this would
-            # TODO: add OCR to extract bounding boxes
-            # integrate with OCR to get actual coordinates
             text_regions = []
             for result in results:
-                # Create a dummy bounding box (would be from OCR in production)
-                bbox = BoundingBox(left=10, top=10, right=100, bottom=30)
-
+                # Extract the detected PII text
                 original_text = text[result.start : result.end]
                 replacement_text = f"[{result.entity_type}]"
 
+                # Create TextRegion with placeholder bounding box
+                # The InferenceEngine will replace this with the actual OCR bounding box
+                # when combining OCR and NER results
+                placeholder_bbox = BoundingBox(left=0, top=0, right=1, bottom=1)
+
                 region = TextRegion(
-                    bbox=bbox,
+                    bbox=placeholder_bbox,
                     original_text=original_text,
                     replacement_text=replacement_text,
                     confidence=result.score,

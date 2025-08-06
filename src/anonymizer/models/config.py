@@ -90,7 +90,7 @@ class ModelConfig:
 
     # Security settings
     allow_external_urls: bool = True
-    trusted_domains: list[str] = None
+    trusted_domains: list[str] | None = None
 
     def __post_init__(self):
         """Initialize and validate configuration."""
