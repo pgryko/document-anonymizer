@@ -573,6 +573,66 @@ class UNetTrainer:
             logger.info(f"Model artifacts saved: {artifacts.model_name} v{artifacts.version}")
             return artifacts
 
+    def create_dataloaders(
+        self,
+        data_dir: Path,
+        batch_size: int | None = None,
+    ) -> tuple[DataLoader, DataLoader | None]:
+        """Create train and validation dataloaders for UNet training.
+
+        Args:
+            data_dir: Path to the dataset directory
+            batch_size: Override batch size from config
+
+        Returns:
+            Tuple of (train_dataloader, val_dataloader)
+        """
+        from src.anonymizer.core.config import DatasetConfig
+        from src.anonymizer.training.datasets import create_inpainting_dataloaders
+
+        # Use batch size from parameter or config
+        actual_batch_size = batch_size or self.config.batch_size
+
+        # Create dataset config
+        dataset_config = DatasetConfig(
+            train_data_path=data_dir / "train",
+            val_data_path=data_dir / "val" if (data_dir / "val").exists() else None,
+            image_size=self.config.resolution,
+            max_text_regions=10,
+            augment_probability=0.5,
+            num_workers=4,
+        )
+
+        # Create dataloaders using the datasets module
+        train_dataloader, val_dataloader = create_inpainting_dataloaders(
+            config=dataset_config,
+            batch_size=actual_batch_size,
+        )
+
+        logger.info(
+            f"Created dataloaders: train_size={len(train_dataloader)}, val_size={len(val_dataloader) if val_dataloader else 0}"
+        )
+        return train_dataloader, val_dataloader
+
+    def train_from_directory(
+        self,
+        data_dir: Path,
+        batch_size: int | None = None,
+    ) -> None:
+        """Convenience method to train directly from a data directory.
+
+        Args:
+            data_dir: Path to dataset directory (should contain train/ and optionally val/ subdirs)
+            batch_size: Override batch size from config
+        """
+        logger.info(f"Starting UNet training from directory: {data_dir}")
+
+        # Create dataloaders
+        train_dataloader, val_dataloader = self.create_dataloaders(data_dir, batch_size)
+
+        # Start training
+        self.train(train_dataloader, val_dataloader)
+
     def train(  # noqa: PLR0912, PLR0915  # Complex training loop requires many branches/statements
         self,
         train_dataloader: DataLoader,

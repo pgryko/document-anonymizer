@@ -1407,9 +1407,7 @@ class OrientationOutOfRangeError(ValidationError):
 class MinConfidenceOutOfRangeError(ValidationError):
     """Exception raised when min_confidence_threshold is out of valid range."""
 
-    def __init__(
-        self, min_conf: float, min_allowed: float, max_allowed: float
-    ) -> None:  # noqa: ARG002
+    def __init__(self, min_conf: float, min_allowed: float, max_allowed: float) -> None:
         super().__init__(
             f"min_confidence_threshold must be between {min_allowed} and {max_allowed}",
         )

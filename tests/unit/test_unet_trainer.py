@@ -496,3 +496,408 @@ class TestUNetTrainer:
 
         with pytest.raises(UNetValidationNotInitializedError):
             trainer.validate(mock_dataloader)
+
+    def test_prepare_latents_success(self):
+        """Test successful latent preparation."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        # Mock VAE and scheduler
+        mock_vae = Mock()
+        mock_vae.config.scaling_factor = 0.18215
+        mock_latent_dist = Mock()
+        mock_latent_dist.sample.return_value = torch.randn(2, 4, 64, 64)
+        mock_vae.encode.return_value.latent_dist = mock_latent_dist
+
+        mock_scheduler = Mock()
+        mock_scheduler.config.num_train_timesteps = 1000
+        mock_scheduler.add_noise.return_value = torch.randn(2, 4, 64, 64)
+
+        trainer.vae = mock_vae
+        trainer.noise_scheduler = mock_scheduler
+
+        # Test inputs
+        images = torch.randn(2, 3, 512, 512)
+        masks = torch.randn(2, 1, 512, 512)
+
+        with (
+            patch("torch.randn_like", return_value=torch.randn(2, 4, 64, 64)),
+            patch("torch.randint", return_value=torch.tensor([100, 200])),
+            patch("torch.no_grad"),
+        ):
+            result = trainer._prepare_latents(images, masks)
+
+            assert "unet_inputs" in result
+            assert "noise" in result
+            assert "timesteps" in result
+            assert result["unet_inputs"].shape[1] == 9  # 4 + 1 + 4 channels
+
+    def test_compute_loss_success(self):
+        """Test successful loss computation."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        # Mock UNet
+        mock_unet = Mock()
+        mock_noise_pred = Mock()
+        mock_noise_pred.sample = torch.randn(2, 4, 64, 64)
+        mock_unet.return_value = mock_noise_pred
+        trainer.unet = mock_unet
+
+        # Mock helper methods
+        with (
+            patch.object(trainer, "_prepare_text_conditioning") as mock_text_cond,
+            patch.object(trainer, "_prepare_latents") as mock_latents,
+            patch("torch.nn.functional.mse_loss") as mock_mse_loss,
+        ):
+            mock_text_cond.return_value = torch.randn(2, 77, 768)
+            mock_latents.return_value = {
+                "unet_inputs": torch.randn(2, 9, 64, 64),
+                "noise": torch.randn(2, 4, 64, 64),
+                "timesteps": torch.tensor([100, 200]),
+            }
+            mock_mse_loss.return_value = torch.tensor(0.5)
+
+            batch = {
+                "images": torch.randn(2, 3, 512, 512),
+                "masks": torch.randn(2, 1, 512, 512),
+                "texts": ["text1", "text2"],
+            }
+
+            result = trainer._compute_loss(batch)
+
+            assert "loss" in result
+            assert "noise_pred" in result
+            assert "target_noise" in result
+            mock_unet.assert_called_once()
+            mock_text_cond.assert_called_once_with(["text1", "text2"])
+            mock_latents.assert_called_once()
+
+    def test_train_step_success(self):
+        """Test successful training step."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        # Setup trainer state
+        trainer.global_step = 10
+        trainer.current_epoch = 1
+        trainer.optimizer = Mock()
+        trainer.optimizer.param_groups = [{"lr": 1e-4}]
+        trainer.scheduler = Mock()
+        trainer.unet = Mock()
+        trainer.unet.parameters.return_value = [torch.nn.Parameter(torch.randn(10))]
+
+        # Mock loss computation
+        mock_loss = torch.tensor(0.5, requires_grad=True)
+        loss_data = {
+            "loss": mock_loss,
+            "noise_pred": torch.randn(2, 4, 64, 64),
+            "target_noise": torch.randn(2, 4, 64, 64),
+        }
+
+        with patch.object(trainer, "_compute_loss", return_value=loss_data):
+            batch = {
+                "images": torch.randn(2, 3, 512, 512),
+                "masks": torch.randn(2, 1, 512, 512),
+                "texts": ["text1", "text2"],
+            }
+
+            metrics = trainer.train_step(batch)
+
+            # Verify metrics
+            assert metrics.epoch == 1
+            assert metrics.step == 11  # Should increment
+            assert metrics.total_loss == 0.5
+            assert metrics.learning_rate == 1e-4
+
+            # Verify optimizer step was called
+            trainer.optimizer.step.assert_called_once()
+            trainer.optimizer.zero_grad.assert_called_once()
+            trainer.scheduler.step.assert_called_once()
+
+    def test_validate_success(self):
+        """Test successful validation."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        # Setup trainer
+        trainer.unet = Mock()
+
+        # Mock validation dataloader
+        mock_dataloader = [
+            {
+                "images": torch.randn(2, 3, 512, 512),
+                "masks": torch.randn(2, 1, 512, 512),
+                "texts": ["text1", "text2"],
+            }
+            for _ in range(3)
+        ]
+
+        # Mock loss computation
+        loss_data = {"loss": torch.tensor(0.3)}
+
+        with (
+            patch.object(trainer, "_compute_loss", return_value=loss_data),
+            patch("torch.no_grad"),
+        ):
+            val_losses = trainer.validate(mock_dataloader)
+
+            assert "loss" in val_losses
+            assert val_losses["loss"] == 0.3
+
+            # Verify UNet was set to eval and back to train
+            trainer.unet.eval.assert_called_once()
+            trainer.unet.train.assert_called_once()
+
+    def test_save_checkpoint_success(self):
+        """Test successful checkpoint saving."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        # Setup trainer state
+        trainer.global_step = 100
+        trainer.current_epoch = 2
+        trainer.best_loss = 0.25
+
+        # Mock UNet
+        trainer.unet = Mock()
+        mock_state_dict = {"conv_in.weight": torch.randn(9, 4, 3, 3)}
+        trainer.unet.state_dict.return_value = mock_state_dict
+
+        with (
+            patch("safetensors.torch.save_file") as mock_save_file,
+            patch("json.dump") as mock_json_dump,
+            patch("builtins.open") as mock_open,
+        ):
+            mock_file = Mock()
+            mock_open.return_value.__enter__.return_value = mock_file
+
+            save_path = trainer.save_checkpoint()
+
+            assert save_path.name == f"unet_step_{trainer.global_step}.safetensors"
+
+            # Verify safetensors save was called
+            mock_save_file.assert_called_once()
+
+            # Verify training state was saved
+            mock_json_dump.assert_called_once()
+            call_args = mock_json_dump.call_args[0]
+            training_state = call_args[0]
+            assert training_state["global_step"] == 100
+            assert training_state["current_epoch"] == 2
+            assert training_state["best_loss"] == 0.25
+
+    def test_save_model_success(self):
+        """Test successful model saving."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        # Setup trainer state
+        trainer.global_step = 1000
+        trainer.current_epoch = 5
+        trainer.best_loss = 0.15
+
+        with (
+            patch.object(trainer, "save_checkpoint") as mock_save_checkpoint,
+            patch("json.dump") as mock_json_dump,
+            patch("builtins.open") as mock_open,
+        ):
+            mock_file = Mock()
+            mock_open.return_value.__enter__.return_value = mock_file
+            mock_save_checkpoint.return_value = Path("/tmp/model.safetensors")
+
+            artifacts = trainer.save_model()
+
+            assert artifacts.model_name == config.model_name
+            assert artifacts.version == config.version
+            assert artifacts.metadata["final_step"] == 1000
+            assert artifacts.metadata["final_epoch"] == 5
+            assert artifacts.metadata["best_loss"] == 0.15
+            assert artifacts.metadata["training_completed"] is True
+
+            # Verify checkpoint was saved
+            mock_save_checkpoint.assert_called_once()
+
+            # Verify config was saved
+            mock_json_dump.assert_called_once()
+
+    def test_create_dataloaders_success(self):
+        """Test successful dataloader creation."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        with (
+            patch(
+                "src.anonymizer.training.datasets.create_inpainting_dataloaders"
+            ) as mock_create_loaders,
+            patch("src.anonymizer.core.config.DatasetConfig") as mock_dataset_config_cls,
+        ):
+            mock_train_loader = Mock()
+            mock_val_loader = Mock()
+            mock_create_loaders.return_value = (mock_train_loader, mock_val_loader)
+
+            mock_dataset_config = Mock()
+            mock_dataset_config_cls.return_value = mock_dataset_config
+
+            data_dir = Path("/tmp/data")
+            train_loader, val_loader = trainer.create_dataloaders(data_dir, batch_size=4)
+
+            assert train_loader == mock_train_loader
+            assert val_loader == mock_val_loader
+
+            # Verify dataset config was created
+            mock_dataset_config_cls.assert_called_once()
+            mock_create_loaders.assert_called_once_with(
+                config=mock_dataset_config,
+                batch_size=4,
+            )
+
+    def test_train_from_directory_success(self):
+        """Test training from directory."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        with (
+            patch.object(trainer, "create_dataloaders") as mock_create_dataloaders,
+            patch.object(trainer, "train") as mock_train,
+        ):
+            mock_train_loader = Mock()
+            mock_val_loader = Mock()
+            mock_create_dataloaders.return_value = (mock_train_loader, mock_val_loader)
+
+            data_dir = Path("/tmp/data")
+            trainer.train_from_directory(data_dir, batch_size=8)
+
+            mock_create_dataloaders.assert_called_once_with(data_dir, 8)
+            mock_train.assert_called_once_with(mock_train_loader, mock_val_loader)
+
+    def test_load_pretrained_vae_success(self):
+        """Test loading pretrained VAE."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        # Mock VAE artifacts
+        mock_artifacts = Mock()
+        mock_artifacts.model_name = "test_vae"
+        mock_artifacts.model_path = Mock()
+        mock_artifacts.model_path.exists.return_value = True
+
+        # Mock VAE initialization
+        mock_vae = Mock()
+
+        with (
+            patch.object(trainer, "_initialize_vae", return_value=mock_vae) as mock_init_vae,
+            patch("safetensors.torch.load_file") as mock_load_file,
+        ):
+            mock_state_dict = {"decoder.conv_out.weight": torch.randn(3, 512, 3, 3)}
+            mock_load_file.return_value = mock_state_dict
+
+            trainer.load_pretrained_vae(mock_artifacts)
+
+            assert trainer.vae == mock_vae
+            mock_init_vae.assert_called_once()
+            mock_load_file.assert_called_once()
+            mock_vae.load_state_dict.assert_called_once_with(mock_state_dict)
+
+    def test_load_pretrained_vae_no_weights(self):
+        """Test loading pretrained VAE without custom weights."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        # Mock VAE artifacts without existing weights
+        mock_artifacts = Mock()
+        mock_artifacts.model_name = "test_vae"
+        mock_artifacts.model_path = Mock()
+        mock_artifacts.model_path.exists.return_value = False
+
+        # Mock VAE initialization
+        mock_vae = Mock()
+
+        with patch.object(trainer, "_initialize_vae", return_value=mock_vae) as mock_init_vae:
+            trainer.load_pretrained_vae(mock_artifacts)
+
+            assert trainer.vae == mock_vae
+            mock_init_vae.assert_called_once()
+            # Should not call load_state_dict when no custom weights exist
+            mock_vae.load_state_dict.assert_not_called()
+
+    def test_train_step_with_accelerator(self):
+        """Test training step with accelerator."""
+        config = self.create_mock_config()
+        trainer = UNetTrainer(config)
+
+        # Setup trainer with accelerator
+        trainer.accelerator = Mock()
+        trainer.global_step = 5
+        trainer.current_epoch = 0
+        trainer.optimizer = Mock()
+        trainer.optimizer.param_groups = [{"lr": 1e-4}]
+        trainer.scheduler = Mock()
+        trainer.unet = Mock()
+        trainer.unet.parameters.return_value = [torch.nn.Parameter(torch.randn(10))]
+
+        # Mock loss computation
+        mock_loss = torch.tensor(0.7, requires_grad=True)
+        loss_data = {
+            "loss": mock_loss,
+            "noise_pred": torch.randn(1, 4, 64, 64),
+            "target_noise": torch.randn(1, 4, 64, 64),
+        }
+
+        with patch.object(trainer, "_compute_loss", return_value=loss_data):
+            batch = {
+                "images": torch.randn(1, 3, 512, 512),
+                "masks": torch.randn(1, 1, 512, 512),
+                "texts": ["text1"],
+            }
+
+            metrics = trainer.train_step(batch)
+
+            # Verify accelerator backward was called
+            trainer.accelerator.backward.assert_called_once_with(mock_loss)
+
+            # Verify gradient clipping through accelerator
+            trainer.accelerator.clip_grad_norm_.assert_called_once()
+
+            assert metrics.step == 6
+            assert metrics.total_loss == 0.7
+
+    def test_train_step_gradient_clipping_disabled(self):
+        """Test training step with gradient clipping disabled."""
+        config = self.create_mock_config(gradient_clipping=0.0)  # Disable clipping
+        trainer = UNetTrainer(config)
+
+        # Setup trainer state
+        trainer.global_step = 0
+        trainer.current_epoch = 0
+        trainer.optimizer = Mock()
+        trainer.optimizer.param_groups = [{"lr": 1e-4}]
+        trainer.scheduler = Mock()
+        trainer.unet = Mock()
+        trainer.unet.parameters.return_value = [torch.nn.Parameter(torch.randn(10))]
+
+        # Mock loss computation
+        mock_loss = torch.tensor(0.3, requires_grad=True)
+        loss_data = {
+            "loss": mock_loss,
+            "noise_pred": torch.randn(1, 4, 64, 64),
+            "target_noise": torch.randn(1, 4, 64, 64),
+        }
+
+        with (
+            patch.object(trainer, "_compute_loss", return_value=loss_data),
+            patch("torch.nn.utils.clip_grad_norm_") as mock_clip_grad,
+        ):
+            batch = {
+                "images": torch.randn(1, 3, 512, 512),
+                "masks": torch.randn(1, 1, 512, 512),
+                "texts": ["text1"],
+            }
+
+            metrics = trainer.train_step(batch)
+
+            # Verify gradient clipping was not called
+            mock_clip_grad.assert_not_called()
+
+            assert metrics.step == 1
+            assert metrics.total_loss == 0.3

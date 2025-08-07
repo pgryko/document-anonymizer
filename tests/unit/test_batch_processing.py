@@ -310,8 +310,8 @@ class TestBatchProcessor:
             continue_on_error=True,
         )
 
-        # Mock PIL Image save and shutil
-        with patch("PIL.Image") as mock_image, patch("shutil.copy2"):
+        # Mock PIL Image save and shutil - need to mock where Image is imported
+        with patch("src.anonymizer.batch.processor.Image") as mock_image, patch("shutil.copy2"):
             mock_pil_image = Mock()
             mock_image.fromarray.return_value = mock_pil_image
 

@@ -789,13 +789,19 @@ class InferenceEngine:
                                 )
 
                                 if pii_regions:
-                                    # Text contains PII - use original OCR bounding box
-                                    # but update with NER metadata
+                                    # Text contains PII - calculate sub-bounding boxes for each PII entity
                                     for pii_region in pii_regions:
-                                        # Create text region with OCR bbox but NER-detected content
+                                        # Calculate the bounding box for the specific PII text within the OCR region
+                                        pii_bbox = self._calculate_pii_bounding_box(
+                                            detected_text,
+                                            pii_region.original_text,
+                                            detected_text.text,
+                                        )
+
+                                        # Create text region with precise PII bounding box
                                         text_region = TextRegion(
-                                            bbox=detected_text.bbox,  # Use accurate OCR bounding box
-                                            original_text=detected_text.text,
+                                            bbox=pii_bbox,
+                                            original_text=pii_region.original_text,
                                             replacement_text=pii_region.replacement_text,
                                             confidence=min(
                                                 detected_text.confidence,
@@ -842,6 +848,66 @@ class InferenceEngine:
             return []
         else:
             return text_regions
+
+    def _calculate_pii_bounding_box(
+        self, detected_text: "DetectedText", pii_text: str, full_text: str
+    ) -> "BoundingBox":
+        """Calculate precise bounding box for PII text within OCR detected text region.
+
+        This method approximates the position of PII text within the larger OCR text region
+        by using character position ratios to estimate the sub-bounding box.
+
+        Args:
+            detected_text: The OCR detected text with full bounding box
+            pii_text: The specific PII text found by NER
+            full_text: The complete text from OCR (should match detected_text.text)
+
+        Returns:
+            BoundingBox for the specific PII text within the OCR region
+        """
+        from src.anonymizer.core.models import BoundingBox
+
+        # Find the position of PII text within the full text
+        pii_start = full_text.find(pii_text)
+        if pii_start == -1:
+            # Fallback: if we can't find the exact text, return the full OCR bbox
+            logger.warning(f"Could not locate PII text '{pii_text}' in OCR text '{full_text}'")
+            return detected_text.bbox
+
+        pii_end = pii_start + len(pii_text)
+        text_length = len(full_text)
+
+        # Calculate character position ratios
+        start_ratio = pii_start / text_length if text_length > 0 else 0
+        end_ratio = pii_end / text_length if text_length > 0 else 1
+
+        # Get original OCR bounding box dimensions
+        bbox_width = detected_text.bbox.right - detected_text.bbox.left
+        bbox_height = detected_text.bbox.bottom - detected_text.bbox.top
+
+        # Estimate PII bounding box position (assuming horizontal text layout)
+        # This is a simple approximation - more sophisticated methods could use
+        # character width estimation or additional OCR analysis
+        pii_left = detected_text.bbox.left + int(bbox_width * start_ratio)
+        pii_right = detected_text.bbox.left + int(bbox_width * end_ratio)
+
+        # For vertical dimensions, use the full height of the OCR region
+        # since PII typically spans the same line height
+        pii_top = detected_text.bbox.top
+        pii_bottom = detected_text.bbox.bottom
+
+        # Ensure minimum width for small PII text
+        min_width = max(10, bbox_width // 10)  # At least 10px or 10% of original width
+        if pii_right - pii_left < min_width:
+            center = (pii_left + pii_right) // 2
+            pii_left = max(detected_text.bbox.left, center - min_width // 2)
+            pii_right = min(detected_text.bbox.right, center + min_width // 2)
+
+        # Ensure bounds stay within the original OCR region
+        pii_left = max(detected_text.bbox.left, pii_left)
+        pii_right = min(detected_text.bbox.right, pii_right)
+
+        return BoundingBox(left=pii_left, top=pii_top, right=pii_right, bottom=pii_bottom)
 
     def _anonymize_region(self, image: np.ndarray, region: TextRegion) -> GeneratedPatch:
         """Anonymize a single text region using diffusion model."""
