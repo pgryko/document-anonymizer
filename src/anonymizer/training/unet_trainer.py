@@ -46,6 +46,7 @@ from src.anonymizer.core.exceptions import (
     VAESchedulerNotInitializedError,
 )
 from src.anonymizer.core.models import ModelArtifacts, TrainingMetrics
+from src.anonymizer.training.error_handler import ErrorSeverity, TrainingErrorHandler
 from src.anonymizer.utils.metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
@@ -116,6 +117,14 @@ class UNetTrainer:
         self.text_renderer = TextRenderer()
         self.text_projection: torch.nn.Linear | None = None
         self.metrics_collector = MetricsCollector()
+
+        # Enhanced error handling
+        self.error_handler = TrainingErrorHandler(
+            max_consecutive_failures=5,
+            max_error_rate_percent=10.0,
+            enable_auto_recovery=True,
+            checkpoint_on_error=True,
+        )
 
         # Training state
         self.global_step = 0
@@ -628,7 +637,7 @@ class UNetTrainer:
                 self.unet.train()
                 epoch_metrics = []
 
-                for _batch_idx, batch in enumerate(train_dataloader):
+                for batch_idx, batch in enumerate(train_dataloader):
                     try:
                         metrics = self.train_step(batch)
                         epoch_metrics.append(metrics)
@@ -643,11 +652,49 @@ class UNetTrainer:
 
                         # Save checkpoint
                         if self.global_step % self.config.save_every_n_steps == 0:
-                            self.save_checkpoint()
+                            try:
+                                self.save_checkpoint()
+                            except Exception as checkpoint_error:
+                                error = self.error_handler.handle_error(
+                                    exception=checkpoint_error,
+                                    step=self.global_step,
+                                    epoch=self.current_epoch,
+                                    context={
+                                        "operation": "checkpoint_save",
+                                        "batch_idx": batch_idx,
+                                    },
+                                )
+                                # Continue training even if checkpoint fails (non-critical)
+                                if error.severity == ErrorSeverity.CRITICAL:
+                                    raise
 
-                    except Exception:
-                        logger.exception(f"Training step failed at step {self.global_step}")
-                        continue
+                    except Exception as train_error:
+                        error = self.error_handler.handle_error(
+                            exception=train_error,
+                            step=self.global_step,
+                            epoch=self.current_epoch,
+                            context={
+                                "operation": "train_step",
+                                "batch_idx": batch_idx,
+                                "batch_size": (
+                                    batch.get("images", torch.tensor([])).shape[0]
+                                    if isinstance(batch, dict)
+                                    else len(batch)
+                                ),
+                            },
+                        )
+
+                        # Check if we should continue based on error analysis
+                        if not self.error_handler.should_continue_epoch(error):
+                            logger.error(f"Stopping epoch {epoch} due to critical error")
+                            break
+                        if self.error_handler.should_skip_batch(error):
+                            logger.warning(f"Skipping batch {batch_idx} due to error")
+                            continue
+                        logger.info("Continuing training after recoverable error")
+
+                # Reset consecutive failures counter at end of successful epoch
+                self.error_handler.reset_error_state()
 
                 # Validation phase
                 if val_dataloader:
@@ -659,15 +706,46 @@ class UNetTrainer:
                         if val_losses["loss"] < self.best_loss:
                             self.best_loss = val_losses["loss"]
                             best_model_path = self.config.checkpoint_dir / "best_model.safetensors"
-                            self.save_checkpoint(best_model_path)
-                            logger.info(f"New best model saved with loss: {self.best_loss:.4f}")
+                            try:
+                                self.save_checkpoint(best_model_path)
+                                logger.info(f"New best model saved with loss: {self.best_loss:.4f}")
+                            except Exception as save_error:
+                                self.error_handler.handle_error(
+                                    exception=save_error,
+                                    step=self.global_step,
+                                    epoch=self.current_epoch,
+                                    context={"operation": "best_model_save"},
+                                )
+                                logger.warning("Failed to save best model checkpoint")
 
-                    except Exception:
-                        logger.exception("Validation failed")
+                    except Exception as val_error:
+                        error = self.error_handler.handle_error(
+                            exception=val_error,
+                            step=self.global_step,
+                            epoch=self.current_epoch,
+                            context={"operation": "validation"},
+                        )
+                        logger.warning("Validation failed - continuing with training")
 
-            logger.info("Training completed successfully")
+            # Log error summary
+            error_summary = self.error_handler.get_error_summary()
+            if error_summary["total_errors"] > 0:
+                logger.info(
+                    f"Training completed with {error_summary['total_errors']} errors handled"
+                )
+                logger.info(
+                    f"Error recovery success rate: {error_summary['recovery_success_rate']:.1f}%"
+                )
+            else:
+                logger.info("Training completed successfully with no errors")
 
         except Exception as e:
+            # Log final error summary before raising
+            error_summary = self.error_handler.get_error_summary()
+            logger.error(f"Training failed after handling {error_summary['total_errors']} errors")
+            if error_summary["total_errors"] > 0:
+                logger.error(f"Error breakdown: {error_summary['errors_by_category']}")
+
             logger.exception("Training failed")
             raise TrainingLoopError(str(e)) from e
 

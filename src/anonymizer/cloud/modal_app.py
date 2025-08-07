@@ -4,21 +4,22 @@ import contextlib
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 import torch
 import yaml
 
-from src.anonymizer.core.config import UNetConfig, VAEConfig
+from src.anonymizer.core.config import DatasetConfig, UNetConfig, VAEConfig
 from src.anonymizer.core.exceptions import ModalNotAvailableError
 from src.anonymizer.training import UNetTrainer, VAETrainer
-from src.anonymizer.training.datasets import create_dataloader
+from src.anonymizer.training.datasets import create_dataloaders, create_inpainting_dataloaders
 
 try:
     import modal
 
     HAS_MODAL = True
 except ImportError:
-    modal = None
+    modal = None  # type: ignore[assignment]
     HAS_MODAL = False
 
 from .modal_config import ModalConfig, ModalTrainingConfig
@@ -28,49 +29,69 @@ logger = logging.getLogger(__name__)
 
 # Only create Modal app if modal is available
 if HAS_MODAL:
-    # Initialize Modal configuration
-    modal_config = ModalConfig()
+    # Initialize Modal configuration with defaults
+    modal_config = ModalConfig(
+        app_name="document-anonymizer",
+        gpu_type="A100-40GB",
+        gpu_count=1,
+        memory_gb=32,
+        cpu_count=8,
+        timeout_hours=6,
+        python_version="3.12",
+        min_containers=0,
+        volume_name="anonymizer-data",
+        volume_mount_path="/data",
+        wandb_secret_name="wandb-secret",
+        hf_secret_name="huggingface-secret",
+    )
 
     # Create Modal app
     app = modal.App(modal_config.app_name)
 
-    # Create Modal image with dependencies
-    # TODO: this should install via uv and dependencies in pyproject.toml
+    # Create Modal image with dependencies using uv and pyproject.toml
     image = (
         modal.Image.debian_slim(python_version=modal_config.python_version)
-        .pip_install(
-            [
-                "torch>=2.6.0",
-                "torchvision>=0.19.0",
-                "transformers>=4.49.0",
-                "diffusers>=0.32.2",
-                "accelerate>=1.2.0",
-                "safetensors>=0.4.0",
-                "pydantic>=2.10.0",
-                "pydantic-settings>=2.10.1",
-                "pyyaml>=6.0.0",
-                "pillow>=10.0.0",
-                "opencv-python>=4.8.0",
-                "numpy>=1.24.0",
-                "wandb>=0.18.0",
-                "tqdm>=4.66.0",
-                "presidio-analyzer>=2.2.358",
-                "presidio-anonymizer>=2.2.358",
-                "presidio-image-redactor>=0.0.56",
-                "spacy>=3.8.4",
-            ],
+        .apt_install(
+            # System dependencies for OCR, image processing, and font rendering
+            "git",
+            "wget",
+            "curl",
+            "libgl1-mesa-glx",
+            "libglib2.0-0",  # OpenCV
+            "tesseract-ocr",
+            "tesseract-ocr-eng",  # Tesseract OCR
+            "libglib2.0-0",
+            "libsm6",
+            "libxext6",
+            "libxrender-dev",  # GUI libs
+            "libgomp1",  # OpenMP for parallel processing
+            "fonts-dejavu-core",
+            "fontconfig",  # Font support
         )
-        .apt_install("git", "wget", "curl", "libgl1-mesa-glx", "libglib2.0-0")
-        .run_commands("pip install --upgrade pip")
+        # Install uv for fast dependency management
+        .run_commands("pip install --upgrade pip uv")
+        # Copy pyproject.toml and install dependencies via uv
+        .add_local_file("pyproject.toml", "/root/pyproject.toml")
+        .run_commands(
+            "cd /root && uv pip install --system .",
+            # Ensure modal and wandb are available (should be in dependencies already)
+        )
         # Copy the entire codebase into the image
-        .add_local_dir(".", "/root/anonymizer")
+        .add_local_dir("src", "/root/src")
+        .add_local_dir("configs", "/root/configs")
+        .run_commands(
+            # Set up Python path
+            "export PYTHONPATH=/root:$PYTHONPATH",
+            # Download spaCy language model
+            "python -m spacy download en_core_web_sm",
+        )
     )
 
     # Create persistent volume for datasets and checkpoints
     volume = modal.Volume.from_name(modal_config.volume_name, create_if_missing=True)
 
     # Helper function to get secrets
-    def get_secrets():
+    def get_secrets() -> list[Any]:
         """Get available Modal secrets."""
         secrets = []
         with contextlib.suppress(Exception):
@@ -103,10 +124,10 @@ if HAS_MODAL:
         hub_private: bool = True,
         resume_from_checkpoint: str | None = None,
         compile_model: bool = False,
-    ):
+    ) -> str:
         """Train VAE model on Modal.com."""
         # Set up Python path
-        sys.path.insert(0, "/root/anonymizer")
+        sys.path.insert(0, "/root")
 
         try:
 
@@ -123,11 +144,8 @@ if HAS_MODAL:
             # Create VAE config
             vae_config = VAEConfig(**config_dict)
 
-            # Override paths
-            vae_config.train_data_path = train_data_path
-            if val_data_path:
-                vae_config.val_data_path = val_data_path
-            vae_config.checkpoint_dir = output_dir
+            # Override checkpoint directory
+            vae_config.checkpoint_dir = Path(output_dir)
 
             # Setup W&B logging
             training_config = ModalTrainingConfig(
@@ -136,6 +154,8 @@ if HAS_MODAL:
                 train_data_path=train_data_path,
                 val_data_path=val_data_path,
                 output_dir=output_dir,
+                checkpoint_name=None,
+                mixed_precision=vae_config.mixed_precision,
                 wandb_project=wandb_project,
                 wandb_entity=wandb_entity,
                 wandb_tags=wandb_tags or [],
@@ -155,22 +175,20 @@ if HAS_MODAL:
             # Initialize W&B run
             wandb_logger.init()
 
-            # Create data loaders
-            train_dataloader = create_dataloader(
-                data_path=train_data_path,
-                batch_size=vae_config.batch_size,
-                shuffle=True,
-                num_workers=vae_config.num_workers,
+            # Create dataset config and data loaders
+            dataset_config = DatasetConfig(
+                train_data_path=Path(train_data_path),
+                val_data_path=Path(val_data_path) if val_data_path else None,
+                crop_size=512,
+                num_workers=4,
+                rotation_range=0.0,
+                brightness_range=0.0,
+                contrast_range=0.0,
             )
 
-            val_dataloader = None
-            if val_data_path:
-                val_dataloader = create_dataloader(
-                    data_path=val_data_path,
-                    batch_size=vae_config.batch_size,
-                    shuffle=False,
-                    num_workers=vae_config.num_workers,
-                )
+            train_dataloader, val_dataloader = create_dataloaders(
+                dataset_config, batch_size=vae_config.batch_size
+            )
 
             # Initialize trainer
             trainer = VAETrainer(vae_config)
@@ -189,12 +207,11 @@ if HAS_MODAL:
             )
 
             # Save final model
-            final_checkpoint_path = Path(output_dir) / "final_model"
-            trainer.save_model(final_checkpoint_path)
+            final_artifacts = trainer.save_model()
 
             # Log model to W&B
             if wandb_logger.enabled:
-                wandb_logger.log_model(str(final_checkpoint_path), name="vae-final")
+                wandb_logger.log_model(str(final_artifacts.model_path), name="vae-final")
 
             # Push to HuggingFace Hub if requested
             if push_to_hub and hub_model_id:
@@ -205,7 +222,7 @@ if HAS_MODAL:
             wandb_logger.finish()
 
             print("✅ VAE training completed successfully!")
-            return str(final_checkpoint_path)
+            return str(final_artifacts.model_path)
 
         except Exception:
             logger.exception("VAE training failed")
@@ -235,10 +252,10 @@ if HAS_MODAL:
         hub_private: bool = True,
         resume_from_checkpoint: str | None = None,
         compile_model: bool = False,
-    ):
+    ) -> str:
         """Train UNet model on Modal.com."""
         # Set up Python path
-        sys.path.insert(0, "/root/anonymizer")
+        sys.path.insert(0, "/root")
 
         try:
 
@@ -255,11 +272,8 @@ if HAS_MODAL:
             # Create UNet config
             unet_config = UNetConfig(**config_dict)
 
-            # Override paths
-            unet_config.train_data_path = train_data_path
-            if val_data_path:
-                unet_config.val_data_path = val_data_path
-            unet_config.checkpoint_dir = output_dir
+            # Override checkpoint directory
+            unet_config.checkpoint_dir = Path(output_dir)
 
             # Setup W&B logging
             training_config = ModalTrainingConfig(
@@ -268,6 +282,8 @@ if HAS_MODAL:
                 train_data_path=train_data_path,
                 val_data_path=val_data_path,
                 output_dir=output_dir,
+                checkpoint_name=None,
+                mixed_precision=unet_config.mixed_precision,
                 wandb_project=wandb_project,
                 wandb_entity=wandb_entity,
                 wandb_tags=wandb_tags or [],
@@ -287,22 +303,20 @@ if HAS_MODAL:
             # Initialize W&B run
             wandb_logger.init()
 
-            # Create data loaders
-            train_dataloader = create_dataloader(
-                data_path=train_data_path,
-                batch_size=unet_config.batch_size,
-                shuffle=True,
-                num_workers=unet_config.num_workers,
+            # Create dataset config and data loaders
+            dataset_config = DatasetConfig(
+                train_data_path=Path(train_data_path),
+                val_data_path=Path(val_data_path) if val_data_path else None,
+                crop_size=512,
+                num_workers=4,
+                rotation_range=0.0,
+                brightness_range=0.0,
+                contrast_range=0.0,
             )
 
-            val_dataloader = None
-            if val_data_path:
-                val_dataloader = create_dataloader(
-                    data_path=val_data_path,
-                    batch_size=unet_config.batch_size,
-                    shuffle=False,
-                    num_workers=unet_config.num_workers,
-                )
+            train_dataloader, val_dataloader = create_inpainting_dataloaders(
+                dataset_config, batch_size=unet_config.batch_size
+            )
 
             # Initialize trainer
             trainer = UNetTrainer(unet_config)
@@ -312,16 +326,14 @@ if HAS_MODAL:
             trainer.train(
                 train_dataloader=train_dataloader,
                 val_dataloader=val_dataloader,
-                wandb_logger=wandb_logger,
             )
 
             # Save final model
-            final_checkpoint_path = Path(output_dir) / "final_model"
-            trainer.save_model(final_checkpoint_path)
+            final_artifacts = trainer.save_model()
 
             # Log model to W&B
             if wandb_logger.enabled:
-                wandb_logger.log_model(str(final_checkpoint_path), name="unet-final")
+                wandb_logger.log_model(str(final_artifacts.model_path), name="unet-final")
 
             # Push to HuggingFace Hub if requested
             if push_to_hub and hub_model_id:
@@ -332,7 +344,7 @@ if HAS_MODAL:
             wandb_logger.finish()
 
             print("✅ UNet training completed successfully!")
-            return str(final_checkpoint_path)
+            return str(final_artifacts.model_path)
 
         except Exception:
             logger.exception("UNet training failed")
@@ -346,7 +358,7 @@ else:
     train_vae = None
     train_unet = None
 
-    def _modal_not_available(*args, **kwargs):  # noqa: ARG001
+    def _modal_not_available(*args: Any, **kwargs: Any) -> None:  # noqa: ARG001
         raise ModalNotAvailableError()
 
     if app is None:

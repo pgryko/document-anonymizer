@@ -2,11 +2,13 @@
 =============
 
 Main OCR processing class with multi-engine support, fallback strategies,
-and integration with the document anonymization pipeline.
+timeout handling, and integration with the document anonymization pipeline.
 """
 
 import logging
+import threading
 import time
+from contextlib import contextmanager
 
 import numpy as np
 
@@ -17,6 +19,91 @@ from .engines import BaseOCREngine, create_ocr_engine
 from .models import DetectedText, OCRConfig, OCRMetrics
 
 logger = logging.getLogger(__name__)
+
+
+class OCRTimeoutError(Exception):
+    """Exception raised when OCR processing times out."""
+
+    def __init__(self, timeout_seconds: float, operation: str = "OCR processing"):
+        self.timeout_seconds = timeout_seconds
+        self.operation = operation
+        super().__init__(f"{operation} timed out after {timeout_seconds}s")
+
+
+def with_timeout(timeout_seconds: float, operation: str = "operation"):
+    """Execute a function with timeout using threading approach.
+
+    Args:
+        timeout_seconds: Maximum time allowed for the operation
+        operation: Description of the operation for error messages
+
+    Returns:
+        Decorator that applies timeout to the decorated function
+
+    Raises:
+        OCRTimeoutError: If the operation exceeds the timeout
+    """
+
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            result = [None]  # Use list to store result (mutable)
+            exception = [None]  # Store any exception
+
+            def target():
+                try:
+                    result[0] = func(*args, **kwargs)
+                except Exception as e:
+                    exception[0] = e
+
+            thread = threading.Thread(target=target)
+            thread.daemon = True  # Dies when main thread dies
+            thread.start()
+            thread.join(timeout=timeout_seconds)
+
+            if thread.is_alive():
+                # Timeout occurred - we can't easily stop the thread,
+                # but we can raise the timeout error
+                raise OCRTimeoutError(timeout_seconds, operation)
+
+            if exception[0]:
+                raise exception[0]
+
+            return result[0]
+
+        return wrapper
+
+    return decorator
+
+
+@contextmanager
+def timeout_context(timeout_seconds: float, operation: str = "operation"):
+    """Context manager that applies timeout to code block.
+
+    Note: This is a simplified implementation that only tracks time.
+    For more robust timeout handling, individual operations should use
+    the with_timeout decorator.
+
+    Args:
+        timeout_seconds: Maximum time allowed for the operation
+        operation: Description of the operation for error messages
+
+    Raises:
+        OCRTimeoutError: If the operation exceeds the timeout
+    """
+    start_time = time.time()
+    try:
+        yield
+        # Check if we exceeded timeout after completion
+        elapsed = time.time() - start_time
+        if elapsed > timeout_seconds:
+            raise OCRTimeoutError(timeout_seconds, operation)
+    except Exception as e:
+        # Re-raise non-timeout exceptions
+        if not isinstance(e, OCRTimeoutError):
+            elapsed = time.time() - start_time
+            if elapsed > timeout_seconds:
+                raise OCRTimeoutError(timeout_seconds, operation) from e
+        raise
 
 
 class OCRProcessor:
@@ -90,16 +177,22 @@ class OCRProcessor:
         self,
         image: np.ndarray,
         min_confidence: float | None = None,
+        timeout_override: float | None = None,
     ) -> list[DetectedText]:
-        """Extract text regions from an image using OCR.
+        """Extract text regions from an image using OCR with timeout handling.
 
         Args:
             image: Input image as numpy array
             min_confidence: Override default confidence threshold
+            timeout_override: Override default timeout for this operation
 
         Returns:
             List of DetectedText objects with bounding boxes and metadata
 
+        Raises:
+            OCRTimeoutError: If processing exceeds timeout
+            InferenceError: If OCR processor not initialized
+            ValidationError: If invalid image provided
         """
         if not self.is_initialized:
             msg = "OCR processor not initialized"
@@ -109,60 +202,131 @@ class OCRProcessor:
             msg = "Invalid image provided"
             raise ValidationError(msg)
 
+        # Use provided timeout or config default
+        timeout_seconds = timeout_override or self.config.timeout_seconds
         start_time = time.time()
 
-        # Try primary engine first
-        result = None
-
-        if self.primary_engine and self.primary_engine.is_initialized:
-            try:
-                result = self.primary_engine.detect_text(image)
-
-                if result.success and len(result.detected_texts) > 0:
-                    logger.debug(f"Primary engine {self.config.primary_engine.value} succeeded")
-                else:
-                    logger.warning(
-                        f"Primary engine {self.config.primary_engine.value} returned no results",
-                    )
-
-            except Exception as e:
-                logger.warning(f"Primary engine {self.config.primary_engine.value} failed: {e}")
+        try:
+            with timeout_context(timeout_seconds, "OCR text extraction"):
+                # Try primary engine first
                 result = None
+                any_timeouts = False
+                any_errors = False
 
-        # Try fallback engines if primary failed or returned no results
-        if (
-            result is None or not result.success or len(result.detected_texts) == 0
-        ) and self.fallback_engines:
-            logger.info("Attempting fallback engines")
+                if self.primary_engine and self.primary_engine.is_initialized:
+                    try:
+                        # Apply timeout to primary engine detection
+                        primary_timeout = timeout_seconds * 0.7
+                        timed_detect = with_timeout(
+                            primary_timeout, f"Primary engine {self.config.primary_engine.value}"
+                        )
+                        result = timed_detect(self.primary_engine.detect_text)(image)
 
-            for fallback_engine in self.fallback_engines:
-                try:
-                    result = fallback_engine.detect_text(image)
+                        if result and result.success and len(result.detected_texts) > 0:
+                            logger.debug(
+                                f"Primary engine {self.config.primary_engine.value} succeeded"
+                            )
+                        else:
+                            logger.warning(
+                                f"Primary engine {self.config.primary_engine.value} returned no results",
+                            )
 
-                    if result.success and len(result.detected_texts) > 0:
-                        logger.info(f"Fallback engine {result.engine_used.value} succeeded")
-                        break
-                    logger.warning(
-                        f"Fallback engine {result.engine_used.value} returned no results",
-                    )
+                    except OCRTimeoutError as e:
+                        logger.warning(
+                            f"Primary engine {self.config.primary_engine.value} timed out: {e}"
+                        )
+                        result = None
+                        any_timeouts = True
+                    except Exception as e:
+                        logger.warning(
+                            f"Primary engine {self.config.primary_engine.value} failed: {e}"
+                        )
+                        result = None
+                        any_errors = True
 
-                except Exception as e:
-                    logger.warning(f"Fallback engine failed: {e}")
-                    continue
+                # Try fallback engines if primary failed or returned no results
+                if (
+                    result is None or not result.success or len(result.detected_texts) == 0
+                ) and self.fallback_engines:
+                    logger.info("Attempting fallback engines")
 
-        # If all engines failed
-        if result is None or not result.success:
-            logger.error("All OCR engines failed")
-            return []
+                    # Calculate remaining time for fallbacks
+                    elapsed_time = time.time() - start_time
+                    remaining_timeout = timeout_seconds - elapsed_time
 
-        # Apply confidence filtering
-        confidence_threshold = min_confidence or self.config.min_confidence_threshold
-        filtered_texts = [
-            text for text in result.detected_texts if text.confidence >= confidence_threshold
-        ]
+                    if remaining_timeout <= 0:
+                        logger.warning("No time remaining for fallback engines")
+                    else:
+                        # Distribute remaining time across fallback engines
+                        per_engine_timeout = remaining_timeout / len(self.fallback_engines)
 
-        # Apply additional filtering
-        filtered_texts = self._apply_text_filters(filtered_texts)
+                        for i, fallback_engine in enumerate(self.fallback_engines):
+                            try:
+                                # Apply timeout to fallback engine detection
+                                engine_name = fallback_engine.__class__.__name__
+                                timed_detect = with_timeout(
+                                    per_engine_timeout, f"Fallback engine {engine_name}"
+                                )
+                                result = timed_detect(fallback_engine.detect_text)(image)
+
+                                if result and result.success and len(result.detected_texts) > 0:
+                                    logger.info(
+                                        f"Fallback engine {result.engine_used.value} succeeded"
+                                    )
+                                    break
+                                logger.warning(
+                                    f"Fallback engine {result.engine_used.value if result else 'unknown'} returned no results",
+                                )
+
+                            except OCRTimeoutError as e:
+                                logger.warning(f"Fallback engine timed out: {e}")
+                                any_timeouts = True
+                                continue
+                            except Exception as e:
+                                logger.warning(f"Fallback engine failed: {e}")
+                                any_errors = True
+                                continue
+
+                # If all engines failed, check what type of failures occurred
+                if result is None or not result.success:
+                    if any_timeouts:
+                        # At least one engine timed out, raise timeout error
+                        elapsed = time.time() - start_time
+                        logger.error(f"All OCR engines timed out after {elapsed:.2f}s")
+                        raise OCRTimeoutError(timeout_seconds, "All OCR engines")
+                    if any_errors:
+                        # At least one engine had a non-timeout error, raise InferenceError
+                        logger.error("All OCR engines failed with errors")
+                        raise InferenceError("All OCR engines failed with errors")
+                    # Engines returned results but no detections, return empty list
+                    logger.error("All OCR engines returned no text detections")
+                    return []
+
+                # Apply confidence filtering
+                confidence_threshold = min_confidence or self.config.min_confidence_threshold
+                filtered_texts = [
+                    text
+                    for text in result.detected_texts
+                    if text.confidence >= confidence_threshold
+                ]
+
+                # Apply additional filtering
+                filtered_texts = self._apply_text_filters(filtered_texts)
+
+        except OCRTimeoutError as e:
+            logger.error(f"OCR processing timed out: {e}")
+            # Update metrics for failed operation
+            processing_time = time.time() - start_time
+            self.total_processing_time += processing_time
+            self.total_images_processed += 1
+            raise  # Re-raise the timeout error
+
+        except Exception as e:
+            logger.exception(f"Unexpected error during OCR processing: {e}")
+            processing_time = time.time() - start_time
+            self.total_processing_time += processing_time
+            self.total_images_processed += 1
+            raise InferenceError(f"OCR processing failed: {e}") from e
 
         # Update metrics
         processing_time = time.time() - start_time
@@ -220,18 +384,22 @@ class OCRProcessor:
         self,
         image: np.ndarray,
         replacement_strategy: str = "generic",
+        timeout_override: float | None = None,
     ) -> list[TextRegion]:
-        """One-step function to detect text and convert to TextRegion objects.
+        """One-step function to detect text and convert to TextRegion objects with timeout.
 
         Args:
             image: Input image
             replacement_strategy: Strategy for replacement text generation
+            timeout_override: Override default timeout for this operation
 
         Returns:
             List of TextRegion objects ready for anonymization
 
+        Raises:
+            OCRTimeoutError: If processing exceeds timeout
         """
-        detected_texts = self.extract_text_regions(image)
+        detected_texts = self.extract_text_regions(image, timeout_override=timeout_override)
         return self.convert_to_text_regions(detected_texts, replacement_strategy)
 
     def _apply_text_filters(self, detected_texts: list[DetectedText]) -> list[DetectedText]:
