@@ -4,117 +4,60 @@ Complete API documentation for the Document Anonymization System.
 
 ## Core Classes
 
-### DocumentAnonymizer
+### InferenceEngine
 
-Main interface for document anonymization.
+Main interface for image anonymization.
 
 ```python
-class DocumentAnonymizer:
-    def __init__(self, config: Optional[AnonymizationConfig] = None)
+from src.anonymizer.core.config import AppConfig
+from src.anonymizer.inference.engine import InferenceEngine
+
+app_config = AppConfig.from_env_and_yaml(yaml_path="configs/inference/app_config.yaml")
+engine = InferenceEngine(app_config.engine)
+
+result = engine.anonymize(image_data: bytes, text_regions: list[TextRegion] | None = None)
 ```
 
 **Parameters:**
-- `config`: Configuration object. If None, uses default configuration.
-
-#### Methods
-
-##### `anonymize_document(input_path, output_path=None, **kwargs) -> AnonymizationResult`
-
-Anonymizes a single document.
-
-**Parameters:**
-- `input_path` (str | Path): Path to input PDF file
-- `output_path` (str | Path, optional): Path for output PDF. If None, generates automatic name
-- `entity_types` (List[str], optional): Override default entity types to detect
-- `confidence_threshold` (float, optional): Override confidence threshold
-- `preserve_metadata` (bool, optional): Whether to preserve original metadata
+- `image_data` (bytes): PNG/JPEG/TIFF bytes
+- `text_regions` (optional): Pre-specified regions; if omitted, OCR+NER is used
 
 **Returns:**
-- `AnonymizationResult`: Result object containing processing details
-
-**Example:**
-```python
-anonymizer = DocumentAnonymizer()
-result = anonymizer.anonymize_document(
-    "sensitive_doc.pdf",
-    "anonymized_doc.pdf",
-    entity_types=["PERSON", "EMAIL", "PHONE_NUMBER"],
-    confidence_threshold=0.9
-)
-print(f"Anonymized {result.entities_found} PII entities")
-```
-
-##### `anonymize_batch(input_paths, output_dir=None, **kwargs) -> List[AnonymizationResult]`
-
-Batch anonymization of multiple documents.
-
-**Parameters:**
-- `input_paths` (List[str | Path]): List of input PDF paths
-- `output_dir` (str | Path, optional): Output directory for anonymized files
-- `parallel_workers` (int, optional): Number of parallel workers
-- `progress_callback` (Callable, optional): Progress update callback
-
-**Returns:**
-- `List[AnonymizationResult]`: Results for each processed document
+- `AnonymizationResult`: Image array, patches, timing, success flag, errors
 
 **Example:**
 ```python
 from pathlib import Path
+import numpy as np
+from PIL import Image
 
-input_files = list(Path("documents/").glob("*.pdf"))
-results = anonymizer.anonymize_batch(
-    input_files,
-    output_dir="anonymized/",
-    parallel_workers=4,
-    progress_callback=lambda done, total: print(f"{done}/{total} complete")
-)
+img = Path("input.png").read_bytes()
+result = engine.anonymize(img)
+Image.fromarray(result.anonymized_image.astype(np.uint8)).save("output.png")
 ```
+
+Note: Batch processing is exposed via the CLI (`python main.py batch-anonymize ...`).
 
 ---
 
-### AnonymizationConfig
+### EngineConfig (via `AppConfig`)
 
-Configuration class for customizing anonymization behavior.
+Configuration for `InferenceEngine` loaded from env and optional YAML.
 
 ```python
-@dataclass
-class AnonymizationConfig:
-    # OCR Configuration
-    ocr_engines: List[str] = field(default_factory=lambda: ["paddleocr", "easyocr"])
-    ocr_confidence_threshold: float = 0.7
-    ocr_languages: List[str] = field(default_factory=lambda: ["en"])
-    
-    # NER Configuration
-    entity_types: List[str] = field(default_factory=lambda: [
-        "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD", "IBAN_CODE"
-    ])
-    ner_confidence_threshold: float = 0.8
-    custom_patterns: Optional[Dict[str, str]] = None
-    
-    # Anonymization Configuration
-    anonymization_strategy: str = "inpainting"
-    preserve_formatting: bool = True
-    background_generation: bool = True
-    
-    # Performance Configuration
-    use_gpu: bool = True
-    batch_size: int = 4
-    memory_optimization: bool = True
-    enable_caching: bool = True
-```
+from src.anonymizer.core.config import EngineConfig
 
-**Example:**
-```python
-config = AnonymizationConfig(
-    ocr_engines=["paddleocr"],  # Use only PaddleOCR
-    entity_types=["PERSON", "EMAIL_ADDRESS"],  # Detect only names and emails
-    anonymization_strategy="redaction",  # Simple redaction instead of inpainting
-    use_gpu=False,  # CPU-only processing
-    batch_size=1  # Process one document at a time
+config = EngineConfig(
+    num_inference_steps=50,
+    guidance_scale=7.5,
+    strength=1.0,
+    enable_memory_efficient_attention=True,
+    enable_sequential_cpu_offload=False,
+    max_batch_size=4,
 )
-
-anonymizer = DocumentAnonymizer(config)
 ```
+
+Engine config is normally provided through `AppConfig.from_env_and_yaml(...)`.
 
 ---
 
@@ -122,36 +65,14 @@ anonymizer = DocumentAnonymizer(config)
 
 Result object containing processing details and statistics.
 
-```python
-@dataclass
-class AnonymizationResult:
-    input_path: Path
-    output_path: Path
-    success: bool
-    processing_time_ms: float
-    entities_found: int
-    entities_anonymized: int
-    confidence_scores: List[float]
-    error_message: Optional[str] = None
-    performance_metrics: Optional[Dict[str, Any]] = None
-```
+See `src/anonymizer/core/models.py: AnonymizationResult` for the canonical structure used by the engine.
 
 **Properties:**
 - `success_rate`: Percentage of successfully anonymized entities
 - `average_confidence`: Average confidence score of detected entities
 - `processing_speed`: Documents per second
 
-**Example:**
-```python
-result = anonymizer.anonymize_document("doc.pdf")
-
-if result.success:
-    print(f"✅ Success! Anonymized {result.entities_anonymized}/{result.entities_found} entities")
-    print(f"⏱️ Processing time: {result.processing_time_ms:.1f}ms")
-    print(f"📊 Average confidence: {result.average_confidence:.2f}")
-else:
-    print(f"❌ Failed: {result.error_message}")
-```
+Example usage is shown above in the `InferenceEngine` section.
 
 ---
 
@@ -164,11 +85,9 @@ Multi-engine OCR processor with fallback capabilities.
 ```python
 class OCRProcessor:
     def __init__(self, config: OCRConfig)
-    
-    def detect_text(self, image: np.ndarray) -> OCRResult
-    def detect_text_regions(self, image: np.ndarray) -> List[TextRegion]
-    def set_engines(self, engines: List[str]) -> None
-    def add_custom_engine(self, name: str, engine: OCREngine) -> None
+    def initialize(self) -> bool
+    def extract_text_regions(self, image: np.ndarray) -> list[DetectedText]
+    def register_engine(self, name: str, engine: OCREngine) -> None
 ```
 
 **Example:**
@@ -221,38 +140,9 @@ class DetectedText:
 
 ---
 
-## NER Module (`src.anonymizer.ner`)
+## NER Integration
 
-### NERPipeline
-
-Named Entity Recognition pipeline for PII detection.
-
-```python
-class NERPipeline:
-    def __init__(self, config: NERConfig)
-    
-    def detect_entities(self, texts: List[DetectedText]) -> List[PIIEntity]
-    def analyze_text(self, text: str) -> List[PIIEntity]
-    def add_custom_recognizer(self, recognizer: EntityRecognizer) -> None
-```
-
-**Example:**
-```python
-from src.anonymizer.ner import NERPipeline, NERConfig
-
-config = NERConfig(
-    entity_types=["PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER"],
-    confidence_threshold=0.9,
-    language="en"
-)
-
-ner = NERPipeline(config)
-entities = ner.detect_entities(detected_texts)
-
-for entity in entities:
-    print(f"Found {entity.entity_type}: '{entity.text}' "
-          f"(confidence: {entity.confidence:.2f})")
-```
+NER uses Presidio via `NERProcessor` within `InferenceEngine` and does not expose a separate public API here.
 
 ### PIIEntity
 
@@ -288,21 +178,7 @@ class PerformanceMonitor:
     def generate_performance_report(self) -> Dict[str, Any]
 ```
 
-**Example:**
-```python
-from src.anonymizer.performance import PerformanceMonitor
-
-monitor = PerformanceMonitor()
-monitor.start_session("batch_processing")
-
-# Your processing code here
-for doc in documents:
-    result = anonymizer.anonymize_document(doc)
-
-report = monitor.end_session()
-print(f"Peak memory: {report['resource_summary']['peak_memory_mb']:.1f}MB")
-print(f"Average CPU: {report['resource_summary']['cpu_percent']['avg']:.1f}%")
-```
+See `docs/README.md` for a current monitoring example using `InferenceEngine`.
 
 ### AnonymizationBenchmark
 

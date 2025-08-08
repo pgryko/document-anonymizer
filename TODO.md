@@ -1,6 +1,6 @@
 # TODO: Document Anonymization System
 
-**Last Updated:** 2025-08-06
+**Last Updated:** 2025-08-07
 
 ## 📊 CURRENT STATUS
 
@@ -9,7 +9,7 @@
 - ✅ **VAE Training** fully implemented with corrected hyperparameters
 - ✅ **UNet Training** fully implemented with training loop
 - ⚠️ **InferenceEngine** partially complete - OCR integration needs work
-- ❌ **UNet Dataset** not implemented - needs InpaintingDataset class
+- ✅ **UNet Dataset** implemented - `InpaintingDataset` available and wired via `create_inpainting_dataloaders`
 - ❌ **Test Infrastructure** has issues - tests timing out
 - ✅ **Security hardening** with path validation and secure file handling
 - ✅ **Configuration improvements** with project-relative paths
@@ -45,27 +45,19 @@ Use structlog for logging
 
 ## HIGH PRIORITY (Blocking) ⚠️
 
-### 1. CRITICAL: Complete OCR Integration in InferenceEngine
-**File**: `src/anonymizer/inference/engine.py:158,166`
+### 1. CRITICAL: Confidence Scoring and Quality Verification
+**File**: `src/anonymizer/inference/engine.py`
 **Status**: 🔄 Partially Complete
-**Description**: 
-- ✅ Added comprehensive NER pipeline using presidio
-- ✅ Implemented VAE/UNet inference pipeline with diffusion models
-- ✅ Added image composition logic for anonymized patches
-- ✅ Included security validation and memory management
-- ❌ OCR bounding box extraction not implemented (TODOs at lines 158, 166)
-- ❌ Need to map NER results to actual document coordinates
+**Description**:
+- Compute non-hardcoded confidence for `GeneratedPatch` based on model outputs and mask fidelity
+- Add optional SSIM/LPIPS-based verification gate controlled by config
 
-### 2. CRITICAL: Create UNet-specific Dataset Implementation
-**File**: `src/anonymizer/training/datasets.py`
-**Status**: 🔄 Partially Complete
-**Description**: 
-- ✅ Created generic AnonymizerDataset class
-- ✅ Implemented DataLoader integration in training loops
-- ✅ Added comprehensive data preprocessing and augmentation pipelines
-- ✅ Included security validation and error handling
-- ❌ Missing UNet-specific InpaintingDataset class
-- ❌ Need mask generation and inpainting-specific data loading
+### 2. HIGH: Batch Inference Optimization
+**File**: `src/anonymizer/inference/engine.py`
+**Status**: ❌ Pending
+**Description**:
+- Group multiple regions by image into batched inpainting calls when feasible
+- Profile memory/latency; expose `max_regions_per_batch` in config
 
 ### 3. CRITICAL: Fix Test Infrastructure
 **File**: Various test files
@@ -76,8 +68,8 @@ Use structlog for logging
 - ❌ Need to debug test execution issues
 - ❌ May have performance problems in test setup
 
-### 4. SECURITY: Add path validation against directory traversal
-**File**: `src/anonymizer/core/config.py:104`
+### 4. SECURITY: Path validation and temp files
+**File**: `src/anonymizer/core/config.py`, `src/anonymizer/inference/engine.py`
 **Status**: ✅ Completed
 **Description**: 
 - ✅ Added comprehensive path validation functions
@@ -132,7 +124,7 @@ Use structlog for logging
 ## LOW PRIORITY (Polish) ✨
 
 ### 10. IMPROVEMENT: Add CLI tests using click.testing
-**File**: `main.py:34`
+**File**: `main.py`
 **Status**: ❌ Pending
 **Description**: 
 - Test all CLI commands and options
@@ -140,7 +132,7 @@ Use structlog for logging
 - Test configuration file loading
 
 ### 11. IMPROVEMENT: Bundle fonts for reproducibility
-**File**: `src/anonymizer/utils/text_rendering.py:45`
+**File**: `src/anonymizer/utils/text_rendering.py`
 **Status**: ❌ Pending
 **Description**: 
 - Include specific fonts in project assets
@@ -174,10 +166,10 @@ Use structlog for logging
 **Priority Order for Remaining Work:**
 
 1. **Fix test infrastructure** - Debug timeout issues to enable proper testing
-2. **Create InpaintingDataset** - Implement UNet-specific dataset for training
-3. **Complete OCR integration** - Fix TODOs in engine.py for bounding box extraction
-4. **Improve test coverage** - Once tests run, expand coverage to 80%+
-5. **Integration testing** - Add end-to-end tests for full pipeline
+2. **Batch inference** - Implement region batching for inpainting
+3. **Improve test coverage** - Once tests run, expand coverage to 80%+
+4. **Integration testing** - Add end-to-end tests for full pipeline
+5. **HF Hub upload** - Implement optional upload in Modal training functions
 
 ## Recent Discoveries (2025-08-06)
 

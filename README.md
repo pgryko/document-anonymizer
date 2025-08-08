@@ -48,16 +48,46 @@ uv add modal wandb
 
 ## Usage
 
+### Anonymization (CLI)
+
+```bash
+# Single image anonymization
+python main.py anonymize -c configs/inference/app_config.yaml -i input.png -o output.png
+
+# Batch anonymization
+python main.py batch-anonymize -i data/raw -o data/anonymized -c configs/inference/app_config.yaml
+```
+
+### Programmatic Usage
+
+```python
+from pathlib import Path
+import numpy as np
+from PIL import Image
+
+from src.anonymizer.core.config import AppConfig
+from src.anonymizer.inference.engine import InferenceEngine
+
+app_config = AppConfig.from_env_and_yaml(yaml_path="configs/inference/app_config.yaml")
+engine = InferenceEngine(app_config.engine)
+
+image_bytes = Path("input.png").read_bytes()
+result = engine.anonymize(image_bytes)
+
+if result.success:
+    Image.fromarray(result.anonymized_image.astype(np.uint8)).save("output.png")
+```
+
 ### Local Training
 
 Train models locally for development and testing:
 
 ```bash
 # Train VAE locally
-python -m src.anonymizer.training.vae_trainer --config configs/training/vae_config_local.yaml
+python main.py train-vae --config configs/training/vae_config_local.yaml
 
 # Train UNet locally
-python -m src.anonymizer.training.unet_trainer --config configs/training/unet_config_local.yaml
+python main.py train-unet --config configs/training/unet_config_local.yaml
 ```
 
 ### Cloud Training with Modal.com
@@ -108,5 +138,5 @@ For detailed setup instructions, see [docs/modal_setup.md](docs/modal_setup.md).
 - **🔒 Privacy-First**: Self-hosted solution for sensitive documents
 - **🚀 Cloud Training**: Scalable training on Modal.com with A100 GPUs
 - **📊 Experiment Tracking**: Comprehensive logging with Weights & Biases
-- **🎯 Production Ready**: Corrected hyperparameters and robust training
+- **🎯 Production Ready**: Corrected hyperparameters and robust training and inference
 - **🔧 Flexible**: Support for both local development and cloud deployment

@@ -5,25 +5,21 @@
 
 ## Critical Issues (P0)
 
-### 1. Create UNet Dataset Implementation
-**File:** `src/anonymizer/training/datasets.py` (new class needed)
-**Issue:** UNet-specific dataset/dataloader not implemented
-**Action:** 
-- Create `InpaintingDataset` class for UNet training
-- Implement proper mask generation and data loading
-- Add support for document-specific augmentations
-- Integrate with existing UNet trainer
-**Estimated effort:** 2-3 days
-**Note:** UNet trainer itself is fully implemented, only needs dataset
-
-### 2. Fix OCR Bounding Box Integration
-**File:** `src/anonymizer/inference/engine.py:166-167`
-**Issue:** OCR bounding boxes not properly extracted for NER results (TODOs confirmed)
+### 1. Confidence Scoring and Verification
+**File:** `src/anonymizer/inference/engine.py`
+**Issue:** Hardcoded confidence value for `GeneratedPatch`
 **Action:**
-- Integrate OCR results with NER detection
-- Map detected PII to actual document coordinates
-- Test with real document images
+- Derive confidence from model outputs and verification metrics (e.g., SSIM/LPIPS)
+- Add `enable_quality_check` gate (already present) to enforce minimal confidence
 **Estimated effort:** 1-2 days
+
+### 2. Batch Inpainting Optimization
+**File:** `src/anonymizer/inference/engine.py`
+**Issue:** Sequential per-region calls
+**Action:**
+- Group compatible regions to reduce invocations
+- Measure memory; expose batched parameters in `EngineConfig`
+**Estimated effort:** 2-3 days
 
 ## High Priority (P1)
 
@@ -54,10 +50,10 @@
 
 ### 5. Documentation Updates
 **Actions:**
-- Update README with actual CLI commands
-- Document environment variables
-- Add troubleshooting guide
-- Create deployment guide
+- Update README/docs with `InferenceEngine` usage (done)
+- Correct CLI invocations to `python main.py ...` (done)
+- Document config loading via `AppConfig`
+- Add examples for programmatic usage (done)
 **Estimated effort:** 2-3 days
 
 ### 6. Performance Optimizations

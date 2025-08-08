@@ -7,14 +7,10 @@ This module demonstrates basic usage patterns for the Document Anonymization Sys
 
 from pathlib import Path
 
-from src.anonymizer import AnonymizationConfig, DocumentAnonymizer
-from src.anonymizer.core.exceptions import (
-    InferenceError,
-    NERError,
-    OCRError,
-    ValidationError,
-)
-from src.anonymizer.core.models import BoundingBox
+from src.anonymizer.core.config import AppConfig
+from src.anonymizer.core.exceptions import InferenceError, ValidationError
+from src.anonymizer.core.models import BoundingBox, TextRegion
+from src.anonymizer.inference.engine import InferenceEngine
 from src.anonymizer.models import ModelManager
 from src.anonymizer.performance import PerformanceMonitor
 
@@ -29,14 +25,16 @@ def example_simple_anonymization():
     """
     print("=== Simple Anonymization ===")
 
-    # Create anonymizer with default configuration
-    anonymizer = DocumentAnonymizer()
+    # Create engine with default configuration
+    app_config = AppConfig.from_env_and_yaml()
+    engine = InferenceEngine(app_config.engine)
 
     # Process a single document
     input_file = "examples/sample_document.pdf"
     output_file = "examples/anonymized_document.pdf"
 
-    result = anonymizer.anonymize_document(input_file, output_file)
+    image_bytes = Path(input_file).read_bytes()
+    result = engine.anonymize(image_bytes)
 
     if result.success:
         print("✅ Successfully anonymized document!")
@@ -56,29 +54,13 @@ def example_custom_configuration():
     """
     print("\n=== Custom Configuration ===")
 
-    # Create custom configuration
-    config = AnonymizationConfig(
-        # Use only PaddleOCR for high accuracy
-        ocr_engines=["paddleocr"],
-        ocr_confidence_threshold=0.9,
-        # Detect only specific PII types
-        entity_types=["PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER"],
-        ner_confidence_threshold=0.85,
-        # Use redaction instead of inpainting for speed
-        anonymization_strategy="redaction",
-        # Disable GPU for CPU-only processing
-        use_gpu=False,
-        # Process one document at a time
-        batch_size=1,
-    )
-
-    # Create anonymizer with custom config
-    anonymizer = DocumentAnonymizer(config)
+    # Load config from YAML
+    app_config = AppConfig.from_env_and_yaml("configs/inference/app_config.yaml")
+    engine = InferenceEngine(app_config.engine)
 
     # Process document
-    result = anonymizer.anonymize_document(
-        "examples/business_card.pdf", "examples/anonymized_business_card.pdf"
-    )
+    image_bytes = Path("examples/business_card.png").read_bytes()
+    result = engine.anonymize(image_bytes)
 
     if result.success:
         print("✅ Custom anonymization complete!")
@@ -103,8 +85,8 @@ def example_batch_processing():
 
     print(f"📁 Found {len(pdf_files)} PDF files to process")
 
-    # Create anonymizer
-    anonymizer = DocumentAnonymizer()
+    app_config = AppConfig.from_env_and_yaml()
+    engine = InferenceEngine(app_config.engine)
 
     # Progress callback to track processing
     def progress_callback(completed: int, total: int):
@@ -112,12 +94,12 @@ def example_batch_processing():
         print(f"   Progress: {completed}/{total} ({percentage:.1f}%)")
 
     # Process all documents in batch
-    results = anonymizer.anonymize_batch(
-        input_paths=pdf_files,
-        output_dir="examples/anonymized_batch/",
-        parallel_workers=2,  # Use 2 parallel workers
-        progress_callback=progress_callback,
-    )
+    results = []
+    for idx, pdf in enumerate(pdf_files, start=1):
+        print(f"Processing {idx}/{len(pdf_files)}: {pdf}")
+        img_bytes = pdf.read_bytes()
+        res = engine.anonymize(img_bytes)
+        results.append(res)
 
     # Analyze results
     successful = [r for r in results if r.success]
@@ -149,22 +131,9 @@ def example_specific_entity_types():
     print("\n=== Specific Entity Types ===")
 
     # Configuration for financial documents
-    financial_config = AnonymizationConfig(
-        entity_types=[
-            "CREDIT_CARD",  # Credit card numbers
-            "IBAN_CODE",  # International bank account numbers
-            "US_SSN",  # Social Security numbers
-            "PERSON",  # Person names
-            "PHONE_NUMBER",  # Phone numbers
-        ],
-        ner_confidence_threshold=0.9,  # High confidence for financial data
-        anonymization_strategy="inpainting",
-    )
-
-    anonymizer = DocumentAnonymizer(financial_config)
-    result = anonymizer.anonymize_document(
-        "examples/financial_statement.pdf", "examples/anonymized_financial.pdf"
-    )
+    engine = InferenceEngine(AppConfig.from_env_and_yaml().engine)
+    img_bytes = Path("examples/financial_statement.png").read_bytes()
+    result = engine.anonymize(img_bytes)
 
     print("Financial document anonymization:")
     print(f"   Entity types: {financial_config.entity_types}")
@@ -180,18 +149,23 @@ def example_with_manual_regions():
 
     # Define manual regions to anonymize
     manual_regions = [
-        BoundingBox(left=100, top=50, right=300, bottom=80),  # Header region
-        BoundingBox(left=50, top=200, right=250, bottom=230),  # Signature area
-        BoundingBox(left=400, top=300, right=600, bottom=330),  # Phone number area
+        TextRegion(
+            bbox=BoundingBox(left=100, top=50, right=300, bottom=80),
+            original_text="John Doe",
+            replacement_text="[PERSON]",
+            confidence=0.99,
+        ),
+        TextRegion(
+            bbox=BoundingBox(left=50, top=200, right=250, bottom=230),
+            original_text="Signature",
+            replacement_text="[SIGNATURE]",
+            confidence=0.99,
+        ),
     ]
 
-    DocumentAnonymizer()
-
-    # Note: This is a conceptual example - the actual API might be different
-    # You would need to implement manual region support in the anonymizer
-    print(f"Would anonymize {len(manual_regions)} manually specified regions")
-    for i, region in enumerate(manual_regions):
-        print(f"   Region {i+1}: {region.width}x{region.height} at ({region.left}, {region.top})")
+    engine = InferenceEngine(AppConfig.from_env_and_yaml().engine)
+    img_bytes = Path("examples/manual_regions.png").read_bytes()
+    _ = engine.anonymize(img_bytes, text_regions=manual_regions)
 
 
 def example_performance_monitoring():
@@ -209,7 +183,7 @@ def example_performance_monitoring():
     monitor.start_session("basic_anonymization")
 
     # Perform anonymization
-    anonymizer = DocumentAnonymizer()
+    engine = InferenceEngine(AppConfig.from_env_and_yaml().engine)
     anonymizer.anonymize_document("examples/large_document.pdf", "examples/anonymized_large.pdf")
 
     # End monitoring and get report
@@ -239,9 +213,8 @@ def example_error_handling():
 
     try:
         # Attempt to process a potentially problematic document
-        result = anonymizer.anonymize_document(
-            "examples/corrupted_document.pdf", "examples/output.pdf"
-        )
+        bytes_ = Path("examples/corrupted_document.png").read_bytes()
+        result = engine.anonymize(bytes_)
 
         if result.success:
             print("✅ Document processed successfully")
@@ -274,12 +247,8 @@ def example_confidence_analysis():
     """
     print("\n=== Confidence Analysis ===")
 
-    config = AnonymizationConfig(
-        ner_confidence_threshold=0.5  # Lower threshold to see more detections
-    )
-
-    anonymizer = DocumentAnonymizer(config)
-    result = anonymizer.anonymize_document("examples/mixed_confidence.pdf")
+    engine = InferenceEngine(AppConfig.from_env_and_yaml().engine)
+    result = engine.anonymize(Path("examples/mixed_confidence.png").read_bytes())
 
     if result.success and result.confidence_scores:
         scores = result.confidence_scores

@@ -53,9 +53,9 @@ This codebase implements a document anonymization system using diffusion models 
    - Configuration examples could be expanded
 
 3. **Implementation Gaps**
-   - UNet-specific dataset/dataloader not implemented (uses generic AnonymizerDataset)
-   - OCR bounding box extraction for NER needs completion (confirmed TODO in engine.py:166-167)
-   - Some cloud storage features partially implemented
+   - UNet-specific dataset: Implemented (`InpaintingDataset`), integrated via `create_inpainting_dataloaders`
+   - Confidence scoring for patches: currently hardcoded; needs computed metric (SSIM/LPIPS + OCR/NER)
+   - Some cloud distribution features (HF Hub upload) partially implemented (stubs in Modal flows)
 
 ## Component Analysis
 
@@ -96,8 +96,7 @@ This codebase implements a document anonymization system using diffusion models 
 - Missing: UNet-specific dataset implementation (would need to create InpaintingDataset)
 
 **Recommendations:**
-- Create UNet-specific InpaintingDataset class
-- Add data augmentation for document images
+- Validate `InpaintingDataset` on real training data and add targeted augmentations
 - Test the training pipeline end-to-end
 
 ### 3. Inference Engine (`src/anonymizer/inference/engine.py`)
@@ -111,11 +110,9 @@ This codebase implements a document anonymization system using diffusion models 
 - Production logging and monitoring
 
 **Recommendations:**
-- Complete OCR bounding box extraction (TODOs at lines 158, 166)
-- Integrate OCR results with NER detection for accurate PII localization
-- Implement confidence thresholds for anonymization
-- Add quality verification for generated patches
-- Consider caching for repeated anonymizations
+- Implement computed confidence scoring for `GeneratedPatch` and optional quality gate
+- Consider region batching for throughput; profile memory and latency
+- Add caching for repeated anonymizations where inputs repeat
 
 ### 4. Utilities and Helpers
 
@@ -204,10 +201,9 @@ This codebase implements a document anonymization system using diffusion models 
    - Ensure tests can run successfully
    - Then assess and improve coverage
 
-2. **Create UNet Dataset Implementation**
-   - Implement InpaintingDataset class
-   - Add proper data loading for UNet training
-   - Test with actual training data
+2. **Confidence Scoring for Patches**
+   - Replace hardcoded confidence
+   - Add verification metrics and gating via config
 
 3. **OCR Integration**
    - Complete bounding box extraction

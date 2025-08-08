@@ -18,8 +18,9 @@ import cv2
 import fitz  # PyMuPDF
 import numpy as np
 
-from src.anonymizer import AnonymizationConfig, DocumentAnonymizer
+from src.anonymizer.core.config import AppConfig
 from src.anonymizer.core.models import BoundingBox
+from src.anonymizer.inference.engine import InferenceEngine
 from src.anonymizer.ocr import DetectedText, OCREngine, OCRProcessor, OCRResult
 from src.anonymizer.performance import AnonymizationBenchmark, PerformanceMonitor
 
@@ -104,9 +105,9 @@ class AdvancedDocumentProcessor:
     Advanced document processor with custom features.
     """
 
-    def __init__(self, config: AnonymizationConfig | None = None):
-        self.config = config or AnonymizationConfig()
-        self.anonymizer = DocumentAnonymizer(self.config)
+    def __init__(self, config: AppConfig | None = None):
+        self.config = config or AppConfig.from_env_and_yaml()
+        self.engine = InferenceEngine(self.config.engine)
         self.performance_monitor = PerformanceMonitor()
         self.custom_strategies = {}
 
@@ -134,11 +135,9 @@ class AdvancedDocumentProcessor:
         # Process document with custom OCR
         self.logger.info(f"Processing {document_path} with custom OCR")
 
-        result = self.anonymizer.anonymize_document(
-            document_path,
-            output_path,
-            ocr_engines=["custom"],  # Use only our custom engine
-        )
+        # Use the standard engine with custom OCR registered externally if needed
+        with Path(document_path).open("rb") as f:
+            result = self.engine.anonymize(f.read())
 
         return {
             "success": result.success,
@@ -153,15 +152,11 @@ class AdvancedDocumentProcessor:
         """
 
         # Strategy 1: High-accuracy configuration
-        high_accuracy_config = AnonymizationConfig(
-            ocr_engines=["paddleocr", "easyocr"],
-            ner_confidence_threshold=0.95,
-            anonymization_strategy="inpainting",
-        )
+        high_accuracy_config = AppConfig.from_env_and_yaml()
 
         try:
-            high_acc_anonymizer = DocumentAnonymizer(high_accuracy_config)
-            result = high_acc_anonymizer.anonymize_document(document_path, output_path)
+            high_acc_engine = InferenceEngine(high_accuracy_config.engine)
+            result = high_acc_engine.anonymize(Path(document_path).read_bytes())
 
             if result.success and result.average_confidence > HIGH_CONFIDENCE_THRESHOLD:
                 self.logger.info("High-accuracy processing successful")
@@ -175,15 +170,11 @@ class AdvancedDocumentProcessor:
             self.logger.warning(f"High-accuracy processing failed: {e}")
 
         # Strategy 2: Fallback to balanced configuration
-        balanced_config = AnonymizationConfig(
-            ocr_engines=["tesseract"],
-            ner_confidence_threshold=0.8,
-            anonymization_strategy="redaction",
-        )
+        balanced_config = AppConfig.from_env_and_yaml()
 
         try:
-            balanced_anonymizer = DocumentAnonymizer(balanced_config)
-            result = balanced_anonymizer.anonymize_document(document_path, output_path)
+            balanced_engine = InferenceEngine(balanced_config.engine)
+            result = balanced_engine.anonymize(Path(document_path).read_bytes())
 
             if result.success:
                 self.logger.info("Balanced processing successful")
@@ -198,11 +189,8 @@ class AdvancedDocumentProcessor:
 
         # Strategy 3: Last resort - simple redaction
         try:
-            simple_config = AnonymizationConfig(
-                anonymization_strategy="simple_redaction", use_gpu=False
-            )
-            simple_anonymizer = DocumentAnonymizer(simple_config)
-            result = simple_anonymizer.anonymize_document(document_path, output_path)
+            simple_engine = InferenceEngine(AppConfig.from_env_and_yaml().engine)
+            result = simple_engine.anonymize(Path(document_path).read_bytes())
         except Exception as e:
             self.logger.exception("All processing strategies failed")
             return {"strategy": "failed", "success": False, "error": str(e)}
@@ -229,7 +217,7 @@ class BatchProcessingPipeline:
         self,
         input_files: list[Path],
         output_dir: Path,
-        config: AnonymizationConfig | None = None,
+        config: AppConfig | None = None,
     ) -> list[dict[str, Any]]:
         """
         Asynchronously process multiple documents with progress tracking.
@@ -279,12 +267,10 @@ class BatchProcessingPipeline:
 
         return processed_results
 
-    def _process_document_sync(
-        self, input_path: Path, output_path: Path, config: AnonymizationConfig | None
-    ):
+    def _process_document_sync(self, input_path: Path, output_path: Path, config: AppConfig | None):
         """Synchronous document processing for use in thread pool."""
-        anonymizer = DocumentAnonymizer(config)
-        return anonymizer.anonymize_document(str(input_path), str(output_path))
+        engine = InferenceEngine((config or AppConfig.from_env_and_yaml()).engine)
+        return engine.anonymize(input_path.read_bytes())
 
     def parallel_process_with_monitoring(
         self, input_files: list[Path], output_dir: Path

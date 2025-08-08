@@ -1,44 +1,41 @@
 # TODO Comments in Codebase
 
-**Last Updated:** 2025-08-06  
+**Last Updated:** 2025-08-07  
 This document tracks all TODO/FIXME comments found in the source code.
 
 ## High Priority
 
-### 1. OCR Integration for PII Detection
+### 1. Confidence Scoring for Generated Patches
 **File:** `src/anonymizer/inference/engine.py`
-- **Line 158:** `# TODO: integrate with other methods for pii detection`
-- **Line 166:** `# TODO: add OCR to extract bounding boxes`
-- **Description:** The NER processor currently creates dummy bounding boxes. This needs to be integrated with actual OCR results to map detected PII entities to their physical locations in the document.
-- **Impact:** Critical for accurate document anonymization
+- **Location:** `_anonymize_region`
+- **Description:** Confidence is currently hardcoded (0.9). Replace with a score derived from model latents, mask coverage, or SSIM/LPIPS versus inpaint context.
+- **Impact:** High; improves reporting and downstream decision-making
 
 ## Medium Priority
 
-### 2. Modal Dependencies Installation
+### 2. HuggingFace Hub Upload
 **File:** `src/anonymizer/cloud/modal_app.py`
-- **Line 38:** `# TODO: this should install via uv and dependencies in pyproject.toml`
-- **Description:** The Modal image creation should use uv package manager and install from pyproject.toml instead of hardcoded pip install commands.
-- **Impact:** Better dependency management and consistency
+- **Lines:** Push-to-hub branches in `train_vae`, `train_unet`
+- **Description:** Implement model upload using `huggingface_hub`, including auth, model card, and private visibility toggle.
+- **Impact:** Medium; simplifies distribution and reproducibility
 
-### 3. HuggingFace Hub Integration
-**File:** `src/anonymizer/cloud/modal_app.py`
-- **Line 202:** `# TODO: Implement HuggingFace Hub upload` (VAE model)
-- **Line 329:** `# TODO: Implement HuggingFace Hub upload` (UNet model)
-- **Description:** Model upload to HuggingFace Hub is not implemented. This would allow easier model sharing and deployment.
-- **Impact:** Nice to have for model distribution
+### 3. CLI Test Coverage
+**File:** `main.py`
+- **Description:** Add tests with `click.testing.CliRunner` for `anonymize`, `batch-anonymize`, `batch-status`, `train-vae`, `train-unet`.
+- **Impact:** Medium; improves reliability of user interface
 
 ## Implementation Guidelines
 
-### For OCR Integration:
-1. Modify `detect_pii()` method to accept OCR results
-2. Map NER-detected entities to OCR bounding boxes
-3. Handle cases where multiple OCR boxes contain a single entity
-4. Add confidence thresholds for matching
+### For Confidence Scoring:
+1. Compute per-region SSIM/LPIPS between inpainted region and context
+2. Use mask coverage and OCR/NER confidence min as base prior
+3. Expose `min_confidence_threshold` in `EngineConfig` (already present)
+4. Log score components for observability
 
-### For Modal Dependencies:
-1. Create a `requirements.txt` from `pyproject.toml`
-2. Or use `uv pip compile` to generate locked dependencies
-3. Update Modal image creation to use the generated file
+### For HF Hub Upload:
+1. Add `huggingface_hub` as optional dependency
+2. Implement upload with `HfApi().upload_folder()`
+3. Use Modal secret for token and support private repos
 
 ### For HuggingFace Hub:
 1. Add `huggingface_hub` dependency

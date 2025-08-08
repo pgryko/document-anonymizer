@@ -139,7 +139,8 @@ RuntimeError: [enforce fail at CPUAllocator.cpp:75]
 
 **Reduce batch size**:
 ```python
-config = AnonymizationConfig(
+from src.anonymizer.core.config import EngineConfig
+config = EngineConfig(
     batch_size=1,  # Reduce from default
     memory_optimization=True,
     enable_cpu_offload=True
@@ -148,7 +149,7 @@ config = AnonymizationConfig(
 
 **Enable memory optimizations**:
 ```python
-config = AnonymizationConfig(
+config = EngineConfig(
     # GPU memory optimization
     enable_memory_efficient_attention=True,
     enable_vae_slicing=True,
@@ -169,7 +170,9 @@ monitor = MemoryMonitor()
 monitor.start_monitoring()
 
 # Your processing code here
-result = anonymizer.anonymize_document("large_document.pdf")
+from src.anonymizer.core.config import AppConfig
+from src.anonymizer.inference.engine import InferenceEngine
+result = InferenceEngine(AppConfig.from_env_and_yaml().engine).anonymize(Path("large_document.png").read_bytes())
 
 memory_stats = monitor.get_current_usage()
 print(f"Peak memory: {memory_stats.peak_memory_mb}MB")
@@ -275,7 +278,7 @@ except Exception as e:
 **Use fallback configuration**:
 ```python
 # Robust OCR configuration with fallbacks
-config = AnonymizationConfig(
+config = EngineConfig(
     ocr_engines=["tesseract"],  # Use most reliable engine
     ocr_confidence_threshold=0.5,  # Lower threshold
     ocr_fallback_enabled=True
@@ -357,7 +360,7 @@ profiler = PerformanceProfiler()
 profiler.start_profiling()
 
 # Your slow operation
-result = anonymizer.anonymize_document("document.pdf")
+result = InferenceEngine(AppConfig.from_env_and_yaml().engine).anonymize(Path("document.png").read_bytes())
 
 profile_report = profiler.get_profile_report()
 print("Top time consumers:")
@@ -370,7 +373,7 @@ for func, time_ms in profile_report.time_hotspots[:5]:
 **Optimize configuration**:
 ```python
 # Speed-optimized configuration
-config = AnonymizationConfig(
+config = EngineConfig(
     # Use fastest OCR
     ocr_engines=["tesseract"],
     ocr_confidence_threshold=0.6,
@@ -415,7 +418,7 @@ print(f"Memory usage: {process.memory_info().rss / 1024**2:.1f}MB")
 # Profile memory usage
 profiler = MemoryProfiler()
 with profiler.profile_memory():
-    result = anonymizer.anonymize_document("document.pdf")
+    result = InferenceEngine(AppConfig.from_env_and_yaml().engine).anonymize(Path("document.png").read_bytes())
 
 memory_report = profiler.get_memory_report()
 print(f"Peak memory: {memory_report.peak_memory_mb:.1f}MB")
@@ -425,7 +428,7 @@ print(f"Peak memory: {memory_report.peak_memory_mb:.1f}MB")
 
 **Memory optimization**:
 ```python
-config = AnonymizationConfig(
+config = EngineConfig(
     batch_size=1,
     memory_optimization=True,
     unload_models_after_use=True,
@@ -570,7 +573,7 @@ def robust_pdf_processing(pdf_path):
     """Process PDF with error handling."""
     try:
         # Try standard processing
-        result = anonymizer.anonymize_document(pdf_path)
+        result = InferenceEngine(AppConfig.from_env_and_yaml().engine).anonymize(Path(pdf_path).read_bytes())
         return result
     except Exception as e:
         print(f"Standard processing failed: {e}")
@@ -578,7 +581,7 @@ def robust_pdf_processing(pdf_path):
         # Try with repair
         try:
             repaired_path = repair_pdf(pdf_path)
-            result = anonymizer.anonymize_document(repaired_path)
+            result = InferenceEngine(AppConfig.from_env_and_yaml().engine).anonymize(Path(repaired_path).read_bytes())
             return result
         except Exception as e2:
             print(f"Repair failed: {e2}")
@@ -637,7 +640,7 @@ chunks = split_large_pdf(large_file, max_pages=5)
 
 results = []
 for chunk in chunks:
-    result = anonymizer.anonymize_document(chunk)
+    result = InferenceEngine(AppConfig.from_env_and_yaml().engine).anonymize(chunk)
     results.append(result)
 ```
 
@@ -758,7 +761,7 @@ def profile_anonymization(document_path):
     profiler = cProfile.Profile()
     profiler.enable()
     
-    result = anonymizer.anonymize_document(document_path)
+    result = InferenceEngine(AppConfig.from_env_and_yaml().engine).anonymize(Path(document_path).read_bytes())
     
     profiler.disable()
     
