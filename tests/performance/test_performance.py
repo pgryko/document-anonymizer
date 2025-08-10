@@ -301,6 +301,14 @@ class TestModelBenchmark:
         assert "avg_iteration_ms" in result.additional_metrics
         assert "throughput_fps" in result.additional_metrics
 
+    def test_inference_speed_benchmark_invalid_iterations(self, model_benchmark):
+        """num_iterations must be greater than zero."""
+        with pytest.raises(ValueError, match="num_iterations must be greater than 0"):
+            model_benchmark.benchmark_inference_speed(
+                model_type="test_model",
+                num_iterations=0,
+            )
+
 
 class TestPerformanceMonitor:
     """Test high-level performance monitoring."""
