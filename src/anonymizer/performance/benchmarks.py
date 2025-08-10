@@ -115,7 +115,19 @@ class ModelBenchmark:
         input_size: tuple[int, int] = (512, 512),
         num_iterations: int = 10,
     ) -> BenchmarkResult:
-        """Benchmark model inference speed."""
+        """Benchmark model inference speed.
+
+        Args:
+            model_type: Name of the model being benchmarked.
+            input_size: Size of the input tensor.
+            num_iterations: Number of inference iterations to run. Must be greater than 0.
+
+        Raises:
+            ValueError: If ``num_iterations`` is less than or equal to 0.
+        """
+        if num_iterations <= 0:
+            raise ValueError("num_iterations must be greater than 0")
+
         benchmark_name = f"{model_type}_inference_speed"
 
         try:
