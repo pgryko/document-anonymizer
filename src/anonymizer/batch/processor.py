@@ -13,10 +13,12 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PIL import Image
 
+from src.anonymizer.core.config import EngineConfig
 from src.anonymizer.core.exceptions import (
     DuplicateItemError,
     EmptyBatchError,
@@ -30,6 +32,7 @@ from src.anonymizer.core.models import (
     BatchItemResult,
 )
 from src.anonymizer.inference.engine import InferenceEngine
+from src.anonymizer.ocr.models import OCRConfig
 from src.anonymizer.ocr.processor import OCRProcessor
 
 try:
@@ -93,8 +96,8 @@ class ConsoleProgressCallback(BatchProgressCallback):
 
     def __init__(self, update_interval: float = 1.0):
         self.update_interval = update_interval
-        self.start_time = None
-        self.last_update = 0
+        self.start_time: float | None = None
+        self.last_update = 0.0
 
     def on_start(self, total_items: int) -> None:
         self.start_time = time.time()
@@ -204,7 +207,17 @@ class BatchProcessor:
 
         # Initialize inference engine if needed
         if self.inference_engine is None:
-            self.inference_engine = InferenceEngine()
+            default_config = EngineConfig(
+                vae_model_path=None,
+                unet_model_path=None,
+                num_inference_steps=50,
+                guidance_scale=7.5,
+                strength=1.0,
+                enable_memory_efficient_attention=True,
+                enable_sequential_cpu_offload=False,
+                max_batch_size=4,
+            )
+            self.inference_engine = InferenceEngine(default_config)
 
         # Start processing
         progress_callback.on_start(len(request.items))
@@ -354,8 +367,9 @@ class BatchProcessor:
             text_regions = item.text_regions
             if not text_regions:
                 try:
-                    ocr_processor = OCRProcessor()
-                    detected_regions = ocr_processor.detect_text_regions(image_data)
+                    ocr_config = OCRConfig()
+                    ocr_processor = OCRProcessor(ocr_config)
+                    detected_regions = ocr_processor.extract_text_regions(image_data)
                     text_regions = detected_regions
                 except Exception as e:
                     logger.warning(f"OCR detection failed for {item.item_id}: {e}")
@@ -382,6 +396,7 @@ class BatchProcessor:
             else:
                 # Process with inference engine
                 with self._lock:
+                    assert self.inference_engine is not None  # Should be initialized above
                     anon_result = self.inference_engine.anonymize(image_data, text_regions)
 
                 # Determine output path
@@ -444,7 +459,7 @@ class BatchProcessor:
 
         return output_path
 
-    def _save_anonymized_image(self, image_array, output_path: Path) -> None:
+    def _save_anonymized_image(self, image_array: np.ndarray, output_path: Path) -> None:
         """Save anonymized image to file."""
         # Convert numpy array to PIL Image
         if image_array.dtype != np.uint8:
@@ -537,7 +552,7 @@ def create_batch_from_directory(
         item_id = f"item_{i:04d}_{image_path.stem}"
 
         # For now, create empty text regions (would normally come from OCR)
-        text_regions = []
+        text_regions: list[Any] = []
 
         item = BatchItem(
             item_id=item_id,

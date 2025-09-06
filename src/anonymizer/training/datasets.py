@@ -542,6 +542,163 @@ def create_dummy_batch() -> dict[str, Any]:
     }
 
 
+def create_dummy_inpainting_batch() -> dict[str, Any]:
+    """Create a minimal valid batch for UNet inpainting training."""
+    dummy_image = torch.zeros(1, 3, 512, 512, dtype=torch.float32)
+    dummy_mask = torch.zeros(1, 1, 512, 512, dtype=torch.float32)
+
+    return {
+        "images": dummy_image,
+        "masks": dummy_mask,
+        "texts": ["text"],
+        "original_sizes": [(512, 512)],
+        "scales": [1.0],
+        "batch_size": 1,
+    }
+
+
+class InpaintingDataset(AnonymizerDataset):
+    """Dataset specifically designed for UNet inpainting training.
+
+    Extends AnonymizerDataset to provide data in the format expected by UNet trainer:
+    - Composite masks (all text regions combined into single mask per image)
+    - Images and masks at matching dimensions
+    - Text conditioning data
+    """
+
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get dataset item formatted for UNet inpainting training."""
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            try:
+                # Check for empty samples list
+                _validate_dataset_not_empty(self.samples)
+
+                # Use modulo to handle out-of-bounds indices
+                actual_idx = idx % len(self.samples)
+                sample = self.samples[actual_idx]
+
+                # Get image and text regions
+                image = sample.image.copy()
+                text_regions = sample.text_regions.copy()
+
+                # Apply augmentation if training
+                if self.augmentation and self.split == "train":
+                    image, text_regions = self.augmentation.augment_image(image, text_regions)
+
+                # Prepare training data for inpainting
+                result = self._prepare_inpainting_data(image, text_regions)
+
+                # Validate result has valid data
+                if result and "images" in result and "masks" in result and "texts" in result:
+                    return result
+
+                logger.warning(f"Invalid result for sample {actual_idx}, retrying...")
+
+            except Exception:
+                # Use idx as fallback if actual_idx wasn't set
+                error_idx = locals().get("actual_idx", idx)
+                logger.exception(f"Failed to get item {error_idx} (attempt {attempt + 1})")
+
+                # Try next sample on error
+                if attempt < max_retries - 1 and len(self.samples) > 0:
+                    idx = (idx + 1) % len(self.samples)
+                    continue
+
+        # If all retries failed, return empty item (will be filtered out)
+        logger.error(f"All retries failed for index {idx}, returning empty item")
+        return {}
+
+    def _prepare_inpainting_data(
+        self,
+        image: np.ndarray,
+        text_regions: list[TextRegion],
+    ) -> dict[str, Any]:
+        """Prepare data specifically for UNet inpainting training."""
+        try:
+            # Resize image to target size
+            target_size = self.config.crop_size
+            h, w = image.shape[:2]
+
+            # Calculate scaling
+            scale = min(target_size / w, target_size / h)
+            new_w, new_h = int(w * scale), int(h * scale)
+
+            # Resize image
+            resized_image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+
+            # Pad to target size
+            pad_w = target_size - new_w
+            pad_h = target_size - new_h
+            padded_image = np.pad(
+                resized_image,
+                ((0, pad_h), (0, pad_w), (0, 0)),
+                mode="constant",
+                constant_values=255,  # White padding
+            )
+
+            # Create composite mask (combine all text regions into single mask)
+            composite_mask = np.zeros((target_size, target_size), dtype=np.float32)
+            texts = []
+
+            for region in text_regions:
+                # Scale bounding box with proper rounding
+                scaled_bbox = region.bbox.scale(scale)
+
+                # Clamp coordinates to valid bounds
+                clamped_bbox = scaled_bbox.clamp_to_bounds(target_size, target_size)
+
+                # Validate bbox is still meaningful after clamping
+                if clamped_bbox.width <= 0 or clamped_bbox.height <= 0:
+                    logger.warning(ScaledBoundingBoxTooSmallError(str(clamped_bbox)).args[0])
+                    continue
+
+                # Add region to composite mask
+                composite_mask[
+                    clamped_bbox.top : clamped_bbox.bottom,
+                    clamped_bbox.left : clamped_bbox.right,
+                ] = 1.0
+
+                # Collect text for conditioning
+                texts.append(region.replacement_text)
+
+            # If no valid text regions, create a minimal mask
+            if not texts:
+                # Create a small dummy mask in the center for training stability
+                center_y, center_x = target_size // 2, target_size // 2
+                mask_size = 32  # Small 32x32 region
+                composite_mask[
+                    center_y - mask_size // 2 : center_y + mask_size // 2,
+                    center_x - mask_size // 2 : center_x + mask_size // 2,
+                ] = 1.0
+                texts = ["text"]  # Generic text for conditioning
+                logger.warning(NoValidTextRegionsError().args[0])
+
+            # Convert to tensors
+            image_tensor = torch.from_numpy(padded_image).permute(2, 0, 1).float() / 255.0
+            image_tensor = (image_tensor - 0.5) / 0.5  # Normalize to [-1, 1]
+
+            # Add batch dimension to mask for consistency with UNet expectations
+            mask_tensor = (
+                torch.from_numpy(composite_mask).unsqueeze(0).float()
+            )  # (1, height, width)
+
+            # Combine texts into single conditioning string
+            combined_text = ", ".join(texts) if len(texts) > 1 else texts[0]
+
+        except Exception as e:
+            raise TrainingDataPreparationFailedError() from e
+        else:
+            return {
+                "images": image_tensor,
+                "masks": mask_tensor,
+                "texts": combined_text,  # Single text string for conditioning
+                "original_size": (h, w),
+                "scale": scale,
+            }
+
+
 def collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
     """Custom collate function for batch processing with improved error handling."""
     # Handle completely empty batch (no items at all)
@@ -668,6 +825,99 @@ def create_dataloaders(
             batch_size=batch_size,
             shuffle=False,
             num_workers=config.num_workers,
+        )
+
+    return train_dataloader, val_dataloader
+
+
+def inpainting_collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
+    """Custom collate function for InpaintingDataset batch processing."""
+    # Handle completely empty batch
+    if not batch:
+        logger.warning("Empty batch received, returning dummy inpainting batch")
+        return create_dummy_inpainting_batch()
+
+    # Filter out empty items
+    valid_batch = [
+        item for item in batch if item and "images" in item and "masks" in item and "texts" in item
+    ]
+
+    # If all items were filtered out
+    if not valid_batch:
+        logger.warning("All items filtered out, returning dummy inpainting batch")
+        return create_dummy_inpainting_batch()
+
+    # Stack batch components
+    images = torch.stack([item["images"] for item in valid_batch])
+    masks = torch.stack(
+        [item["masks"] for item in valid_batch]
+    )  # Already have batch dim from dataset
+    texts = [item["texts"] for item in valid_batch]
+    original_sizes = [item["original_size"] for item in valid_batch]
+    scales = [item["scale"] for item in valid_batch]
+
+    return {
+        "images": images,
+        "masks": masks,
+        "texts": texts,
+        "original_sizes": original_sizes,
+        "scales": scales,
+        "batch_size": len(valid_batch),
+    }
+
+
+def create_inpainting_datasets(
+    config: DatasetConfig,
+) -> tuple[InpaintingDataset, InpaintingDataset | None]:
+    """Create InpaintingDataset instances for training and validation."""
+    # Create train dataset
+    train_dataset = InpaintingDataset(
+        data_dir=config.train_data_path,
+        config=config,
+        split="train",
+    )
+
+    # Create validation dataset if validation path exists
+    val_dataset = None
+    if config.val_data_path and config.val_data_path.exists():
+        val_dataset = InpaintingDataset(
+            data_dir=config.val_data_path,
+            config=config,
+            split="val",
+        )
+
+    return train_dataset, val_dataset
+
+
+def create_inpainting_dataloaders(
+    config: DatasetConfig,
+    batch_size: int = 8,  # Smaller batch size for UNet training
+) -> tuple[DataLoader, DataLoader | None]:
+    """Create train and validation data loaders for inpainting."""
+    train_dataset, val_dataset = create_inpainting_datasets(config)
+
+    # Create train dataloader with inpainting collate function
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=config.num_workers,
+        collate_fn=inpainting_collate_fn,
+        drop_last=True,  # Important for stable training
+        pin_memory=True,
+    )
+
+    # Create validation dataloader
+    val_dataloader = None
+    if val_dataset:
+        val_dataloader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=config.num_workers,
+            collate_fn=inpainting_collate_fn,
+            drop_last=False,
+            pin_memory=True,
         )
 
     return train_dataloader, val_dataloader

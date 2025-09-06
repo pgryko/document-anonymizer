@@ -50,34 +50,42 @@ pip install -e .
 ### Basic Usage
 
 ```python
-from src.anonymizer import DocumentAnonymizer, AnonymizationConfig
+from pathlib import Path
+import numpy as np
+from PIL import Image
 
-# Configure anonymization
-config = AnonymizationConfig(
-    ocr_engines=["paddleocr", "easyocr"],  # OCR fallback chain
-    entity_types=["PERSON", "EMAIL", "PHONE_NUMBER"],  # PII types to detect
-    anonymization_strategy="inpainting",  # Use diffusion models
-    confidence_threshold=0.8  # High confidence filtering
-)
+from src.anonymizer.core.config import AppConfig
+from src.anonymizer.inference.engine import InferenceEngine
 
-# Initialize anonymizer
-anonymizer = DocumentAnonymizer(config)
+# Load config (env + optional YAML overrides)
+app_config = AppConfig.from_env_and_yaml(yaml_path="configs/inference/app_config.yaml")
 
-# Anonymize a document
-result = anonymizer.anonymize_document("input.pdf", "output.pdf")
+# Initialize inference engine
+engine = InferenceEngine(app_config.engine)
 
-print(f"Anonymized {result.entities_found} PII entities")
-print(f"Processing time: {result.processing_time_ms}ms")
+# Read input image and anonymize
+image_bytes = Path("input.png").read_bytes()
+result = engine.anonymize(image_bytes)
+
+if result.success:
+    Image.fromarray(result.anonymized_image.astype(np.uint8)).save("output.png")
+    print("Saved anonymized image to output.png")
+else:
+    print(f"Anonymization completed with errors: {', '.join(result.errors)}")
 ```
 
 ### Command Line Interface
 
 ```bash
-# Anonymize a single document
-python -m src.anonymizer.cli anonymize input.pdf --output output.pdf
+# Anonymize a single image
+python main.py anonymize -c configs/inference/app_config.yaml -i input.png -o output.png
 
-# Batch process multiple documents
-python -m src.anonymizer.cli batch-anonymize documents/ --output anonymized/
+# Batch process images in a directory (preserving structure)
+python main.py batch-anonymize -i data/raw -o data/anonymized -c configs/inference/app_config.yaml
+
+# Train models
+python main.py train-vae -c configs/training/vae_config_local.yaml
+python main.py train-unet -c configs/training/unet_config_local.yaml
 
 # Download required models
 python scripts/download_models.py ensure-models --use-case default
@@ -106,11 +114,10 @@ Multi-engine text detection with automatic fallback:
 - **Tesseract**: Reliable baseline OCR
 
 ### 2. NER Pipeline
-PII detection using Presidio:
-- Pre-trained models for common entity types
-- Custom patterns for domain-specific PII
-- Configurable confidence thresholds
-- Multi-language support
+PII detection using Presidio integrated in `NERProcessor` inside `InferenceEngine`:
+- Pre-trained recognizers for common entity types
+- Custom patterns possible via Presidio configuration
+- Confidence thresholding applied during OCR+NER fusion
 
 ### 3. Diffusion Inpainting
 High-quality anonymization using Stable Diffusion:
@@ -128,66 +135,43 @@ Comprehensive performance tracking:
 
 ## Examples
 
-### Basic Document Processing
-
-```python
-from src.anonymizer import DocumentAnonymizer
-
-# Simple anonymization
-anonymizer = DocumentAnonymizer()
-result = anonymizer.anonymize_document("document.pdf")
-
-# Access results
-print(f"Found entities: {[e.type for e in result.entities]}")
-print(f"Anonymized regions: {len(result.anonymized_regions)}")
-```
-
-### Advanced Configuration
-
-```python
-from src.anonymizer import AnonymizationConfig, EntityType
-
-config = AnonymizationConfig(
-    # OCR Configuration
-    ocr_engines=["paddleocr", "easyocr"],
-    ocr_confidence_threshold=0.8,
-    
-    # NER Configuration  
-    entity_types=[EntityType.PERSON, EntityType.EMAIL, EntityType.PHONE],
-    ner_confidence_threshold=0.9,
-    
-    # Anonymization Configuration
-    anonymization_strategy="inpainting",
-    preserve_formatting=True,
-    
-    # Performance Configuration
-    batch_size=4,
-    use_gpu=True,
-    memory_optimization=True
-)
-
-anonymizer = DocumentAnonymizer(config)
-```
-
-### Batch Processing
+### Basic Image Anonymization
 
 ```python
 from pathlib import Path
-from src.anonymizer import BatchProcessor
+import numpy as np
+from PIL import Image
 
-processor = BatchProcessor(
-    input_dir=Path("documents/"),
-    output_dir=Path("anonymized/"),
-    parallel_workers=4
-)
+from src.anonymizer.core.config import AppConfig
+from src.anonymizer.inference.engine import InferenceEngine
 
-# Process all PDFs in directory
-results = processor.process_all()
+app_config = AppConfig.from_env_and_yaml(yaml_path="configs/inference/app_config.yaml")
+engine = InferenceEngine(app_config.engine)
 
-# Generate processing report
-report = processor.generate_report(results)
-print(f"Processed {report.total_documents} documents")
-print(f"Success rate: {report.success_rate:.1%}")
+image_bytes = Path("document.png").read_bytes()
+result = engine.anonymize(image_bytes)
+
+if result.success:
+    Image.fromarray(result.anonymized_image.astype(np.uint8)).save("anonymized.png")
+```
+
+### Manual Regions (advanced)
+
+```python
+import numpy as np
+from src.anonymizer.core.models import BoundingBox, TextRegion
+
+# Provide manual regions to bypass OCR/NER
+regions = [
+    TextRegion(
+        bbox=BoundingBox(left=100, top=50, right=300, bottom=90),
+        original_text="john.doe@example.com",
+        replacement_text="[EMAIL_ADDRESS]",
+        confidence=0.99,
+    )
+]
+
+result = engine.anonymize(image_bytes, text_regions=regions)
 ```
 
 ### Performance Monitoring
@@ -196,18 +180,12 @@ print(f"Success rate: {report.success_rate:.1%}")
 from src.anonymizer.performance import PerformanceMonitor
 
 monitor = PerformanceMonitor()
+monitor.start_session("image_processing")
 
-# Start monitoring session
-monitor.start_session("document_processing")
+_ = engine.anonymize(image_bytes)
 
-# Your processing code here
-result = anonymizer.anonymize_document("large_document.pdf")
-
-# End session and get report
 report = monitor.end_session()
-
-print(f"Peak memory: {report.peak_memory_mb:.1f}MB")
-print(f"Processing time: {report.duration_seconds:.1f}s")
+print(f"Peak memory: {report['resource_summary']['peak_memory_mb']:.1f}MB")
 ```
 
 ## Model Management

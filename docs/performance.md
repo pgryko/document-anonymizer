@@ -23,7 +23,11 @@ monitor = PerformanceMonitor()
 monitor.start_session("document_processing")
 
 # Your processing code here
-result = anonymizer.anonymize_document("document.pdf")
+from src.anonymizer.core.config import AppConfig
+from src.anonymizer.inference.engine import InferenceEngine
+
+engine = InferenceEngine(AppConfig.from_env_and_yaml().engine)
+result = engine.anonymize(Path("document.png").read_bytes())
 
 # Get performance report
 report = monitor.end_session()
@@ -50,7 +54,7 @@ monitor.start_session("batch_processing")
 # Process multiple documents
 for doc in documents:
     with monitor.monitor_operation(f"process_{doc.name}"):
-        result = anonymizer.anonymize_document(doc.path)
+        result = engine.anonymize(Path(doc.path).read_bytes())
 
 final_report = monitor.end_session()
 ```
@@ -153,7 +157,8 @@ if regression_report.has_regressions:
 
 ```python
 # Optimal GPU configuration
-config = AnonymizationConfig(
+from src.anonymizer.core.config import EngineConfig
+config = EngineConfig(
     use_gpu=True,
     mixed_precision=True,  # Use FP16 for 2x speed improvement
     
@@ -176,7 +181,7 @@ config = AnonymizationConfig(
 
 ```python
 # CPU-optimized configuration
-config = AnonymizationConfig(
+config = EngineConfig(
     use_gpu=False,
     
     # Threading optimization
@@ -254,14 +259,15 @@ ocr_performance = {
 }
 
 # Speed-optimized OCR
-speed_config = AnonymizationConfig(
+from src.anonymizer.core.config import EngineConfig
+speed_config = EngineConfig(
     ocr_engines=["tesseract"],  # Fastest option
     ocr_confidence_threshold=0.6,  # Lower threshold for speed
     ocr_preprocessing=False  # Skip preprocessing
 )
 
 # Accuracy-optimized OCR  
-accuracy_config = AnonymizationConfig(
+accuracy_config = EngineConfig(
     ocr_engines=["paddleocr", "easyocr", "trotr"],  # Multiple engines
     ocr_confidence_threshold=0.9,  # High confidence
     ocr_preprocessing=True,  # Enable preprocessing
@@ -315,7 +321,7 @@ else:
 #### Optimal Batch Sizes
 
 ```python
-def find_optimal_batch_size(config: AnonymizationConfig) -> int:
+def find_optimal_batch_size(config: EngineConfig) -> int:
     """Find optimal batch size for current hardware."""
     
     # Start with hardware-based estimate
@@ -359,7 +365,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import multiprocessing as mp
 
 class OptimizedBatchProcessor:
-    def __init__(self, config: AnonymizationConfig):
+    def __init__(self, config: EngineConfig):
         self.config = config
         self.num_workers = self._determine_optimal_workers()
     
@@ -460,7 +466,7 @@ class DynamicModelManager:
 
 ```python
 class StreamingProcessor:
-    def __init__(self, config: AnonymizationConfig):
+    def __init__(self, config: EngineConfig):
         self.config = config
         self.buffer_size = 10
         
@@ -489,7 +495,7 @@ class StreamingProcessor:
 
 ```python
 class AdaptiveProcessor:
-    def __init__(self, base_config: AnonymizationConfig):
+    def __init__(self, base_config: EngineConfig):
         self.base_config = base_config
         self.performance_history = []
         
@@ -517,7 +523,7 @@ class AdaptiveProcessor:
         
         return result
     
-    def _adapt_config(self, complexity: float) -> AnonymizationConfig:
+    def _adapt_config(self, complexity: float) -> EngineConfig:
         """Adapt configuration based on document complexity."""
         
         config = self.base_config.copy()
@@ -660,7 +666,7 @@ profiler = DetailedProfiler(
 )
 
 with profiler.profile_session("detailed_analysis"):
-    result = anonymizer.anonymize_document("complex_document.pdf")
+    result = engine.anonymize(Path("complex_document.png").read_bytes())
 
 # Analyze results
 report = profiler.generate_report()

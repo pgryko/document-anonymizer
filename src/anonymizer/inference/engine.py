@@ -55,8 +55,9 @@ from src.anonymizer.core.models import (
     GenerationMetadata,
     TextRegion,
 )
+from src.anonymizer.inference.cache import BatchProcessor, ModelCache
 from src.anonymizer.ocr.models import OCRConfig, OCREngine
-from src.anonymizer.ocr.processor import OCRProcessor
+from src.anonymizer.ocr.processor import OCRProcessor, OCRTimeoutError
 from src.anonymizer.training.datasets import ImageValidator
 from src.anonymizer.utils.image_ops import ImageProcessor
 from src.anonymizer.utils.metrics import MetricsCollector
@@ -155,26 +156,36 @@ class NERProcessor:
             raise ModelLoadingError() from e
 
     def detect_pii(self, text: str, _image: np.ndarray) -> list[TextRegion]:
-        # TODO: integrate with other methods for pii detection
-        """Detect PII entities and return text regions."""
+        """Detect PII entities in text and return regions with metadata.
+
+        Note: This method returns TextRegion objects with placeholder bounding boxes.
+        The actual OCR-derived bounding boxes are applied by the InferenceEngine
+        when combining OCR detection results with NER analysis.
+
+        Args:
+            text: The text content to analyze for PII
+            _image: Image array (unused in current implementation)
+
+        Returns:
+            List of TextRegion objects with PII detection metadata
+        """
         try:
-            # Use Presidio to analyze text
+            # Use Presidio to analyze text for PII entities
             results = self.analyzer.analyze(text=text, entities=self.pii_entities, language="en")
 
-            # Convert to TextRegion objects
-            # For now, create dummy bounding boxes - in production this would
-            # TODO: add OCR to extract bounding boxes
-            # integrate with OCR to get actual coordinates
             text_regions = []
             for result in results:
-                # Create a dummy bounding box (would be from OCR in production)
-                bbox = BoundingBox(left=10, top=10, right=100, bottom=30)
-
+                # Extract the detected PII text
                 original_text = text[result.start : result.end]
                 replacement_text = f"[{result.entity_type}]"
 
+                # Create TextRegion with placeholder bounding box
+                # The InferenceEngine will replace this with the actual OCR bounding box
+                # when combining OCR and NER results
+                placeholder_bbox = BoundingBox(left=0, top=0, right=1, bottom=1)
+
                 region = TextRegion(
-                    bbox=bbox,
+                    bbox=placeholder_bbox,
                     original_text=original_text,
                     replacement_text=replacement_text,
                     confidence=result.score,
@@ -328,6 +339,24 @@ class InferenceEngine:
         self.ner_processor: NERProcessor | None = None
         self.ocr_processor: OCRProcessor | None = None
 
+        # Model caching and batch processing
+        cache_max_size = getattr(config, "model_cache_max_size", 3)
+        cache_max_memory = getattr(config, "model_cache_max_memory_mb", 8192.0)
+        self.model_cache = ModelCache(max_size=cache_max_size, max_memory_mb=cache_max_memory)
+
+        # Batch processing (optional)
+        batch_size = getattr(config, "max_batch_size", 8)
+        batch_wait_time = getattr(config, "batch_wait_time_ms", 100.0)
+        enable_batching = getattr(config, "enable_batch_processing", False)
+
+        if enable_batching:
+            self.batch_processor = BatchProcessor(
+                max_batch_size=batch_size,
+                max_wait_time_ms=batch_wait_time,
+            )
+        else:
+            self.batch_processor = None
+
         # Model components
         self.pipeline: StableDiffusionInpaintPipeline | None = None
         self.vae: AutoencoderKL | None = None
@@ -395,9 +424,12 @@ class InferenceEngine:
         return Path(tempfile.gettempdir())
 
     def _initialize_ocr_processor(self):
-        """Initialize OCR processor with optimal configuration."""
+        """Initialize OCR processor with optimal configuration and timeout handling."""
         try:
             # Create OCR configuration optimized for document anonymization
+            # Use engine config timeout if available, otherwise default to 30 seconds
+            ocr_timeout = getattr(self.config, "ocr_timeout_seconds", 30)
+
             ocr_config = OCRConfig(
                 primary_engine=OCREngine.PADDLEOCR,  # Fast and accurate
                 fallback_engines=[OCREngine.EASYOCR, OCREngine.TESSERACT],
@@ -409,7 +441,7 @@ class InferenceEngine:
                 filter_short_texts=True,
                 filter_low_confidence=True,
                 use_gpu=self.device.type == "cuda",
-                timeout_seconds=30,
+                timeout_seconds=ocr_timeout,
             )
 
             self.ocr_processor = OCRProcessor(ocr_config)
@@ -428,13 +460,13 @@ class InferenceEngine:
             self.ocr_processor = None
 
     def _load_models(self):
-        """Load and validate all required models."""
+        """Load and validate all required models with caching."""
         with self._model_lock:
             if self.pipeline is not None:
                 return  # Already loaded
 
             try:
-                logger.info("Loading inference models...")
+                logger.info("Loading inference models with caching...")
 
                 # Initialize NER processor
                 if self.ner_processor is None:
@@ -451,13 +483,18 @@ class InferenceEngine:
                 if self.ocr_processor is None:
                     self._initialize_ocr_processor()
 
-                # Load Stable Diffusion inpainting pipeline
-                if self.config.unet_model_path and self.config.vae_model_path:
+                # Load Stable Diffusion inpainting pipeline with caching
+                if (
+                    hasattr(self.config, "unet_model_path")
+                    and hasattr(self.config, "vae_model_path")
+                    and self.config.unet_model_path
+                    and self.config.vae_model_path
+                ):
                     # Load custom trained models
-                    self._load_custom_models()
+                    self._load_custom_models_cached()
                 else:
                     # Use pretrained models
-                    self._load_pretrained_models()
+                    self._load_pretrained_models_cached()
 
                 # Configure for inference
                 self._configure_pipeline()
@@ -736,46 +773,66 @@ class InferenceEngine:
             text_regions = []
 
             if self.ocr_processor and self.ocr_processor.is_initialized:
-                # Use real OCR to detect text
+                # Use real OCR to detect text with timeout handling
                 logger.debug("Using OCR for text detection")
-                detected_texts = self.ocr_processor.extract_text_regions(image)
 
-                if detected_texts:
-                    # Step 2: Apply NER to identify PII in detected text
-                    for detected_text in detected_texts:
-                        if self.ner_processor:
-                            # Use NER to check if text contains PII
-                            pii_regions = self.ner_processor.detect_pii(detected_text.text, image)
+                try:
+                    detected_texts = self.ocr_processor.extract_text_regions(image)
 
-                            if pii_regions:
-                                # Text contains PII - use original OCR bounding box
-                                # but update with NER metadata
-                                for pii_region in pii_regions:
-                                    # Create text region with OCR bbox but NER-detected content
-                                    text_region = TextRegion(
-                                        bbox=detected_text.bbox,  # Use accurate OCR bounding box
-                                        original_text=detected_text.text,
-                                        replacement_text=pii_region.replacement_text,
-                                        confidence=min(
-                                            detected_text.confidence,
-                                            pii_region.confidence,
-                                        ),
-                                    )
-                                    text_regions.append(text_region)
-                        else:
-                            # No NER available - anonymize all detected text
-                            text_region = TextRegion(
-                                bbox=detected_text.bbox,
-                                original_text=detected_text.text,
-                                replacement_text="[TEXT]",
-                                confidence=detected_text.confidence,
-                            )
-                            text_regions.append(text_region)
+                    if detected_texts:
+                        # Step 2: Apply NER to identify PII in detected text
+                        for detected_text in detected_texts:
+                            if self.ner_processor:
+                                # Use NER to check if text contains PII
+                                pii_regions = self.ner_processor.detect_pii(
+                                    detected_text.text, image
+                                )
 
-                logger.info(
-                    f"OCR detected {len(detected_texts)} text regions, "
-                    f"{len(text_regions)} marked for anonymization",
-                )
+                                if pii_regions:
+                                    # Text contains PII - calculate sub-bounding boxes for each PII entity
+                                    for pii_region in pii_regions:
+                                        # Calculate the bounding box for the specific PII text within the OCR region
+                                        pii_bbox = self._calculate_pii_bounding_box(
+                                            detected_text,
+                                            pii_region.original_text,
+                                            detected_text.text,
+                                        )
+
+                                        # Create text region with precise PII bounding box
+                                        text_region = TextRegion(
+                                            bbox=pii_bbox,
+                                            original_text=pii_region.original_text,
+                                            replacement_text=pii_region.replacement_text,
+                                            confidence=min(
+                                                detected_text.confidence,
+                                                pii_region.confidence,
+                                            ),
+                                        )
+                                        text_regions.append(text_region)
+                            else:
+                                # No NER available - anonymize all detected text
+                                text_region = TextRegion(
+                                    bbox=detected_text.bbox,
+                                    original_text=detected_text.text,
+                                    replacement_text="[TEXT]",
+                                    confidence=detected_text.confidence,
+                                )
+                                text_regions.append(text_region)
+
+                    logger.info(
+                        f"OCR detected {len(detected_texts)} text regions, "
+                        f"{len(text_regions)} marked for anonymization",
+                    )
+
+                except OCRTimeoutError as e:
+                    logger.warning(
+                        f"OCR processing timed out: {e}. Falling back to dummy detection."
+                    )
+                    # Fall through to dummy detection below
+
+                except Exception as e:
+                    logger.warning(f"OCR processing failed: {e}. Falling back to dummy detection.")
+                    # Fall through to dummy detection below
 
             else:
                 # Fallback to dummy detection if OCR unavailable
@@ -791,6 +848,66 @@ class InferenceEngine:
             return []
         else:
             return text_regions
+
+    def _calculate_pii_bounding_box(
+        self, detected_text: "DetectedText", pii_text: str, full_text: str
+    ) -> "BoundingBox":
+        """Calculate precise bounding box for PII text within OCR detected text region.
+
+        This method approximates the position of PII text within the larger OCR text region
+        by using character position ratios to estimate the sub-bounding box.
+
+        Args:
+            detected_text: The OCR detected text with full bounding box
+            pii_text: The specific PII text found by NER
+            full_text: The complete text from OCR (should match detected_text.text)
+
+        Returns:
+            BoundingBox for the specific PII text within the OCR region
+        """
+        from src.anonymizer.core.models import BoundingBox
+
+        # Find the position of PII text within the full text
+        pii_start = full_text.find(pii_text)
+        if pii_start == -1:
+            # Fallback: if we can't find the exact text, return the full OCR bbox
+            logger.warning(f"Could not locate PII text '{pii_text}' in OCR text '{full_text}'")
+            return detected_text.bbox
+
+        pii_end = pii_start + len(pii_text)
+        text_length = len(full_text)
+
+        # Calculate character position ratios
+        start_ratio = pii_start / text_length if text_length > 0 else 0
+        end_ratio = pii_end / text_length if text_length > 0 else 1
+
+        # Get original OCR bounding box dimensions
+        bbox_width = detected_text.bbox.right - detected_text.bbox.left
+        bbox_height = detected_text.bbox.bottom - detected_text.bbox.top
+
+        # Estimate PII bounding box position (assuming horizontal text layout)
+        # This is a simple approximation - more sophisticated methods could use
+        # character width estimation or additional OCR analysis
+        pii_left = detected_text.bbox.left + int(bbox_width * start_ratio)
+        pii_right = detected_text.bbox.left + int(bbox_width * end_ratio)
+
+        # For vertical dimensions, use the full height of the OCR region
+        # since PII typically spans the same line height
+        pii_top = detected_text.bbox.top
+        pii_bottom = detected_text.bbox.bottom
+
+        # Ensure minimum width for small PII text
+        min_width = max(10, bbox_width // 10)  # At least 10px or 10% of original width
+        if pii_right - pii_left < min_width:
+            center = (pii_left + pii_right) // 2
+            pii_left = max(detected_text.bbox.left, center - min_width // 2)
+            pii_right = min(detected_text.bbox.right, center + min_width // 2)
+
+        # Ensure bounds stay within the original OCR region
+        pii_left = max(detected_text.bbox.left, pii_left)
+        pii_right = min(detected_text.bbox.right, pii_right)
+
+        return BoundingBox(left=pii_left, top=pii_top, right=pii_right, bottom=pii_bottom)
 
     def _anonymize_region(self, image: np.ndarray, region: TextRegion) -> GeneratedPatch:
         """Anonymize a single text region using diffusion model."""
@@ -900,3 +1017,119 @@ class InferenceEngine:
             raise PostprocessingFailedError() from e
         else:
             return result_image
+
+    def _load_pretrained_models_cached(self):
+        """Load pretrained Stable Diffusion inpainting models with caching."""
+        try:
+            base_model = "stabilityai/stable-diffusion-2-inpainting"
+            config_dict = {
+                "torch_dtype": str(torch.float16 if self.device.type == "cuda" else torch.float32),
+                "safety_checker": None,
+                "requires_safety_checker": False,
+            }
+
+            def loader_func():
+                return StableDiffusionInpaintPipeline.from_pretrained(
+                    base_model,
+                    torch_dtype=(torch.float16 if self.device.type == "cuda" else torch.float32),
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                )
+
+            pipeline, is_cache_hit = self.model_cache.get(base_model, config_dict, loader_func)
+
+            if pipeline is None:
+                raise ModelLoadingError(f"Failed to load pretrained pipeline: {base_model}")
+
+            self.pipeline = pipeline
+
+            if is_cache_hit:
+                logger.info(f"Loaded pretrained pipeline from cache: {base_model}")
+            else:
+                logger.info(f"Loaded and cached pretrained pipeline: {base_model}")
+
+        except Exception as e:
+            raise ModelLoadingError() from e
+
+    def _load_custom_models_cached(self):
+        """Load custom trained VAE and UNet models with caching."""
+        try:
+            # Load VAE with caching
+            if self.config.vae_model_path:
+                vae_path = validate_model_path(
+                    self.config.vae_model_path,
+                    "vae_model_path",
+                    self.config.allowed_model_base_dirs,
+                )
+
+                vae_config_dict = {"model_type": "vae", "path": str(vae_path.parent)}
+
+                def vae_loader():
+                    return AutoencoderKL.from_pretrained(vae_path.parent)
+
+                self.vae, vae_cache_hit = self.model_cache.get(
+                    str(vae_path), vae_config_dict, vae_loader
+                )
+
+                if self.vae is None:
+                    raise ModelLoadingError(f"Failed to load VAE model: {vae_path}")
+
+                logger.info(f"VAE model {'cached' if vae_cache_hit else 'loaded'}: {vae_path}")
+
+            # Load UNet with caching
+            if self.config.unet_model_path:
+                unet_path = validate_model_path(
+                    self.config.unet_model_path,
+                    "unet_model_path",
+                    self.config.allowed_model_base_dirs,
+                )
+
+                unet_config_dict = {"model_type": "unet", "path": str(unet_path.parent)}
+
+                def unet_loader():
+                    return UNet2DConditionModel.from_pretrained(unet_path.parent)
+
+                self.unet, unet_cache_hit = self.model_cache.get(
+                    str(unet_path), unet_config_dict, unet_loader
+                )
+
+                if self.unet is None:
+                    raise ModelLoadingError(f"Failed to load UNet model: {unet_path}")
+
+                logger.info(f"UNet model {'cached' if unet_cache_hit else 'loaded'}: {unet_path}")
+
+            # Create pipeline with custom components and cached base model
+            base_model = "stabilityai/stable-diffusion-2-inpainting"
+            base_config_dict = {
+                "torch_dtype": str(torch.float16 if self.device.type == "cuda" else torch.float32),
+                "components_only": True,
+            }
+
+            def base_pipeline_loader():
+                return StableDiffusionInpaintPipeline.from_pretrained(
+                    base_model,
+                    torch_dtype=(torch.float16 if self.device.type == "cuda" else torch.float32),
+                )
+
+            base_pipeline, base_cache_hit = self.model_cache.get(
+                f"{base_model}_base", base_config_dict, base_pipeline_loader
+            )
+
+            if base_pipeline is None:
+                raise ModelLoadingError(f"Failed to load base pipeline: {base_model}")
+
+            # Create custom pipeline with our VAE and UNet
+            self.pipeline = StableDiffusionInpaintPipeline(
+                vae=self.vae if self.vae else base_pipeline.vae,
+                unet=self.unet if self.unet else base_pipeline.unet,
+                tokenizer=base_pipeline.tokenizer,
+                text_encoder=base_pipeline.text_encoder,
+                scheduler=base_pipeline.scheduler,
+                safety_checker=None,
+                feature_extractor=base_pipeline.feature_extractor,
+            )
+
+            logger.info("Custom pipeline created with cached components")
+
+        except Exception as e:
+            raise ModelLoadingError() from e

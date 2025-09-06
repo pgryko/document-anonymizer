@@ -42,18 +42,14 @@ The system is designed as a modular, extensible pipeline that processes document
 - **Observer Pattern**: Progress monitoring and callbacks
 
 ```python
-class InferenceEngine:
-    def __init__(self, config: AnonymizationConfig):
-        self.ocr_processor = OCRProcessor(config.ocr_config)
-        self.ner_pipeline = NERPipeline(config.ner_config)
-        self.anonymizer = DiffusionAnonymizer(config.anonymization_config)
-        
-    def process_document(self, document: Document) -> AnonymizationResult:
-        # Pipeline: OCR → NER → Anonymization
-        text_regions = self.ocr_processor.detect_text(document.images)
-        pii_entities = self.ner_pipeline.detect_entities(text_regions)
-        anonymized_doc = self.anonymizer.anonymize(document, pii_entities)
-        return AnonymizationResult(anonymized_doc, pii_entities)
+from src.anonymizer.core.config import AppConfig
+from src.anonymizer.inference.engine import InferenceEngine
+
+app_config = AppConfig.from_env_and_yaml()
+engine = InferenceEngine(app_config.engine)
+
+# Pipeline inside engine: Input bytes → preprocess → OCR → NER → bbox fusion → inpaint → result
+result = engine.anonymize(image_bytes)
 ```
 
 ### 2. OCR Subsystem (`src/anonymizer/ocr/`)
@@ -266,19 +262,11 @@ Anonymized Images → PDF Assembly → Metadata Annotation → Final PDF
 
 ### Hierarchical Configuration
 ```python
-@dataclass
-class AnonymizationConfig:
-    # OCR Configuration
-    ocr_config: OCRConfig
-    
-    # NER Configuration  
-    ner_config: NERConfig
-    
-    # Diffusion Configuration
-    diffusion_config: DiffusionConfig
-    
-    # Performance Configuration
-    performance_config: PerformanceConfig
+from src.anonymizer.core.config import AppConfig, EngineConfig
+
+app = AppConfig(
+    engine=EngineConfig(num_inference_steps=50, guidance_scale=7.5, strength=1.0)
+)
 ```
 
 ### Environment-based Overrides

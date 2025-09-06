@@ -11,6 +11,10 @@ import pytest
 from PIL import Image
 from pydantic import ValidationError
 
+from src.anonymizer.core.exceptions import (
+    EmptyTextRegionsError,
+    TooManyTextRegionsError,
+)
 from src.anonymizer.core.models import (
     AnonymizationRequest,
     BoundingBox,
@@ -156,7 +160,7 @@ class TestAnonymizationRequest:
         pil_image.save(buffer, format="PNG")
         image_data = buffer.getvalue()
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(EmptyTextRegionsError):
             AnonymizationRequest(
                 image_data=image_data,
                 text_regions=[],  # Empty list
@@ -178,7 +182,7 @@ class TestAnonymizationRequest:
         # Create 51 regions (over the 50 limit)
         too_many_regions = [sample_text_region] * 51
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(TooManyTextRegionsError):
             AnonymizationRequest(
                 image_data=image_data,
                 text_regions=too_many_regions,

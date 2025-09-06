@@ -1,39 +1,42 @@
 # Code Review Action Items
 
+**Last Updated:** 2025-08-06  
+**Status:** Revised based on current codebase analysis
+
 ## Critical Issues (P0)
 
-### 1. Complete UNet Training Implementation
-**File:** `src/anonymizer/training/unet_trainer.py`
-**Issue:** Training loop and dataloader not implemented
-**Action:** 
-- Implement `_train_step()` method with proper loss calculation
-- Add dataset creation for document inpainting
-- Implement validation loop
-**Estimated effort:** 2-3 days
-
-### 2. Fix OCR Bounding Box Integration
-**File:** `src/anonymizer/inference/engine.py:151-152`
-**Issue:** OCR bounding boxes not properly extracted for NER results
+### 1. Confidence Scoring and Verification
+**File:** `src/anonymizer/inference/engine.py`
+**Issue:** Hardcoded confidence value for `GeneratedPatch`
 **Action:**
-- Integrate OCR results with NER detection
-- Map detected PII to actual document coordinates
-- Test with real document images
+- Derive confidence from model outputs and verification metrics (e.g., SSIM/LPIPS)
+- Add `enable_quality_check` gate (already present) to enforce minimal confidence
 **Estimated effort:** 1-2 days
+
+### 2. Batch Inpainting Optimization
+**File:** `src/anonymizer/inference/engine.py`
+**Issue:** Sequential per-region calls
+**Action:**
+- Group compatible regions to reduce invocations
+- Measure memory; expose batched parameters in `EngineConfig`
+**Estimated effort:** 2-3 days
 
 ## High Priority (P1)
 
-### 3. Improve Test Coverage
-**Current:** 19% coverage
-**Target:** 80% coverage
+### 3. Fix Test Infrastructure & Improve Coverage
+**Current:** Tests timing out, coverage unmeasurable
+**Target:** Fix test execution, then achieve 80% coverage
 **Actions:**
-- Add unit tests for:
+- Debug test timeout issues
+- Fix test infrastructure problems
+- Once tests run, add unit tests for:
   - `VAETrainer` class
   - `InferenceEngine` class
   - Configuration validation
   - Security path validation
 - Add integration tests for full pipeline
 - Add performance benchmarks
-**Estimated effort:** 5-7 days
+**Estimated effort:** 1-2 days for fixes, then 5-7 days for coverage
 
 ### 4. Add Missing Error Handling
 **Files:** Multiple
@@ -47,10 +50,10 @@
 
 ### 5. Documentation Updates
 **Actions:**
-- Update README with actual CLI commands
-- Document environment variables
-- Add troubleshooting guide
-- Create deployment guide
+- Update README/docs with `InferenceEngine` usage (done)
+- Correct CLI invocations to `python main.py ...` (done)
+- Document config loading via `AppConfig`
+- Add examples for programmatic usage (done)
 **Estimated effort:** 2-3 days
 
 ### 6. Performance Optimizations
@@ -146,7 +149,8 @@
 ## Implementation Order
 
 ### Phase 1 (Week 1-2)
-- Complete UNet training (P0)
+- Fix test infrastructure (P0)
+- Create UNet dataset implementation (P0)
 - Fix OCR integration (P0)
 - Start test coverage improvement (P1)
 
@@ -180,3 +184,20 @@
 - Bi-weekly code reviews
 - Monthly security audits
 - Quarterly performance reviews
+
+## Recent Changes (2025-08-06)
+
+### Completed Items
+- ✅ UNet training loop implementation (previously marked incomplete)
+- ✅ Full UNet trainer with validation and checkpointing
+- ✅ Text conditioning with TrOCR
+
+### Newly Identified Issues
+- Test infrastructure problems causing timeouts
+- Missing UNet-specific dataset implementation
+- OCR TODOs remain at lines 158, 166 in engine.py
+
+### Status Updates
+- UNet trainer is more complete than previously documented
+- Main gap is dataset implementation, not trainer logic
+- Test coverage cannot be accurately measured until infrastructure fixed

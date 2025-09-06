@@ -164,7 +164,7 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s \
-    CMD python -c "from src.anonymizer import DocumentAnonymizer; print('OK')" || exit 1
+    CMD python -c "from src.anonymizer.inference.engine import InferenceEngine; from src.anonymizer.core.config import AppConfig; InferenceEngine(AppConfig.from_env_and_yaml().engine); print('OK')" || exit 1
 
 # Start application
 CMD ["python", "-m", "src.anonymizer.server", "--host", "0.0.0.0", "--port", "8000"]
@@ -534,7 +534,8 @@ docker run -d \
 # lambda_function.py
 import json
 import base64
-from src.anonymizer import DocumentAnonymizer, AnonymizationConfig
+from src.anonymizer.core.config import AppConfig
+from src.anonymizer.inference.engine import InferenceEngine
 
 def lambda_handler(event, context):
     """AWS Lambda handler for document anonymization."""
@@ -544,17 +545,9 @@ def lambda_handler(event, context):
         document_data = base64.b64decode(event['document_data'])
         config_params = event.get('config', {})
         
-        # Configure for Lambda (CPU-only, memory-optimized)
-        config = AnonymizationConfig(
-            use_gpu=False,  # Lambda doesn't support GPU
-            batch_size=1,   # Process one document at a time
-            memory_optimization=True,
-            anonymization_strategy="redaction",  # Fast processing
-            **config_params
-        )
-        
-        # Process document
-        anonymizer = DocumentAnonymizer(config)
+        # Initialize engine (CPU-only typical for Lambda)
+        app_config = AppConfig.from_env_and_yaml()
+        engine = InferenceEngine(app_config.engine)
         
         # Save to temporary file
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_input:
@@ -565,7 +558,7 @@ def lambda_handler(event, context):
             tmp_output_path = tmp_output.name
         
         # Anonymize
-        result = anonymizer.anonymize_document(tmp_input_path, tmp_output_path)
+        result = engine.anonymize(document_data)
         
         # Read result
         with open(tmp_output_path, 'rb') as f:
@@ -579,8 +572,9 @@ def lambda_handler(event, context):
             'statusCode': 200,
             'body': json.dumps({
                 'anonymized_document': anonymized_data,
-                'entities_found': result.entities_found,
-                'processing_time_ms': result.processing_time_ms
+                'processing_time_ms': result.processing_time_ms,
+                'success': result.success,
+                'errors': result.errors,
             })
         }
         
@@ -688,45 +682,30 @@ app = FastAPI(title="Document Anonymization API")
 @app.post("/anonymize")
 async def anonymize_document(
     file: UploadFile = File(...),
-    entity_types: str = "PERSON,EMAIL_ADDRESS,PHONE_NUMBER",
-    confidence_threshold: float = 0.8,
-    strategy: str = "inpainting"
 ):
-    """Anonymize uploaded document."""
+    """Anonymize uploaded image using InferenceEngine."""
     
     try:
-        # Validate file type
-        if not file.filename.endswith('.pdf'):
-            raise HTTPException(400, "Only PDF files are supported")
-        
-        # Save uploaded file
-        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_input:
-            content = await file.read()
-            tmp_input.write(content)
-            tmp_input_path = tmp_input.name
-        
-        # Configure anonymizer
-        config = AnonymizationConfig(
-            entity_types=entity_types.split(','),
-            ner_confidence_threshold=confidence_threshold,
-            anonymization_strategy=strategy
-        )
-        
-        # Process document
-        anonymizer = DocumentAnonymizer(config)
-        tmp_output_path = tmp_input_path.replace('.pdf', '_anonymized.pdf')
-        
-        result = anonymizer.anonymize_document(tmp_input_path, tmp_output_path)
-        
+        content = await file.read()
+        from src.anonymizer.core.config import AppConfig
+        from src.anonymizer.inference.engine import InferenceEngine
+
+        engine = InferenceEngine(AppConfig.from_env_and_yaml().engine)
+        result = engine.anonymize(content)
+
         if not result.success:
-            raise HTTPException(500, f"Anonymization failed: {result.error_message}")
-        
-        # Return anonymized file
-        return FileResponse(
-            tmp_output_path,
-            media_type='application/pdf',
-            filename=f"anonymized_{file.filename}"
-        )
+            raise HTTPException(500, f"Anonymization encountered issues: {', '.join(result.errors)}")
+
+        # For images, return the anonymized bytes as PNG
+        import io
+        from PIL import Image
+        import numpy as np
+
+        output = io.BytesIO()
+        Image.fromarray(result.anonymized_image.astype(np.uint8)).save(output, format="PNG")
+        output.seek(0)
+
+        return Response(content=output.read(), media_type="image/png")
         
     except Exception as e:
         raise HTTPException(500, str(e))

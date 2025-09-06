@@ -162,6 +162,9 @@ def calculate_similarity_metrics(pred: Any, target: Any) -> dict[str, float]:
             # For full SSIM, would need additional implementation
 
             return {"mse": mse, "psnr": psnr}
+        # Return defaults for non-tensor inputs
+        logger.warning("Non-tensor inputs provided, returning default metrics")
+        return {"mse": 0.0, "psnr": 0.0}
 
     except Exception as e:
         logger.warning(f"Failed to calculate similarity metrics: {e}")

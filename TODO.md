@@ -1,16 +1,18 @@
 # TODO: Document Anonymization System
 
-## ✅ STATUS UPDATE: MAJOR PROGRESS COMPLETED
+**Last Updated:** 2025-08-07
 
-**All critical blocking issues have been resolved!** The document anonymization system is now functional with:
+## 📊 CURRENT STATUS
 
-- ✅ **Complete InferenceEngine** with NER pipeline and diffusion model integration
-- ✅ **Robust Dataset pipeline** for training with comprehensive validation
+**Significant progress made, but key components still need work:**
+
+- ✅ **VAE Training** fully implemented with corrected hyperparameters
+- ✅ **UNet Training** fully implemented with training loop
+- ⚠️ **InferenceEngine** partially complete - OCR integration needs work
+- ✅ **UNet Dataset** implemented - `InpaintingDataset` available and wired via `create_inpainting_dataloaders`
+- ❌ **Test Infrastructure** has issues - tests timing out
 - ✅ **Security hardening** with path validation and secure file handling
-- ✅ **Bug fixes** including Pydantic v2 migration and font loading
 - ✅ **Configuration improvements** with project-relative paths
-
-The codebase is now production-ready for core functionality. Remaining tasks are polish and additional testing.
 
 ---
 
@@ -43,34 +45,31 @@ Use structlog for logging
 
 ## HIGH PRIORITY (Blocking) ⚠️
 
-### 1. CRITICAL: Implement missing InferenceEngine core logic
-**File**: `src/anonymizer/inference/engine.py:11`
-**Status**: ✅ Completed
-**Description**: 
-- ✅ Added comprehensive NER pipeline using presidio
-- ✅ Implemented VAE/UNet inference pipeline with diffusion models
-- ✅ Added image composition logic for anonymized patches
-- ✅ Included security validation and memory management
+### 1. CRITICAL: Confidence Scoring and Quality Verification
+**File**: `src/anonymizer/inference/engine.py`
+**Status**: 🔄 Partially Complete
+**Description**:
+- Compute non-hardcoded confidence for `GeneratedPatch` based on model outputs and mask fidelity
+- Add optional SSIM/LPIPS-based verification gate controlled by config
 
-### 2. CRITICAL: Complete data loading pipeline for trainers
-**File**: `src/anonymizer/training/`
-**Status**: ✅ Completed
-**Description**: 
-- ✅ Created robust Dataset classes for VAE and UNet training
-- ✅ Implemented DataLoader integration in training loops
-- ✅ Added comprehensive data preprocessing and augmentation pipelines
-- ✅ Included security validation and error handling
+### 2. HIGH: Batch Inference Optimization
+**File**: `src/anonymizer/inference/engine.py`
+**Status**: ❌ Pending
+**Description**:
+- Group multiple regions by image into batched inpainting calls when feasible
+- Profile memory/latency; expose `max_regions_per_batch` in config
 
-### 3. CRITICAL: Fix import issues - missing modules
-**File**: Various
-**Status**: ✅ Completed
+### 3. CRITICAL: Fix Test Infrastructure
+**File**: Various test files
+**Status**: ❌ Broken
 **Description**: 
-- ✅ MetricsCollector class already existed and works correctly
-- ✅ Made torchvision imports conditional to prevent blocking errors
-- ✅ All dataset implementations are complete and functional
+- ❌ Tests timing out when running
+- ❌ Cannot measure test coverage accurately
+- ❌ Need to debug test execution issues
+- ❌ May have performance problems in test setup
 
-### 4. SECURITY: Add path validation against directory traversal
-**File**: `src/anonymizer/core/config.py:104`
+### 4. SECURITY: Path validation and temp files
+**File**: `src/anonymizer/core/config.py`, `src/anonymizer/inference/engine.py`
 **Status**: ✅ Completed
 **Description**: 
 - ✅ Added comprehensive path validation functions
@@ -112,10 +111,11 @@ Use structlog for logging
 - ✅ Updated all configs to use project-relative paths as defaults
 - ✅ Added path validation to all configurable paths
 
-### 9. IMPROVEMENT: Add comprehensive integration tests
-**Status**: 🔄 Partially Complete
+### 9. IMPROVEMENT: Fix and expand test suite
+**Status**: ❌ Blocked by infrastructure issues
 **Description**: 
-- ✅ Comprehensive unit tests exist for all core components
+- ❌ Test infrastructure broken (timeouts)
+- ❌ Cannot run tests to measure coverage
 - ❌ End-to-end integration tests needed
 - ❌ Inference pipeline integration tests needed
 
@@ -124,7 +124,7 @@ Use structlog for logging
 ## LOW PRIORITY (Polish) ✨
 
 ### 10. IMPROVEMENT: Add CLI tests using click.testing
-**File**: `main.py:34`
+**File**: `main.py`
 **Status**: ❌ Pending
 **Description**: 
 - Test all CLI commands and options
@@ -132,7 +132,7 @@ Use structlog for logging
 - Test configuration file loading
 
 ### 11. IMPROVEMENT: Bundle fonts for reproducibility
-**File**: `src/anonymizer/utils/text_rendering.py:45`
+**File**: `src/anonymizer/utils/text_rendering.py`
 **Status**: ❌ Pending
 **Description**: 
 - Include specific fonts in project assets
@@ -163,11 +163,17 @@ Use structlog for logging
 
 ## Next Steps Recommendation
 
-The codebase has excellent bones but needs these critical implementations before it can function as intended. Start with HIGH PRIORITY items in order:
+**Priority Order for Remaining Work:**
 
-1. Implement the missing `MetricsCollector` class to fix import errors
-2. Complete the `InferenceEngine` implementation 
-3. Add data loading pipeline for training
-4. Address security vulnerabilities
+1. **Fix test infrastructure** - Debug timeout issues to enable proper testing
+2. **Batch inference** - Implement region batching for inpainting
+3. **Improve test coverage** - Once tests run, expand coverage to 80%+
+4. **Integration testing** - Add end-to-end tests for full pipeline
+5. **HF Hub upload** - Implement optional upload in Modal training functions
 
-The configuration and architectural patterns are solid foundations to build upon.
+## Recent Discoveries (2025-08-06)
+
+- UNet trainer is MORE complete than documented - has full training loop
+- Test infrastructure has critical issues preventing execution
+- OCR TODOs remain unresolved at specific line numbers
+- Main gap is dataset implementation, not trainer logic

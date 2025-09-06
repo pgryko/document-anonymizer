@@ -13,35 +13,21 @@ The system uses a hierarchical configuration approach with multiple levels of cu
 
 ## Core Configuration Classes
 
-### AnonymizationConfig
+### EngineConfig and AppConfig
 
 Main configuration class that orchestrates all subsystem configurations.
 
 ```python
 @dataclass
-class AnonymizationConfig:
-    # OCR Configuration
-    ocr_engines: List[str] = field(default_factory=lambda: ["paddleocr", "easyocr"])
-    ocr_confidence_threshold: float = 0.7
-    ocr_languages: List[str] = field(default_factory=lambda: ["en"])
-    
-    # NER Configuration
-    entity_types: List[str] = field(default_factory=lambda: [
-        "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD", "IBAN_CODE"
-    ])
-    ner_confidence_threshold: float = 0.8
-    custom_patterns: Optional[Dict[str, str]] = None
-    
-    # Anonymization Configuration
-    anonymization_strategy: str = "inpainting"
-    preserve_formatting: bool = True
-    background_generation: bool = True
-    
-    # Performance Configuration
-    use_gpu: bool = True
-    batch_size: int = 4
-    memory_optimization: bool = True
-    enable_caching: bool = True
+from src.anonymizer.core.config import EngineConfig, AppConfig
+
+engine = EngineConfig(
+    num_inference_steps=50,
+    guidance_scale=7.5,
+    strength=1.0,
+)
+
+app = AppConfig(engine=engine)
 ```
 
 ## Configuration Categories
@@ -54,17 +40,17 @@ Controls text detection behavior and OCR engine selection.
 
 ```python
 # Single high-accuracy engine
-config = AnonymizationConfig(
+engine = EngineConfig(
     ocr_engines=["paddleocr"]
 )
 
 # Multi-engine fallback chain
-config = AnonymizationConfig(
+engine = EngineConfig(
     ocr_engines=["paddleocr", "easyocr", "tesseract"]
 )
 
 # Speed-optimized setup
-config = AnonymizationConfig(
+engine = EngineConfig(
     ocr_engines=["tesseract"],  # Fastest option
     ocr_confidence_threshold=0.6  # Lower threshold for speed
 )
@@ -74,7 +60,7 @@ config = AnonymizationConfig(
 
 ```python
 # Multi-language documents
-config = AnonymizationConfig(
+engine = EngineConfig(
     ocr_languages=["en", "es", "fr", "de"],
     ocr_engines=["paddleocr", "easyocr"]  # Both support multiple languages
 )
@@ -114,7 +100,7 @@ ocr_config = OCRConfig(
     contrast_enhancement=1.2
 )
 
-config = AnonymizationConfig(ocr_config=ocr_config)
+app = AppConfig(engine=EngineConfig(),)
 ```
 
 ### 2. NER Configuration
@@ -125,7 +111,7 @@ Controls PII entity detection and recognition patterns.
 
 ```python
 # Financial document processing
-config = AnonymizationConfig(
+engine = EngineConfig(
     entity_types=[
         "PERSON",
         "CREDIT_CARD",
@@ -139,7 +125,7 @@ config = AnonymizationConfig(
 )
 
 # Medical document processing
-config = AnonymizationConfig(
+engine = EngineConfig(
     entity_types=[
         "PERSON",
         "DATE_TIME",
@@ -152,7 +138,7 @@ config = AnonymizationConfig(
 )
 
 # Basic personal information
-config = AnonymizationConfig(
+engine = EngineConfig(
     entity_types=["PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER"]
 )
 ```
@@ -188,13 +174,13 @@ config = AnonymizationConfig(ner_config=ner_config)
 
 ```python
 # High precision (fewer false positives)
-config = AnonymizationConfig(
+engine = EngineConfig(
     ner_confidence_threshold=0.95,
     entity_types=["PERSON", "EMAIL_ADDRESS"]  # Focus on high-confidence types
 )
 
 # High recall (catch more entities, more false positives)
-config = AnonymizationConfig(
+engine = EngineConfig(
     ner_confidence_threshold=0.6,
     entity_types=[  # Include more entity types
         "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER", 
@@ -203,7 +189,7 @@ config = AnonymizationConfig(
 )
 
 # Balanced approach
-config = AnonymizationConfig(
+engine = EngineConfig(
     ner_confidence_threshold=0.8,
     # Use confidence-based filtering at runtime
     post_process_confidence_filter=True
@@ -237,7 +223,7 @@ diffusion_config = DiffusionConfig(
     enable_cpu_offload=False
 )
 
-config = AnonymizationConfig(
+engine = EngineConfig(
     anonymization_strategy="inpainting",
     diffusion_config=diffusion_config
 )
@@ -261,7 +247,7 @@ diffusion_config = DiffusionConfig(
     batch_size=4
 )
 
-config = AnonymizationConfig(
+engine = EngineConfig(
     anonymization_strategy="inpainting",
     diffusion_config=diffusion_config,
     batch_size=8  # Larger batches
@@ -272,21 +258,21 @@ config = AnonymizationConfig(
 
 ```python
 # Simple redaction (fastest)
-config = AnonymizationConfig(
+engine = EngineConfig(
     anonymization_strategy="redaction",
     redaction_color=(0, 0, 0),  # Black bars
     redaction_opacity=1.0
 )
 
 # Blur anonymization
-config = AnonymizationConfig(
+engine = EngineConfig(
     anonymization_strategy="blur",
     blur_radius=15,
     blur_iterations=3
 )
 
 # Text replacement
-config = AnonymizationConfig(
+engine = EngineConfig(
     anonymization_strategy="replacement",
     replacement_patterns={
         "PERSON": "[REDACTED NAME]",
@@ -673,23 +659,23 @@ class ABTestConfig:
 ### 3. Environment-Aware Configuration
 
 ```python
-def get_environment_config() -> AnonymizationConfig:
+def get_environment_config() -> EngineConfig:
     env = os.getenv("ENVIRONMENT", "development")
     
     if env == "development":
-        return AnonymizationConfig(
+        return EngineConfig(
             use_gpu=False,
             batch_size=1,
             log_level="DEBUG"
         )
     elif env == "staging":
-        return AnonymizationConfig(
+        return EngineConfig(
             use_gpu=True,
             batch_size=4,
             log_level="INFO"
         )
     elif env == "production":
-        return AnonymizationConfig(
+        return EngineConfig(
             use_gpu=True,
             batch_size=8,
             log_level="WARNING",
@@ -704,7 +690,7 @@ def get_environment_config() -> AnonymizationConfig:
 ```python
 from src.anonymizer.config import validate_config
 
-def validate_production_config(config: AnonymizationConfig) -> List[str]:
+def validate_production_config(config: EngineConfig) -> List[str]:
     """Validate configuration for production use."""
     issues = []
     

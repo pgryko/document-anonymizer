@@ -9,9 +9,9 @@ try:
 
     HAS_MODAL = True
 except ImportError:
-    modal_app = None
-    train_vae = None
-    train_unet = None
+    modal_app = None  # type: ignore[assignment]
+    train_vae = None  # type: ignore[assignment]
+    train_unet = None  # type: ignore[assignment]
     HAS_MODAL = False
 
 __all__ = [
