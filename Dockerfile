@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Document Anonymizer
 
 # Stage 1: Builder
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -41,7 +41,7 @@ COPY README.md ./
 RUN poetry install --only main
 
 # Stage 2: Runtime
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
