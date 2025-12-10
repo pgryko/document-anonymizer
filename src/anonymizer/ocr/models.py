@@ -49,7 +49,7 @@ class DetectedText:
     is_handwritten: bool | None = None
     metadata: dict[str, Any] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate detected text after initialization."""
         if not self.text.strip():
             raise EmptyTextError()
@@ -79,7 +79,7 @@ class OCRResult:
     errors: list[str] | None = None
     metadata: dict[str, Any] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize errors list if None."""
         if self.errors is None:
             self.errors = []
@@ -154,7 +154,7 @@ class OCRConfig:
     detect_handwriting: bool = False
     preserve_text_layout: bool = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize default values and validate configuration."""
         if self.fallback_engines is None:
             # Default fallback order
@@ -211,7 +211,7 @@ class OCRMetrics:
     memory_usage_mb: float | None = None
     gpu_usage_percent: float | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize fallback engines list if None."""
         if self.fallback_engines_tried is None:
             self.fallback_engines_tried = []

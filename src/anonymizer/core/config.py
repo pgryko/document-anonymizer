@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import yaml
 from pydantic import Field, field_validator
@@ -87,10 +88,10 @@ def _resolve_base_dir_cached(base_dir: str) -> Path | None:
 
 
 def validate_secure_path(  # Complex path validation function
-    path: str | Path,
+    path: str | Path | None,
     field_name: str = "path",
     allowed_base_dirs: list[str] | None = None,
-) -> Path:
+) -> Path | None:
     """Validate path for security using whitelist approach.
 
     Args:
@@ -99,7 +100,7 @@ def validate_secure_path(  # Complex path validation function
         allowed_base_dirs: List of allowed base directories. If None, uses defaults.
 
     Returns:
-        Validated Path object
+        Validated Path object, or None if path is None
 
     Raises:
         ValidationError: If path contains security risks
@@ -230,7 +231,7 @@ def validate_secure_path(  # Complex path validation function
 
 
 def validate_model_path(
-    path: str | Path,
+    path: str | Path | None,
     field_name: str = "model_path",
     allowed_base_dirs: list[str] | None = None,
 ) -> Path | None:
@@ -239,6 +240,8 @@ def validate_model_path(
         return None
 
     validated_path = validate_secure_path(path, field_name, allowed_base_dirs)
+    if validated_path is None:
+        return None
 
     # Additional checks for model files
     if validated_path.suffix not in [".safetensors", ".bin", ".pt", ".pth", ""]:
@@ -264,7 +267,7 @@ class OptimizerConfig(BaseSettings):
 
     @field_validator("betas")
     @classmethod
-    def validate_betas(cls, v):
+    def validate_betas(cls, v: list[float]) -> list[float]:
         if len(v) != BETA_PARAMETERS_COUNT or not all(0.0 <= b < 1.0 for b in v):
             raise BetasValidationError()
         return v
@@ -337,13 +340,13 @@ class VAEConfig(BaseSettings):
 
     @field_validator("checkpoint_dir")
     @classmethod
-    def validate_checkpoint_dir(cls, v):
+    def validate_checkpoint_dir(cls, v: str | Path | None) -> Path | None:
         """Validate checkpoint directory path for security."""
         return validate_secure_path(v, "checkpoint_dir")
 
     @field_validator("optimizer")
     @classmethod
-    def sync_optimizer_lr(cls, v, info):
+    def sync_optimizer_lr(cls, v: OptimizerConfig, info: Any) -> OptimizerConfig:
         """Ensure optimizer LR matches main learning rate."""
         if info.data and "learning_rate" in info.data:
             v.learning_rate = info.data["learning_rate"]
@@ -391,7 +394,7 @@ class UNetConfig(BaseSettings):
 
     @field_validator("checkpoint_dir")
     @classmethod
-    def validate_checkpoint_dir(cls, v):
+    def validate_checkpoint_dir_unet(cls, v: str | Path | None) -> Path | None:
         """Validate checkpoint directory path for security."""
         return validate_secure_path(v, "checkpoint_dir")
 
@@ -413,13 +416,13 @@ class DatasetConfig(BaseSettings):
 
     @field_validator("train_data_path")
     @classmethod
-    def validate_train_data_path(cls, v):
+    def validate_train_data_path(cls, v: str | Path | None) -> Path | None:
         """Validate training data path for security."""
         return validate_secure_path(v, "train_data_path")
 
     @field_validator("val_data_path")
     @classmethod
-    def validate_val_data_path(cls, v):
+    def validate_val_data_path(cls, v: str | Path | None) -> Path | None:
         """Validate validation data path for security."""
         if v is not None:
             return validate_secure_path(v, "val_data_path")
@@ -475,22 +478,24 @@ class EngineConfig(BaseSettings):
 
     @field_validator("vae_model_path")
     @classmethod
-    def validate_vae_model_path(cls, v, info):
+    def validate_vae_model_path(cls, v: str | Path | None, info: Any) -> str | None:
         """Validate VAE model path for security."""
         if v is not None:
             # Get allowed base dirs from the same config object
             allowed_dirs = info.data.get("allowed_model_base_dirs")
-            return str(validate_model_path(v, "vae_model_path", allowed_dirs))
+            validated = validate_model_path(v, "vae_model_path", allowed_dirs)
+            return str(validated) if validated else None
         return v
 
     @field_validator("unet_model_path")
     @classmethod
-    def validate_unet_model_path(cls, v, info):
+    def validate_unet_model_path(cls, v: str | Path | None, info: Any) -> str | None:
         """Validate UNet model path for security."""
         if v is not None:
             # Get allowed base dirs from the same config object
             allowed_dirs = info.data.get("allowed_model_base_dirs")
-            return str(validate_model_path(v, "unet_model_path", allowed_dirs))
+            validated = validate_model_path(v, "unet_model_path", allowed_dirs)
+            return str(validated) if validated else None
         return v
 
     # Inference parameters
@@ -532,7 +537,7 @@ class R2Config(BaseSettings):
 
     @field_validator("access_key_id", "secret_access_key")
     @classmethod
-    def validate_credentials(cls, v):
+    def validate_credentials(cls, v: str) -> str:
         """Validate credentials are not empty and meet basic requirements."""
         if not v or len(v.strip()) == 0:
             raise EmptyCredentialError()
@@ -542,7 +547,7 @@ class R2Config(BaseSettings):
 
     @field_validator("endpoint_url")
     @classmethod
-    def validate_endpoint_url(cls, v):
+    def validate_endpoint_url(cls, v: str) -> str:
         """Validate endpoint URL format."""
         if not v.startswith(("https://", "http://")):
             raise InvalidEndpointUrlError()
@@ -626,7 +631,7 @@ class AppConfig(BaseSettings):
     r2: R2Config | None = Field(default_factory=lambda: None)
     metrics: MetricsConfig = Field(default_factory=MetricsConfig)
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Post-initialization to reload nested configs with proper env var support."""
         # More efficient approach: only reload if we detect relevant env vars
         # and avoid full object recreation by updating existing instances
@@ -691,7 +696,7 @@ class AppConfig(BaseSettings):
         vae_yaml: str | Path | None = None,
         unet_yaml: str | Path | None = None,
         engine_yaml: str | Path | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> "AppConfig":
         """Load configuration with YAML overrides for specific components."""
         # Start with env/defaults
@@ -759,19 +764,21 @@ def load_config_from_yaml(config_path: str | Path, config_class: type) -> BaseSe
 
 
 # Add convenient methods to configuration classes
-def _add_yaml_methods():
+def _add_yaml_methods() -> None:
     """Add YAML loading methods to configuration classes."""
 
-    @classmethod
-    def from_yaml(cls, config_path: str | Path):
+    @classmethod  # type: ignore[misc]
+    def from_yaml(cls: type[BaseSettings], config_path: str | Path) -> BaseSettings:
         """Load configuration from YAML file."""
         return load_config_from_yaml(config_path, cls)
 
-    @classmethod
-    def from_env_and_yaml(cls, yaml_path: str | Path | None = None, env_file: str = ".env"):
+    @classmethod  # type: ignore[misc]
+    def from_env_and_yaml(
+        cls: type[BaseSettings], yaml_path: str | Path | None = None, env_file: str = ".env"
+    ) -> BaseSettings:
         """Load configuration from environment variables and optionally override with YAML."""
         if yaml_path and Path(yaml_path).exists():
-            return cls.from_yaml(yaml_path)
+            return cls.from_yaml(yaml_path)  # type: ignore[attr-defined]
         # Load from environment variables/.env file
         return cls(_env_file=env_file if Path(env_file).exists() else None)
 

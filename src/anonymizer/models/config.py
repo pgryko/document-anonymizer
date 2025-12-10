@@ -4,7 +4,7 @@
 Configuration classes for model management, downloading, and validation.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -53,7 +53,7 @@ class ModelSource:
     license: str | None = None
     description: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate model source configuration."""
         if not self.name or not self.url:
             raise ModelNameAndUrlRequiredError()
@@ -92,7 +92,7 @@ class ModelConfig:
     allow_external_urls: bool = True
     trusted_domains: list[str] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize and validate configuration."""
         if self.trusted_domains is None:
             self.trusted_domains = [
@@ -138,7 +138,7 @@ class ModelMetadata:
     tags: list[str] | None = None
     description: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize metadata."""
         if self.tags is None:
             self.tags = []
@@ -187,19 +187,12 @@ class ValidationResult:
 
     valid: bool
     model_path: Path
-    errors: list[str]
-    warnings: list[str]
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     checksum_valid: bool | None = None
     format_valid: bool | None = None
     size_valid: bool | None = None
     loadable: bool | None = None
-
-    def __post_init__(self):
-        """Initialize validation result."""
-        if self.errors is None:
-            self.errors = []
-        if self.warnings is None:
-            self.warnings = []
 
     @property
     def has_errors(self) -> bool:
@@ -211,11 +204,11 @@ class ValidationResult:
         """Check if validation has warnings."""
         return len(self.warnings) > 0
 
-    def add_error(self, error: str):
+    def add_error(self, error: str) -> None:
         """Add validation error."""
         self.errors.append(error)
         self.valid = False
 
-    def add_warning(self, warning: str):
+    def add_warning(self, warning: str) -> None:
         """Add validation warning."""
         self.warnings.append(warning)

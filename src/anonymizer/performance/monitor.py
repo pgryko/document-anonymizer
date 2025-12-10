@@ -96,7 +96,7 @@ class ResourceMonitor:
 
         self.samples: list[ResourceSample] = []
         self._monitor_thread: threading.Thread | None = None
-        self._sample_queue = queue.Queue()
+        self._sample_queue: queue.Queue[ResourceSample] = queue.Queue()
 
         # Initialize process reference
         self.process = psutil.Process()
@@ -218,7 +218,7 @@ class ResourceMonitor:
                 network_recv_mb=0.0,
             )
 
-    def _monitor_loop(self):
+    def _monitor_loop(self) -> None:
         """Background monitoring loop."""
         while self.is_monitoring:
             try:
@@ -235,7 +235,7 @@ class ResourceMonitor:
                 logger.exception("Error in monitoring loop")
                 time.sleep(self.sample_interval)
 
-    def start_monitoring(self):
+    def start_monitoring(self) -> None:
         """Start resource monitoring."""
         if self.is_monitoring:
             return
@@ -317,7 +317,7 @@ class ResourceMonitor:
         memory_rss_values = [s.memory_rss_mb for s in samples]
 
         # Calculate statistics
-        def calc_stats(values):
+        def calc_stats(values: list[float]) -> dict[str, float]:
             return {
                 "min": min(values),
                 "max": max(values),
@@ -393,7 +393,7 @@ class PerformanceMonitor:
 
         logger.info(f"PerformanceMonitor initialized (results_dir: {self.results_dir})")
 
-    def start_session(self, session_name: str):
+    def start_session(self, session_name: str) -> None:
         """Start a performance monitoring session."""
         self.session_name = session_name
         self.session_start_time = time.time()

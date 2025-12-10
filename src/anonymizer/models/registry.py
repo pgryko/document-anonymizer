@@ -36,7 +36,7 @@ class ModelRegistry:
         if self.registry_path.exists():
             self._load_registry()
 
-    def _load_predefined_models(self):
+    def _load_predefined_models(self) -> None:
         """Load predefined model configurations."""
         # Stable Diffusion 2.0 Inpainting - Main pipeline
         self._models["sd2-inpainting"] = ModelSource(
@@ -106,7 +106,7 @@ class ModelRegistry:
 
         logger.info(f"Loaded {len(self._models)} predefined models")
 
-    def _load_registry(self):
+    def _load_registry(self) -> None:
         """Load custom model registry from disk."""
         try:
             with self.registry_path.open() as f:
@@ -129,13 +129,13 @@ class ModelRegistry:
         except Exception as e:
             logger.warning(f"Failed to load registry: {e}")
 
-    def _save_registry(self):
+    def _save_registry(self) -> None:
         """Save custom registry to disk."""
         try:
             self.registry_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Prepare data for serialization
-            data = {
+            data: dict[str, list[dict[str, object]] | str] = {
                 "models": [],
                 "metadata": [],
                 "last_updated": datetime.now(UTC).isoformat(),
@@ -191,7 +191,6 @@ class ModelRegistry:
             return False
         else:
             return True
-            return False
 
     def register_metadata(self, metadata: ModelMetadata) -> bool:
         """Register model metadata."""
@@ -204,7 +203,6 @@ class ModelRegistry:
             return False
         else:
             return True
-            return False
 
     def get_model(self, name: str) -> ModelSource | None:
         """Get model source by name."""
@@ -308,7 +306,7 @@ class ModelRegistry:
 
         return info
 
-    def update_usage(self, name: str):
+    def update_usage(self, name: str) -> None:
         """Update usage statistics for a model."""
         metadata = self.get_metadata(name)
         if metadata:
@@ -366,5 +364,3 @@ class ModelRegistry:
             return False
         else:
             return True
-            logger.exception("Failed to export registry")
-            return False
