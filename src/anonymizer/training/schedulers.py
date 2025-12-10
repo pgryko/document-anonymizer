@@ -94,7 +94,7 @@ def create_scheduler(
 
             def _raise_unsupported_error() -> None:
                 msg = f"Unsupported scheduler type: {scheduler_type}"
-                raise ConfigurationError(msg)  # noqa: TRY301
+                raise ConfigurationError(msg)
 
             _raise_unsupported_error()
 

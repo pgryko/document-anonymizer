@@ -346,9 +346,7 @@ class AnonymizationBenchmark:
             "SSN: 123-45-6789",
             "Credit card: 4111-1111-1111-1111",
             "Address: 123 Main St, Anytown, CA 12345",
-        ] * (
-            num_texts // 5 + 1
-        )  # Repeat to get desired count
+        ] * (num_texts // 5 + 1)  # Repeat to get desired count
 
         try:
             with self.profiler.profile_operation(benchmark_name):

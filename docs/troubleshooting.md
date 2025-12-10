@@ -154,7 +154,7 @@ config = EngineConfig(
     enable_memory_efficient_attention=True,
     enable_vae_slicing=True,
     enable_cpu_offload=True,
-    
+
     # General memory optimization
     unload_models_after_use=True,
     force_garbage_collection=True,
@@ -377,10 +377,10 @@ config = EngineConfig(
     # Use fastest OCR
     ocr_engines=["tesseract"],
     ocr_confidence_threshold=0.6,
-    
+
     # Use simple anonymization
     anonymization_strategy="redaction",
-    
+
     # Optimize processing
     batch_size=8,
     use_gpu=True,
@@ -443,17 +443,17 @@ config = EngineConfig(
 def process_large_batch(documents):
     """Process large batches with memory management."""
     results = []
-    
+
     for i, doc in enumerate(documents):
         result = anonymizer.anonymize_document(doc)
         results.append(result)
-        
+
         # Cleanup every 10 documents
         if i % 10 == 0:
             import gc
             gc.collect()
             torch.cuda.empty_cache() if torch.cuda.is_available() else None
-    
+
     return results
 ```
 
@@ -577,7 +577,7 @@ def robust_pdf_processing(pdf_path):
         return result
     except Exception as e:
         print(f"Standard processing failed: {e}")
-        
+
         # Try with repair
         try:
             repaired_path = repair_pdf(pdf_path)
@@ -590,15 +590,15 @@ def robust_pdf_processing(pdf_path):
 def repair_pdf(pdf_path):
     """Attempt to repair corrupted PDF."""
     import subprocess
-    
+
     output_path = pdf_path.replace('.pdf', '_repaired.pdf')
-    
+
     # Use gs (Ghostscript) to repair
     subprocess.run([
         'gs', '-o', output_path, '-sDEVICE=pdfwrite',
         '-dPDFSETTINGS=/prepress', pdf_path
     ], check=True)
-    
+
     return output_path
 ```
 
@@ -613,24 +613,24 @@ def repair_pdf(pdf_path):
 def split_large_pdf(pdf_path, max_pages=10):
     """Split large PDF into smaller chunks."""
     import fitz
-    
+
     doc = fitz.open(pdf_path)
     total_pages = len(doc)
-    
+
     chunks = []
     for start_page in range(0, total_pages, max_pages):
         end_page = min(start_page + max_pages, total_pages)
-        
+
         # Create chunk
         chunk_doc = fitz.open()
         chunk_doc.insert_pdf(doc, from_page=start_page, to_page=end_page-1)
-        
+
         chunk_path = pdf_path.replace('.pdf', f'_chunk_{start_page}-{end_page}.pdf')
         chunk_doc.save(chunk_path)
         chunk_doc.close()
-        
+
         chunks.append(chunk_path)
-    
+
     doc.close()
     return chunks
 
@@ -649,34 +649,34 @@ for chunk in chunks:
 def stream_process_large_file(pdf_path):
     """Process large file page by page."""
     import fitz
-    
+
     doc = fitz.open(pdf_path)
     output_doc = fitz.open()
-    
+
     for page_num in range(len(doc)):
         # Process single page
         page = doc[page_num]
         page_image = page.get_pixmap().tobytes("png")
-        
+
         # Anonymize page image
         anonymized_image = process_single_page_image(page_image)
-        
+
         # Add to output document
         output_page = output_doc.new_page(width=page.rect.width, height=page.rect.height)
         output_page.insert_image(output_page.rect, stream=anonymized_image)
-        
+
         # Clean up memory
         page = None
         if page_num % 10 == 0:
             import gc
             gc.collect()
-    
+
     # Save output
     output_path = pdf_path.replace('.pdf', '_anonymized.pdf')
     output_doc.save(output_path)
     output_doc.close()
     doc.close()
-    
+
     return output_path
 ```
 
@@ -704,14 +704,14 @@ logging.getLogger('anonymizer.diffusion').setLevel(logging.DEBUG)
 ```python
 def run_system_diagnostics():
     """Run comprehensive system diagnostics."""
-    
+
     diagnostics = {
         "python_version": sys.version,
         "platform": platform.platform(),
         "cpu_count": os.cpu_count(),
         "memory_gb": psutil.virtual_memory().total / 1024**3,
     }
-    
+
     # GPU diagnostics
     if torch.cuda.is_available():
         diagnostics["gpu"] = {
@@ -724,7 +724,7 @@ def run_system_diagnostics():
         }
     else:
         diagnostics["gpu"] = {"available": False}
-    
+
     # Model diagnostics
     from src.anonymizer.models import ModelManager
     manager = ModelManager()
@@ -733,12 +733,12 @@ def run_system_diagnostics():
         "downloaded": len(manager.list_downloaded_models()),
         "storage_stats": manager.get_storage_stats()
     }
-    
+
     # OCR diagnostics
     from src.anonymizer.ocr import OCREngineFactory
     factory = OCREngineFactory()
     diagnostics["ocr_engines"] = factory.list_available_engines()
-    
+
     return diagnostics
 
 # Run diagnostics
@@ -752,27 +752,27 @@ print(json.dumps(diag, indent=2))
 ```python
 def profile_anonymization(document_path):
     """Profile anonymization performance."""
-    
+
     import cProfile
     import pstats
     from io import StringIO
-    
+
     # Run profiler
     profiler = cProfile.Profile()
     profiler.enable()
-    
+
     result = InferenceEngine(AppConfig.from_env_and_yaml().engine).anonymize(Path(document_path).read_bytes())
-    
+
     profiler.disable()
-    
+
     # Generate report
     s = StringIO()
     ps = pstats.Stats(profiler, stream=s)
     ps.sort_stats('cumulative').print_stats(20)
-    
+
     print("Performance Profile:")
     print(s.getvalue())
-    
+
     return result
 ```
 

@@ -2,7 +2,7 @@
 
 ## A Production-Ready System for Privacy-Preserving Document Processing in Financial Industries
 
-**Author:** Dr. Piotr Gryko  
+**Author:** Dr. Piotr Gryko
 **Date:** September 6, 2025
 
 ---
@@ -258,7 +258,7 @@ The system employs a multi-component architecture designed for modularity, secur
 
 **Data Flow Architecture:**
 ```
-Input Document → OCR Processing → Entity Detection → Anonymization Planning → 
+Input Document → OCR Processing → Entity Detection → Anonymization Planning →
 Diffusion-based Replacement → Quality Validation → Output Document
 ```
 

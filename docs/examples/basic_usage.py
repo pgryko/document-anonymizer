@@ -256,7 +256,7 @@ def example_confidence_analysis():
         print("📊 Confidence Score Analysis:")
         print(f"   📈 Highest: {max(scores):.3f}")
         print(f"   📉 Lowest: {min(scores):.3f}")
-        print(f"   📊 Average: {sum(scores)/len(scores):.3f}")
+        print(f"   📊 Average: {sum(scores) / len(scores):.3f}")
 
         # Analyze distribution
         high_confidence = [s for s in scores if s >= HIGH_CONFIDENCE_THRESHOLD]

@@ -265,7 +265,7 @@ class FontInfo(BaseModel):
 
     @field_validator("style")
     @classmethod
-    def validate_style(cls, v):
+    def validate_style(cls, v: str) -> str:
         valid_styles = {"normal", "bold", "italic", "bold-italic"}
         if v not in valid_styles:
             raise InvalidStyleError(valid_styles)
@@ -291,7 +291,7 @@ class BatchItem(BaseModel):
     image_path: Path = Field(..., description="Path to input image file")
     text_regions: list[TextRegion] = Field(
         default_factory=list,
-        max_items=50,
+        max_length=50,
         description="Text regions to anonymize",
     )
     output_path: Path | None = Field(None, description="Optional output path for this item")
@@ -305,7 +305,7 @@ class BatchItem(BaseModel):
 class BatchAnonymizationRequest(BaseModel):
     """Request for batch document anonymization."""
 
-    items: list[BatchItem] = Field(..., max_items=100, description="Items to process")
+    items: list[BatchItem] = Field(..., max_length=100, description="Items to process")
     output_directory: Path = Field(..., description="Base output directory")
     preserve_structure: bool = Field(True, description="Preserve input directory structure")
     max_parallel: int = Field(4, ge=1, le=16, description="Maximum parallel processes")

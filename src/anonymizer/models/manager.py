@@ -101,7 +101,7 @@ class ModelManager:
                         metadata.local_path.unlink()
 
                     def _raise_validation_error() -> None:
-                        raise ModelValidationError()  # noqa: TRY301
+                        raise ModelValidationError()
 
                     _raise_validation_error()
 
@@ -146,7 +146,7 @@ class ModelManager:
                         metadata.local_path.unlink()
 
                     def _raise_validation_error() -> None:
-                        raise ModelValidationError()  # noqa: TRY301
+                        raise ModelValidationError()
 
                     _raise_validation_error()
 

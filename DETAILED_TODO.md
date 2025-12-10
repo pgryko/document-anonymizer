@@ -4,7 +4,7 @@
 
 All critical blocking issues have been resolved. The system now has functional:
 - ✅ InferenceEngine with NER and diffusion models
-- ✅ Training pipeline with VAE/UNet trainers  
+- ✅ Training pipeline with VAE/UNet trainers
 - ✅ Security hardening and validation
 - ✅ Dataset loading and preprocessing
 - ✅ Configuration management
@@ -44,7 +44,7 @@ def test_complete_anonymization_workflow():
 
 **Tasks**:
 - [ ] Test `train-vae` command with sample config
-- [ ] Test `train-unet` command with sample config  
+- [ ] Test `train-unet` command with sample config
 - [ ] Test `anonymize` command with image input
 - [ ] Verify CLI error handling and help messages
 - [ ] Test config file loading and validation
@@ -102,15 +102,15 @@ def test_anonymize_command():
 class OCRProcessor:
     def __init__(self, engine_type="trocr"):
         # Initialize TrOCR or PaddleOCR
-        
+
     def extract_text_regions(self, image: np.ndarray) -> List[DetectedText]:
         # Return text with bounding boxes and confidence
-        
+
     def get_text_bboxes(self, image: np.ndarray) -> List[BoundingBox]:
         # Extract just bounding boxes for anonymization
 ```
 
-**Dependencies**: 
+**Dependencies**:
 - Add TrOCR models to requirements
 - Test with various document types
 

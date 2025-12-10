@@ -539,35 +539,35 @@ from src.anonymizer.inference.engine import InferenceEngine
 
 def lambda_handler(event, context):
     """AWS Lambda handler for document anonymization."""
-    
+
     try:
         # Parse request
         document_data = base64.b64decode(event['document_data'])
         config_params = event.get('config', {})
-        
+
         # Initialize engine (CPU-only typical for Lambda)
         app_config = AppConfig.from_env_and_yaml()
         engine = InferenceEngine(app_config.engine)
-        
+
         # Save to temporary file
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_input:
             tmp_input.write(document_data)
             tmp_input_path = tmp_input.name
-        
+
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_output:
             tmp_output_path = tmp_output.name
-        
+
         # Anonymize
         result = engine.anonymize(document_data)
-        
+
         # Read result
         with open(tmp_output_path, 'rb') as f:
             anonymized_data = base64.b64encode(f.read()).decode('utf-8')
-        
+
         # Cleanup
         os.unlink(tmp_input_path)
         os.unlink(tmp_output_path)
-        
+
         return {
             'statusCode': 200,
             'body': json.dumps({
@@ -577,7 +577,7 @@ def lambda_handler(event, context):
                 'errors': result.errors,
             })
         }
-        
+
     except Exception as e:
         return {
             'statusCode': 500,
@@ -684,7 +684,7 @@ async def anonymize_document(
     file: UploadFile = File(...),
 ):
     """Anonymize uploaded image using InferenceEngine."""
-    
+
     try:
         content = await file.read()
         from src.anonymizer.core.config import AppConfig
@@ -706,10 +706,10 @@ async def anonymize_document(
         output.seek(0)
 
         return Response(content=output.read(), media_type="image/png")
-        
+
     except Exception as e:
         raise HTTPException(500, str(e))
-    
+
     finally:
         # Cleanup
         if 'tmp_input_path' in locals():
@@ -745,25 +745,25 @@ server {
 server {
     listen 443 ssl http2;
     server_name your-domain.com;
-    
+
     ssl_certificate /etc/nginx/ssl/cert.pem;
     ssl_certificate_key /etc/nginx/ssl/key.pem;
-    
+
     client_max_body_size 100M;
     client_body_timeout 300s;
-    
+
     location / {
         proxy_pass http://anonymizer_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         proxy_connect_timeout 300s;
         proxy_send_timeout 300s;
         proxy_read_timeout 300s;
     }
-    
+
     location /health {
         proxy_pass http://anonymizer_backend/health;
         access_log off;
@@ -789,12 +789,12 @@ ENTITIES_DETECTED = Histogram('anonymization_entities_detected', 'Entities detec
 class MonitoringMiddleware:
     def __init__(self, app):
         self.app = app
-        
+
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             start_time = time.time()
             ACTIVE_REQUESTS.inc()
-            
+
             try:
                 await self.app(scope, receive, send)
                 REQUESTS_TOTAL.labels(status='success').inc()
@@ -829,13 +829,13 @@ class JSONFormatter(logging.Formatter):
             'function': record.funcName,
             'line': record.lineno
         }
-        
+
         if hasattr(record, 'request_id'):
             log_entry['request_id'] = record.request_id
-            
+
         if hasattr(record, 'user_id'):
             log_entry['user_id'] = record.user_id
-            
+
         return json.dumps(log_entry)
 
 # Configure logging
@@ -871,7 +871,7 @@ class HealthChecker:
             'disk': self._check_disk,
             'models': self._check_models
         }
-    
+
     def get_health_status(self) -> Dict[str, Any]:
         """Get comprehensive health status."""
         status = {
@@ -879,7 +879,7 @@ class HealthChecker:
             'timestamp': datetime.utcnow().isoformat(),
             'checks': {}
         }
-        
+
         for check_name, check_func in self.checks.items():
             try:
                 check_result = check_func()
@@ -893,22 +893,22 @@ class HealthChecker:
                     'error': str(e)
                 }
                 status['status'] = 'unhealthy'
-        
+
         return status
-    
+
     def _check_gpu(self) -> Dict[str, Any]:
         """Check GPU availability and memory."""
         if not torch.cuda.is_available():
             return {'available': False}
-        
+
         gpu_count = torch.cuda.device_count()
         gpu_info = []
-        
+
         for i in range(gpu_count):
             props = torch.cuda.get_device_properties(i)
             memory_allocated = torch.cuda.memory_allocated(i)
             memory_total = props.total_memory
-            
+
             gpu_info.append({
                 'device': i,
                 'name': props.name,
@@ -916,13 +916,13 @@ class HealthChecker:
                 'memory_total_mb': memory_total // 1024**2,
                 'memory_usage_percent': (memory_allocated / memory_total) * 100
             })
-        
+
         return {
             'available': True,
             'device_count': gpu_count,
             'devices': gpu_info
         }
-    
+
     def _check_memory(self) -> Dict[str, Any]:
         """Check system memory usage."""
         memory = psutil.virtual_memory()

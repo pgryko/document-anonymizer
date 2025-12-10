@@ -2,7 +2,7 @@
 # ==============================================
 #
 # This configuration fixes critical bugs in the reference implementations:
-# 1. Proper learning rate (1e-4 instead of 1e-5) 
+# 1. Proper learning rate (1e-4 instead of 1e-5)
 # 2. Adequate batch size (8 instead of 4)
 # 3. Uses Stable Diffusion 2.0 inpainting (correct 9-channel architecture)
 # 4. Proper text conditioning with TrOCR
@@ -19,20 +19,20 @@ training:
   gradient_accumulation_steps: 4
   mixed_precision: "bf16"
   gradient_clipping: 1.0
-  
+
   # Diffusion parameters
   num_train_timesteps: 1000
   noise_schedule: "scaled_linear"
-  
+
   # Text conditioning parameters
   text_encoder_lr_scale: 0.1
   freeze_text_encoder: false
-  
+
   optimizer:
     type: "AdamW"
     weight_decay: 0.01
     betas: [0.9, 0.999]
-  
+
   scheduler:
     type: "cosine_with_restarts"
     warmup_steps: 1000
@@ -44,7 +44,7 @@ dataset:
   val_data_path: "/data/val"
   crop_size: 512
   num_workers: 4
-  
+
   # Conservative augmentation for text preservation
   rotation_range: 2.0         # Very conservative for text
   brightness_range: 0.05      # Very conservative

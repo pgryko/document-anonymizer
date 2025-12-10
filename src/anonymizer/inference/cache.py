@@ -21,6 +21,8 @@ from typing import Any
 import torch
 from diffusers import StableDiffusionInpaintPipeline
 
+from src.anonymizer.core.exceptions import BatchProcessingTimeoutError
+
 logger = logging.getLogger(__name__)
 
 
@@ -233,8 +235,8 @@ class ModelCache:
 
                 return model, False
 
-            except Exception as e:
-                logger.error(f"Failed to load model {model_path}: {e}")
+            except Exception:
+                logger.exception(f"Failed to load model {model_path}")
                 return None, False
 
     def preload(
@@ -273,8 +275,8 @@ class ModelCache:
                 logger.warning(f"Failed to preload model {cache_key}")
                 return cache_key, False
 
-            except Exception as e:
-                logger.error(f"Error preloading model {cache_key}: {e}")
+            except Exception:
+                logger.exception(f"Error preloading model {cache_key}")
                 return cache_key, False
 
         # Execute preloading with thread pool
@@ -287,8 +289,8 @@ class ModelCache:
                     cache_key, success = future.result()
                     if success:
                         successful += 1
-                except Exception as e:
-                    logger.error(f"Preload task failed: {e}")
+                except Exception:
+                    logger.exception("Preload task failed")
 
         logger.info(
             f"Preloading complete: {successful}/{len(model_specs)} models loaded successfully"
@@ -320,14 +322,13 @@ class ModelCache:
             return None
 
         with self._lock:
-            stats_copy = CacheStats(
+            return CacheStats(
                 hits=self._stats.hits,
                 misses=self._stats.misses,
                 evictions=self._stats.evictions,
                 total_memory_mb=self._current_memory_mb,
                 max_memory_mb=self._stats.max_memory_mb,
             )
-            return stats_copy
 
     def get_cache_info(self) -> dict[str, Any]:
         """Get detailed cache information."""
@@ -504,8 +505,9 @@ class BatchProcessor:
                                 break
 
                 except Exception as e:
-                    logger.error(f"Batch processing failed: {e}")
+                    logger.exception("Batch processing failed")
                     # Send error results
+                    error_msg = str(e)
                     for request in batch_requests:
                         if request.callback:
                             error_result = BatchResult(
@@ -513,7 +515,7 @@ class BatchProcessor:
                                 result=None,
                                 processing_time_ms=0.0,
                                 success=False,
-                                error=str(e),
+                                error=error_msg,
                             )
                             request.callback(error_result)
 
@@ -545,7 +547,7 @@ class BatchFuture:
             TimeoutError: If timeout is reached
         """
         if not self._event.wait(timeout=timeout):
-            raise TimeoutError("Batch processing timeout")
+            raise BatchProcessingTimeoutError()
 
         return self._result
 

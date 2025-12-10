@@ -77,7 +77,7 @@ def document_loading(ctx, image_size: str, num_documents: int, iterations: int):
     results = []
 
     for i in range(iterations):
-        click.echo(f"\n⏳ Running iteration {i+1}/{iterations}...")
+        click.echo(f"\n⏳ Running iteration {i + 1}/{iterations}...")
 
         result = benchmark.benchmark_document_loading(image_size=size, num_documents=num_documents)
 
@@ -85,11 +85,11 @@ def document_loading(ctx, image_size: str, num_documents: int, iterations: int):
 
         if result.success:
             click.echo(
-                f"✅ Iteration {i+1}: {result.duration_ms:.1f}ms, "
+                f"✅ Iteration {i + 1}: {result.duration_ms:.1f}ms, "
                 f"peak memory: {result.peak_memory_mb:.1f}MB"
             )
         else:
-            click.echo(f"❌ Iteration {i+1} failed: {result.error_message}")
+            click.echo(f"❌ Iteration {i + 1} failed: {result.error_message}")
 
     # Calculate averages
     successful_results = [r for r in results if r.success]
@@ -141,7 +141,7 @@ def text_detection(ctx, image_size: str, num_images: int, iterations: int):
     results = []
 
     for i in range(iterations):
-        click.echo(f"\n⏳ Running iteration {i+1}/{iterations}...")
+        click.echo(f"\n⏳ Running iteration {i + 1}/{iterations}...")
 
         result = benchmark.benchmark_text_detection(image_size=size, num_images=num_images)
 
@@ -149,11 +149,11 @@ def text_detection(ctx, image_size: str, num_images: int, iterations: int):
 
         if result.success:
             click.echo(
-                f"✅ Iteration {i+1}: {result.duration_ms:.1f}ms, "
+                f"✅ Iteration {i + 1}: {result.duration_ms:.1f}ms, "
                 f"peak memory: {result.peak_memory_mb:.1f}MB"
             )
         else:
-            click.echo(f"❌ Iteration {i+1} failed: {result.error_message}")
+            click.echo(f"❌ Iteration {i + 1} failed: {result.error_message}")
 
     # Save and display results
     _display_and_save_results(results, "text_detection", results_dir, num_images)
@@ -175,7 +175,7 @@ def pii_detection(ctx, num_texts: int, iterations: int):
     results = []
 
     for i in range(iterations):
-        click.echo(f"\n⏳ Running iteration {i+1}/{iterations}...")
+        click.echo(f"\n⏳ Running iteration {i + 1}/{iterations}...")
 
         result = benchmark.benchmark_pii_detection(num_texts=num_texts)
 
@@ -183,11 +183,11 @@ def pii_detection(ctx, num_texts: int, iterations: int):
 
         if result.success:
             click.echo(
-                f"✅ Iteration {i+1}: {result.duration_ms:.1f}ms, "
+                f"✅ Iteration {i + 1}: {result.duration_ms:.1f}ms, "
                 f"peak memory: {result.peak_memory_mb:.1f}MB"
             )
         else:
-            click.echo(f"❌ Iteration {i+1} failed: {result.error_message}")
+            click.echo(f"❌ Iteration {i + 1} failed: {result.error_message}")
 
     # Save and display results
     _display_and_save_results(results, "pii_detection", results_dir, num_texts)
@@ -219,7 +219,7 @@ def inpainting(ctx, image_size: str, num_regions: int, iterations: int):
     results = []
 
     for i in range(iterations):
-        click.echo(f"\n⏳ Running iteration {i+1}/{iterations}...")
+        click.echo(f"\n⏳ Running iteration {i + 1}/{iterations}...")
 
         result = benchmark.benchmark_inpainting(
             image_size=size,
@@ -231,11 +231,11 @@ def inpainting(ctx, image_size: str, num_regions: int, iterations: int):
 
         if result.success:
             click.echo(
-                f"✅ Iteration {i+1}: {result.duration_ms:.1f}ms, "
+                f"✅ Iteration {i + 1}: {result.duration_ms:.1f}ms, "
                 f"peak memory: {result.peak_memory_mb:.1f}MB"
             )
         else:
-            click.echo(f"❌ Iteration {i+1} failed: {result.error_message}")
+            click.echo(f"❌ Iteration {i + 1} failed: {result.error_message}")
 
     # Save and display results
     _display_and_save_results(results, "inpainting", results_dir, 1)
@@ -267,7 +267,7 @@ def end_to_end(ctx, image_size: str, num_documents: int, iterations: int):
     results = []
 
     for i in range(iterations):
-        click.echo(f"\n⏳ Running iteration {i+1}/{iterations}...")
+        click.echo(f"\n⏳ Running iteration {i + 1}/{iterations}...")
 
         result = benchmark.benchmark_end_to_end(image_size=size, num_documents=num_documents)
 
@@ -275,7 +275,7 @@ def end_to_end(ctx, image_size: str, num_documents: int, iterations: int):
 
         if result.success:
             click.echo(
-                f"✅ Iteration {i+1}: {result.duration_ms:.1f}ms, "
+                f"✅ Iteration {i + 1}: {result.duration_ms:.1f}ms, "
                 f"peak memory: {result.peak_memory_mb:.1f}MB"
             )
 
@@ -284,7 +284,7 @@ def end_to_end(ctx, image_size: str, num_documents: int, iterations: int):
                 stages = result.additional_metrics["pipeline_stages"]
                 click.echo(f"   Pipeline stages: {' → '.join(stages)}")
         else:
-            click.echo(f"❌ Iteration {i+1} failed: {result.error_message}")
+            click.echo(f"❌ Iteration {i + 1} failed: {result.error_message}")
 
     # Save and display results
     _display_and_save_results(results, "end_to_end", results_dir, num_documents)
@@ -428,11 +428,11 @@ def analyze(results_file: Path):
             click.echo(f"\n📈 {benchmark_name} ({len(successful)} runs):")
             click.echo(
                 f"   Duration: {min(durations):.1f}ms - {max(durations):.1f}ms "
-                f"(avg: {sum(durations)/len(durations):.1f}ms)"
+                f"(avg: {sum(durations) / len(durations):.1f}ms)"
             )
             click.echo(
                 f"   Memory: {min(memories):.1f}MB - {max(memories):.1f}MB "
-                f"(avg: {sum(memories)/len(memories):.1f}MB)"
+                f"(avg: {sum(memories) / len(memories):.1f}MB)"
             )
 
             # Show additional metrics if available

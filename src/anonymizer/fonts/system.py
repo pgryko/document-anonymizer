@@ -152,7 +152,6 @@ class SystemFontProvider:
     def _create_font_metadata(self, font_path: str) -> FontMetadata | None:
         """Create font metadata from system font file."""
         try:
-
             # Get font information
             font_info = get_font_info(font_path)
             if not font_info:

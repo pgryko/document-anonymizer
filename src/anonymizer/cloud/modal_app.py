@@ -130,7 +130,6 @@ if HAS_MODAL:
         sys.path.insert(0, "/root")
 
         try:
-
             print("🚀 Starting VAE training on Modal.com")
             print(f"GPU: {torch.cuda.get_device_name() if torch.cuda.is_available() else 'CPU'}")
             print(f"Config: {config_path}")
@@ -258,7 +257,6 @@ if HAS_MODAL:
         sys.path.insert(0, "/root")
 
         try:
-
             print("🚀 Starting UNet training on Modal.com")
             print(f"GPU: {torch.cuda.get_device_name() if torch.cuda.is_available() else 'CPU'}")
             print(f"Config: {config_path}")

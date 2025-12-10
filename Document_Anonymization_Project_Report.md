@@ -2,7 +2,7 @@
 
 ## Advanced AI-Driven Privacy Protection for Financial Documents
 
-**Author:** Dr. Piotr Gryko  
+**Author:** Dr. Piotr Gryko
 **Date:** September 6, 2025
 
 ---

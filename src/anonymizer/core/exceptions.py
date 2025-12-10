@@ -1287,8 +1287,11 @@ class InferenceSetupFailedError(InferenceError):
 class OCRProcessingFailedError(ProcessingError):
     """Exception raised when OCR processing fails."""
 
-    def __init__(self) -> None:
-        super().__init__("OCR processing failed")
+    def __init__(self, error: str | None = None) -> None:
+        message = "OCR processing failed"
+        if error:
+            message = f"OCR processing failed: {error}"
+        super().__init__(message)
 
 
 class PatchGenerationFailedError(PatchGenerationError):
@@ -1412,7 +1415,7 @@ class MinConfidenceOutOfRangeError(ValidationError):
 
     def __init__(self, min_conf: float, min_allowed: float, max_allowed: float) -> None:
         super().__init__(
-            f"min_confidence_threshold must be between {min_allowed} and {max_allowed}",
+            f"min_confidence_threshold {min_conf} must be between {min_allowed} and {max_allowed}",
         )
 
 
@@ -1458,3 +1461,35 @@ class TooManyTextRegionsError(ValidationError):
 
     def __init__(self, max_regions: int) -> None:
         super().__init__(f"Too many text regions (maximum {max_regions})")
+
+
+class BatchProcessingTimeoutError(AnonymizerError):
+    """Exception raised when batch processing times out."""
+
+    def __init__(self) -> None:
+        super().__init__("Batch processing timeout")
+
+
+class AllOCREnginesFailedError(InferenceError):
+    """Exception raised when all OCR engines fail."""
+
+    def __init__(self) -> None:
+        super().__init__("All OCR engines failed with errors")
+
+
+class TooManyConsecutiveFailuresError(TrainingError):
+    """Exception raised when too many consecutive training failures occur."""
+
+    def __init__(self, failure_count: int) -> None:
+        super().__init__(
+            f"Too many consecutive failures ({failure_count}). Training terminated for stability."
+        )
+
+
+class ErrorRateTooHighError(TrainingError):
+    """Exception raised when training error rate is too high."""
+
+    def __init__(self, error_rate: float) -> None:
+        super().__init__(
+            f"Error rate too high ({error_rate:.2f}%). Training terminated for quality assurance."
+        )

@@ -576,7 +576,6 @@ class TestUNetTrainer:
             patch("torch.cuda.empty_cache") as mock_empty_cache,
             patch("torch.cuda.synchronize") as mock_synchronize,
         ):
-
             # This should trigger memory cleanup in the finally block
             try:
                 trainer.train([], None)

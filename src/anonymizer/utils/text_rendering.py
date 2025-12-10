@@ -101,7 +101,7 @@ class TextRenderer:
         self.default_font_size = default_font_size
         self.default_image_size = default_image_size
 
-    def render_text(  # noqa: PLR0912
+    def render_text(
         self,
         text: str,
         font_name: str | None = None,

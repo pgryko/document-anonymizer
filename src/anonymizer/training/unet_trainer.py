@@ -161,7 +161,7 @@ class UNetTrainer:
 
             # Verify architecture is correct (9 channels for inpainting)
             if unet.conv_in.in_channels != EXPECTED_UNET_INPUT_CHANNELS:
-                raise UNetChannelMismatchError(unet.conv_in.in_channels)  # noqa: TRY301
+                raise UNetChannelMismatchError(unet.conv_in.in_channels)
 
         except Exception as e:
             raise UNetInitializationError(str(e)) from e
@@ -644,7 +644,7 @@ class UNetTrainer:
         # Start training
         self.train(train_dataloader, val_dataloader)
 
-    def train(  # noqa: PLR0912, PLR0915  # Complex training loop requires many branches/statements
+    def train(  # Complex training loop requires many branches/statements
         self,
         train_dataloader: DataLoader,
         val_dataloader: DataLoader | None = None,
@@ -757,7 +757,7 @@ class UNetTrainer:
 
                         # Check if we should continue based on error analysis
                         if not self.error_handler.should_continue_epoch(error):
-                            logger.error(f"Stopping epoch {epoch} due to critical error")
+                            logger.warning(f"Stopping epoch {epoch} due to critical error")
                             break
                         if self.error_handler.should_skip_batch(error):
                             logger.warning(f"Skipping batch {batch_idx} due to error")
@@ -813,11 +813,10 @@ class UNetTrainer:
         except Exception as e:
             # Log final error summary before raising
             error_summary = self.error_handler.get_error_summary()
-            logger.error(f"Training failed after handling {error_summary['total_errors']} errors")
-            if error_summary["total_errors"] > 0:
-                logger.error(f"Error breakdown: {error_summary['errors_by_category']}")
-
-            logger.exception("Training failed")
+            logger.exception(
+                f"Training failed after handling {error_summary['total_errors']} errors. "
+                f"Error breakdown: {error_summary['errors_by_category']}"
+            )
             raise TrainingLoopError(str(e)) from e
 
         finally:

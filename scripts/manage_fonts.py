@@ -294,7 +294,7 @@ def create_font_bundle(args) -> None:
         print("❌ Failed to create font bundle")
 
 
-def main():  # noqa: PLR0912, PLR0915
+def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Font Management Script for Document Anonymization System"

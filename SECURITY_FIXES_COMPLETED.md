@@ -17,7 +17,7 @@
 **Files Modified**: `src/anonymizer/core/config.py`
 **Changes Made**:
 - Replaced blacklist approach with **whitelist validation**
-- Added protection against directory traversal (`../`, `\\..\`)  
+- Added protection against directory traversal (`../`, `\\..\`)
 - Added protection against null bytes, newlines, carriage returns
 - Implemented symlink validation to prevent bypass attacks
 - Added configurable allowed base directories
@@ -26,7 +26,7 @@
 **Security Impact**: Prevents directory traversal attacks and restricts file access to approved directories only.
 
 ### 3. ✅ Fixed Hardcoded /tmp Path
-**Files Modified**: 
+**Files Modified**:
 - `src/anonymizer/core/config.py` (EngineConfig)
 - `src/anonymizer/inference/engine.py`
 
@@ -38,7 +38,7 @@
 
 **Security Impact**: Eliminates hardcoded paths that could be exploited and makes security boundaries configurable.
 
-### 4. ✅ Added Secure Temporary File Creation  
+### 4. ✅ Added Secure Temporary File Creation
 **Files Modified**: `src/anonymizer/inference/engine.py`
 **Changes Made**:
 - Implemented `_get_secure_temp_dir()` method with multiple fallback options
@@ -50,7 +50,7 @@
 **Security Impact**: Prevents other users from accessing temporary files containing sensitive image data.
 
 ### 5. ✅ Fixed Test Mocking Inconsistency
-**Files Modified**: 
+**Files Modified**:
 - `tests/unit/test_batch_processing.py`
 - `src/anonymizer/batch/processor.py`
 
@@ -66,7 +66,7 @@
 All **5 high-priority security vulnerabilities** have been successfully addressed:
 
 1. **Credential Protection** ✅
-2. **Path Traversal Prevention** ✅  
+2. **Path Traversal Prevention** ✅
 3. **Configurable Security Boundaries** ✅
 4. **Secure Temporary Files** ✅
 5. **Test Integrity** ✅
@@ -97,7 +97,7 @@ All **5 high-priority security vulnerabilities** have been successfully addresse
 The codebase is now **significantly more secure** with all critical vulnerabilities addressed:
 
 - **No hardcoded secrets** exposed in logs or errors
-- **Path traversal attacks** prevented via whitelist validation  
+- **Path traversal attacks** prevented via whitelist validation
 - **Temporary files** created with secure permissions
 - **Configurable security boundaries** instead of hardcoded paths
 - **Test coverage** validates actual security-critical code paths

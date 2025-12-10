@@ -112,7 +112,7 @@ class ModelValidator:
         except Exception as e:
             result.add_error(f"Cannot access file {model_path}: {e}")
 
-    def _validate_file_format(  # noqa: PLR0912  # Complex format validation
+    def _validate_file_format(  # Complex format validation
         self,
         model_path: Path,
         metadata: ModelMetadata | None,
@@ -261,7 +261,6 @@ class ModelValidator:
             return
 
         try:
-
             # Determine hash algorithm (assume SHA256 if not specified)
             hasher = hashlib.sha256()
 
@@ -273,8 +272,7 @@ class ModelValidator:
 
             if actual_checksum.lower() != metadata.checksum.lower():
                 result.add_error(
-                    f"Checksum mismatch. Expected: {metadata.checksum}, "
-                    f"Actual: {actual_checksum}",
+                    f"Checksum mismatch. Expected: {metadata.checksum}, Actual: {actual_checksum}",
                 )
             else:
                 result.checksum_valid = True
@@ -410,7 +408,7 @@ class ModelValidator:
             if not has_attention:
                 result.add_warning("UNet model missing attention layers")
 
-    def _validate_model_loading(  # noqa: PLR0912  # Complex model loading validation
+    def _validate_model_loading(  # Complex model loading validation
         self,
         model_path: Path,
         _metadata: ModelMetadata | None,
@@ -491,7 +489,6 @@ class ModelValidator:
         }
 
         try:
-
             # Get model size
             if model_path.is_file():
                 benchmark_results["model_size_mb"] = model_path.stat().st_size / (1024 * 1024)

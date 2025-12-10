@@ -35,7 +35,7 @@ uv run pytest tests/test_core_config.py -v  # ~5s
 # Train VAE model
 uv run python main.py train-vae --config configs/training/vae_config.yaml
 
-# Train UNet model  
+# Train UNet model
 uv run python main.py train-unet --config configs/training/unet_config.yaml
 
 # Run anonymization
@@ -95,7 +95,7 @@ The codebase implements fixes for major bugs in the original DiffUTE research:
 ### Configuration Files
 
 - `configs/training/vae_config.yaml`: VAE training parameters with bug fixes
-- `configs/training/unet_config.yaml`: UNet training configuration  
+- `configs/training/unet_config.yaml`: UNet training configuration
 - `configs/inference/engine_config.yaml`: Inference engine settings
 
 Environment variables can override any config with prefixes: `VAE_`, `UNET_`, `ENGINE_`, `APP_`, etc.

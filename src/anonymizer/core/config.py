@@ -86,7 +86,7 @@ def _resolve_base_dir_cached(base_dir: str) -> Path | None:
     return _RESOLVED_BASE_DIRS_CACHE[base_dir]
 
 
-def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation function
+def validate_secure_path(  # Complex path validation function
     path: str | Path,
     field_name: str = "path",
     allowed_base_dirs: list[str] | None = None,
@@ -130,7 +130,7 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
         ]
 
         def _raise_security_error(pattern: str) -> None:
-            raise PathSecurityError(field_name, pattern, str(path))  # noqa: TRY301
+            raise PathSecurityError(field_name, pattern, str(path))
 
         for pattern in dangerous_patterns:
             if pattern in path_str:
@@ -168,7 +168,7 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
         ]
 
         def _raise_resolved_security_error(pattern: str) -> None:
-            raise PathSecurityError(field_name, pattern, str(path))  # noqa: TRY301
+            raise PathSecurityError(field_name, pattern, str(path))
 
         for pattern in resolved_dangerous_patterns:
             if pattern in resolved_str:
@@ -193,7 +193,7 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
                     continue
 
         def _raise_not_allowed_error() -> None:
-            raise PathNotAllowedError(  # noqa: TRY301
+            raise PathNotAllowedError(
                 field_name,
                 str(resolved_path),
                 allowed_base_dirs,
@@ -206,7 +206,7 @@ def validate_secure_path(  # noqa: PLR0912, PLR0915  # Complex path validation f
         path_parts = resolved_path.parts
 
         def _raise_depth_error() -> None:
-            raise PathDepthError(field_name, str(path))  # noqa: TRY301
+            raise PathDepthError(field_name, str(path))
 
         if len(path_parts) > MAX_PATH_DEPTH:  # Reasonable depth limit
             _raise_depth_error()
@@ -733,7 +733,7 @@ def load_config_from_yaml(config_path: str | Path, config_class: type) -> BaseSe
             config_data = yaml.safe_load(f)
 
         def _raise_empty_config_error() -> None:
-            raise EmptyConfigFileError(str(config_path))  # noqa: TRY301
+            raise EmptyConfigFileError(str(config_path))
 
         if config_data is None:
             _raise_empty_config_error()

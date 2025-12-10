@@ -138,7 +138,6 @@ class TestFontManager:
                 return_value=system_provider,
             ),
         ):
-
             manager = FontManager(temp_fonts_dir)
 
             assert manager.fonts_dir == temp_fonts_dir
@@ -161,7 +160,6 @@ class TestFontManager:
                 return_value=system_provider,
             ),
         ):
-
             manager = FontManager(temp_fonts_dir)
 
             font = manager.get_font("DejaVu Sans", "normal")
@@ -183,7 +181,6 @@ class TestFontManager:
                 return_value=system_provider,
             ),
         ):
-
             manager = FontManager(temp_fonts_dir)
 
             font = manager.get_font("DejaVu Sans", "bold")
@@ -205,7 +202,6 @@ class TestFontManager:
                 return_value=system_provider,
             ),
         ):
-
             manager = FontManager(temp_fonts_dir)
 
             # Request Times, should fallback to DejaVu Sans
@@ -228,7 +224,6 @@ class TestFontManager:
                 return_value=system_provider,
             ),
         ):
-
             manager = FontManager(temp_fonts_dir)
             families = manager.list_font_families()
 
@@ -250,7 +245,6 @@ class TestFontManager:
                 return_value=system_provider,
             ),
         ):
-
             manager = FontManager(temp_fonts_dir)
             stats = manager.get_font_statistics()
 
@@ -463,7 +457,6 @@ class TestFontManagerIntegration:
             patch("src.anonymizer.fonts.manager.BundledFontProvider") as mock_bundled,
             patch("src.anonymizer.fonts.manager.SystemFontProvider") as mock_system,
         ):
-
             # Mock empty providers
             mock_bundled.return_value.list_fonts.return_value = []
             mock_system.return_value.list_fonts.return_value = []
@@ -491,7 +484,6 @@ class TestFontManagerIntegration:
             patch("src.anonymizer.fonts.manager.BundledFontProvider") as mock_bundled,
             patch("src.anonymizer.fonts.manager.SystemFontProvider") as mock_system,
         ):
-
             mock_bundled.return_value.list_fonts.return_value = [missing_font]
             mock_system.return_value.list_fonts.return_value = []
 

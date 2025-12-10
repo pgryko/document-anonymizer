@@ -43,4 +43,3 @@ scheduler:
 checkpoint_dir: "checkpoints/vae"
 save_every_n_steps: 5000
 keep_n_checkpoints: 3
-

@@ -81,19 +81,19 @@ ocr_config = OCRConfig(
     engines=["paddleocr", "easyocr"],
     confidence_threshold=0.8,
     languages=["en"],
-    
+
     # PaddleOCR specific settings
     paddleocr_use_angle_cls=True,
     paddleocr_use_space_char=True,
-    
+
     # EasyOCR specific settings
     easyocr_paragraph=False,
     easyocr_width_ths=0.7,
-    
+
     # Tesseract specific settings
     tesseract_psm=6,  # Page segmentation mode
     tesseract_oem=3,  # OCR engine mode
-    
+
     # Performance settings
     max_image_size=2048,
     preprocessing_enabled=True,
@@ -115,7 +115,7 @@ engine = EngineConfig(
     entity_types=[
         "PERSON",
         "CREDIT_CARD",
-        "IBAN_CODE", 
+        "IBAN_CODE",
         "US_SSN",
         "US_BANK_NUMBER",
         "DATE_TIME",
@@ -159,7 +159,7 @@ ner_config = NERConfig(
     entity_types=["PERSON", "EMAIL_ADDRESS", "EMPLOYEE_ID", "PROJECT_CODE"],
     confidence_threshold=0.85,
     custom_patterns=custom_patterns,
-    
+
     # Advanced NER settings
     language="en",
     use_transformer_models=True,
@@ -183,7 +183,7 @@ engine = EngineConfig(
 engine = EngineConfig(
     ner_confidence_threshold=0.6,
     entity_types=[  # Include more entity types
-        "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER", 
+        "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER",
         "LOCATION", "DATE_TIME", "ORGANIZATION"
     ]
 )
@@ -211,12 +211,12 @@ diffusion_config = DiffusionConfig(
     num_inference_steps=50,  # Higher for better quality
     guidance_scale=7.5,
     strength=1.0,
-    
+
     # Quality settings
     use_fp16=False,  # Full precision for quality
     safety_checker=True,
     requires_safety_checker=True,
-    
+
     # Memory settings
     enable_memory_efficient_attention=True,
     enable_vae_slicing=False,  # Disable for quality
@@ -237,12 +237,12 @@ diffusion_config = DiffusionConfig(
     model_name="stable-diffusion-2-inpainting",
     num_inference_steps=20,  # Fewer steps for speed
     guidance_scale=5.0,
-    
+
     # Speed optimizations
     use_fp16=True,  # Half precision
     enable_vae_slicing=True,
     enable_cpu_offload=True,
-    
+
     # Batch settings
     batch_size=4
 )
@@ -293,16 +293,16 @@ Controls system performance and resource usage.
 config = AnonymizationConfig(
     # Reduce batch sizes
     batch_size=1,
-    
+
     # Enable memory optimizations
     memory_optimization=True,
     enable_caching=False,  # Disable caching to save memory
-    
+
     # GPU memory settings
     use_gpu=True,
     gpu_memory_fraction=0.7,  # Limit GPU memory usage
     enable_cpu_offload=True,  # Offload when possible
-    
+
     # Model loading
     load_models_on_demand=True,
     unload_models_after_use=True
@@ -316,20 +316,20 @@ config = AnonymizationConfig(
 config = AnonymizationConfig(
     # Large batch sizes
     batch_size=16,
-    
+
     # GPU optimization
     use_gpu=True,
     mixed_precision=True,
     compile_models=True,  # PyTorch 2.0 compilation
-    
+
     # Caching
     enable_caching=True,
     cache_size_gb=10,
-    
+
     # Parallel processing
     parallel_workers=4,
     prefetch_factor=2,
-    
+
     # Memory settings
     memory_optimization=False,  # Disable for speed
     pin_memory=True
@@ -343,15 +343,15 @@ config = AnonymizationConfig(
 config = AnonymizationConfig(
     use_gpu=False,
     batch_size=2,  # Smaller batches for CPU
-    
+
     # CPU optimization
     num_threads=8,  # Match CPU cores
     enable_mkldnn=True,  # Intel optimization
-    
+
     # Memory settings
     memory_optimization=True,
     enable_caching=True,
-    
+
     # Use lightweight models
     anonymization_strategy="redaction"  # Skip diffusion models
 )
@@ -398,32 +398,32 @@ anonymization:
     confidence_threshold: 0.8
     languages: ["en"]
     max_image_size: 2048
-    
+
   ner:
     entity_types:
       - "PERSON"
-      - "EMAIL_ADDRESS" 
+      - "EMAIL_ADDRESS"
       - "PHONE_NUMBER"
       - "CREDIT_CARD"
     confidence_threshold: 0.85
     custom_patterns:
       employee_id: "EMP-\\d{6}"
-      
+
   anonymization:
     strategy: "inpainting"
     preserve_formatting: true
-    
+
   performance:
     use_gpu: true
     batch_size: 6
     memory_optimization: true
     parallel_workers: 4
-    
+
   models:
     cache_dir: "/opt/anonymizer/models"
     auto_download: true
     verify_checksums: true
-    
+
   logging:
     level: "INFO"
     format: "json"
@@ -487,20 +487,20 @@ dev_config = AnonymizationConfig(
     # Fast OCR
     ocr_engines=["tesseract"],
     ocr_confidence_threshold=0.6,
-    
+
     # Basic entities only
     entity_types=["PERSON", "EMAIL_ADDRESS"],
     ner_confidence_threshold=0.7,
-    
+
     # Fast anonymization
     anonymization_strategy="redaction",
-    
+
     # Minimal resource usage
     use_gpu=False,
     batch_size=1,
     memory_optimization=True,
     enable_caching=False,
-    
+
     # Verbose logging
     log_level="DEBUG"
 )
@@ -514,24 +514,24 @@ prod_config = AnonymizationConfig(
     # Multi-engine OCR with fallback
     ocr_engines=["paddleocr", "easyocr", "tesseract"],
     ocr_confidence_threshold=0.8,
-    
+
     # Comprehensive entity detection
     entity_types=[
-        "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER", 
+        "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER",
         "CREDIT_CARD", "US_SSN", "IBAN_CODE"
     ],
     ner_confidence_threshold=0.85,
-    
+
     # High-quality anonymization
     anonymization_strategy="inpainting",
     preserve_formatting=True,
-    
+
     # Optimized performance
     use_gpu=True,
     batch_size=6,
     memory_optimization=True,
     enable_caching=True,
-    
+
     # Production logging
     log_level="INFO",
     enable_audit_logging=True,
@@ -547,7 +547,7 @@ security_config = AnonymizationConfig(
     # All available OCR engines
     ocr_engines=["paddleocr", "easyocr", "trotr", "tesseract"],
     ocr_confidence_threshold=0.9,
-    
+
     # Comprehensive PII detection
     entity_types=[
         "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD",
@@ -555,17 +555,17 @@ security_config = AnonymizationConfig(
         "LOCATION", "ORGANIZATION", "MEDICAL_LICENSE"
     ],
     ner_confidence_threshold=0.95,
-    
+
     # Secure anonymization
     anonymization_strategy="inpainting",
     verify_anonymization=True,
     double_check_pii=True,
-    
+
     # Security settings
     secure_memory_cleanup=True,
     audit_all_operations=True,
     enable_checkpoints=True,
-    
+
     # Performance (secondary to security)
     use_gpu=True,
     batch_size=2,  # Smaller batches for thorough processing
@@ -580,15 +580,15 @@ throughput_config = AnonymizationConfig(
     # Single fastest OCR engine
     ocr_engines=["paddleocr"],
     ocr_confidence_threshold=0.7,
-    
+
     # Essential entities only
     entity_types=["PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER"],
     ner_confidence_threshold=0.8,
-    
+
     # Fast anonymization
     anonymization_strategy="inpainting",
     diffusion_steps=20,  # Reduced steps
-    
+
     # Maximum performance
     use_gpu=True,
     batch_size=16,  # Large batches
@@ -596,7 +596,7 @@ throughput_config = AnonymizationConfig(
     memory_optimization=False,  # Speed over memory
     enable_caching=True,
     prefetch_data=True,
-    
+
     # Minimal logging
     log_level="WARNING"
 )
@@ -610,26 +610,26 @@ throughput_config = AnonymizationConfig(
 class DynamicConfig:
     def __init__(self, base_config: AnonymizationConfig):
         self.base_config = base_config
-        
+
     def get_config_for_document(self, document_path: str) -> AnonymizationConfig:
         # Analyze document characteristics
         doc_info = self.analyze_document(document_path)
-        
+
         # Adjust configuration based on document
         config = copy.deepcopy(self.base_config)
-        
+
         if doc_info.has_complex_layout:
             config.ocr_engines = ["paddleocr", "easyocr"]
             config.ocr_confidence_threshold = 0.8
-            
+
         if doc_info.is_large_file:
             config.batch_size = 2
             config.memory_optimization = True
-            
+
         if doc_info.has_sensitive_data:
             config.ner_confidence_threshold = 0.95
             config.verify_anonymization = True
-            
+
         return config
 ```
 
@@ -642,12 +642,12 @@ class ABTestConfig:
             anonymization_strategy="inpainting",
             diffusion_steps=50
         )
-        
+
         self.config_b = AnonymizationConfig(
-            anonymization_strategy="inpainting", 
+            anonymization_strategy="inpainting",
             diffusion_steps=30
         )
-        
+
     def get_config(self, user_id: str) -> AnonymizationConfig:
         # Simple hash-based assignment
         if hash(user_id) % 2 == 0:
@@ -661,7 +661,7 @@ class ABTestConfig:
 ```python
 def get_environment_config() -> EngineConfig:
     env = os.getenv("ENVIRONMENT", "development")
-    
+
     if env == "development":
         return EngineConfig(
             use_gpu=False,
@@ -693,26 +693,26 @@ from src.anonymizer.config import validate_config
 def validate_production_config(config: EngineConfig) -> List[str]:
     """Validate configuration for production use."""
     issues = []
-    
+
     # Check OCR configuration
     if len(config.ocr_engines) < 2:
         issues.append("Production should use multiple OCR engines for fallback")
-        
+
     if config.ocr_confidence_threshold < 0.7:
         issues.append("OCR confidence threshold too low for production")
-    
+
     # Check NER configuration
     required_entities = {"PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER"}
     if not required_entities.issubset(set(config.entity_types)):
         issues.append("Missing required entity types for production")
-    
+
     # Check performance configuration
     if config.batch_size < 2:
         issues.append("Batch size too small for production throughput")
-        
+
     if not config.use_gpu and config.anonymization_strategy == "inpainting":
         issues.append("GPU recommended for inpainting in production")
-    
+
     return issues
 
 # Usage

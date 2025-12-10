@@ -9,7 +9,7 @@ A comprehensive document anonymization system using NER (Named Entity Recognitio
 - **Accurate text extraction** from complex document layouts
 - **Confidence-based filtering** for reliable text detection
 
-### 🛡️ Intelligent PII Detection  
+### 🛡️ Intelligent PII Detection
 - **NER-based PII identification** using Presidio
 - **Configurable entity types**: emails, phone numbers, SSNs, credit cards, addresses
 - **Custom entity recognition** patterns and rules
@@ -109,7 +109,7 @@ python scripts/benchmark.py full-suite --quick
 ### 1. OCR Engine
 Multi-engine text detection with automatic fallback:
 - **PaddleOCR**: High accuracy for complex layouts
-- **EasyOCR**: Good balance of speed and accuracy  
+- **EasyOCR**: Good balance of speed and accuracy
 - **TrOCR**: Transformer-based recognition
 - **Tesseract**: Reliable baseline OCR
 

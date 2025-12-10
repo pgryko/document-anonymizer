@@ -27,7 +27,6 @@ class TestNERProcessor:
             patch("src.anonymizer.inference.engine.AnalyzerEngine") as mock_analyzer,
             patch("src.anonymizer.inference.engine.AnonymizerEngine") as mock_anonymizer,
         ):
-
             processor = NERProcessor()
 
             assert processor.analyzer is not None
@@ -52,7 +51,6 @@ class TestNERProcessor:
             patch("src.anonymizer.inference.engine.AnalyzerEngine") as mock_analyzer_cls,
             patch("src.anonymizer.inference.engine.AnonymizerEngine"),
         ):
-
             # Mock analyzer results
             mock_result = Mock()
             mock_result.entity_type = "PERSON"
@@ -84,7 +82,6 @@ class TestNERProcessor:
             patch("src.anonymizer.inference.engine.AnalyzerEngine") as mock_analyzer_cls,
             patch("src.anonymizer.inference.engine.AnonymizerEngine"),
         ):
-
             mock_analyzer = Mock()
             mock_analyzer.analyze.return_value = []
             mock_analyzer_cls.return_value = mock_analyzer
@@ -102,7 +99,6 @@ class TestNERProcessor:
             patch("src.anonymizer.inference.engine.AnalyzerEngine") as mock_analyzer_cls,
             patch("src.anonymizer.inference.engine.AnonymizerEngine"),
         ):
-
             # Mock multiple analyzer results
             mock_result1 = Mock()
             mock_result1.entity_type = "PERSON"
@@ -167,7 +163,6 @@ class TestInferenceEngine:
             patch("src.anonymizer.utils.metrics.MetricsCollector"),
             patch("src.anonymizer.inference.engine.TextRenderer"),
         ):
-
             engine = InferenceEngine(config)
 
             assert engine.config == config
@@ -188,7 +183,6 @@ class TestInferenceEngine:
             patch("src.anonymizer.utils.metrics.MetricsCollector"),
             patch("src.anonymizer.inference.engine.TextRenderer"),
         ):
-
             engine = InferenceEngine(config)
 
             # The engine should have quality check enabled in its config
@@ -207,7 +201,6 @@ class TestInferenceEngine:
             patch("src.anonymizer.utils.metrics.MetricsCollector"),
             patch("src.anonymizer.inference.engine.TextRenderer"),
         ):
-
             engine = InferenceEngine(config)
 
             # Engine should store the configuration

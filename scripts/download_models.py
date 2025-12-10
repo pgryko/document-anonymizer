@@ -121,7 +121,7 @@ def download(ctx, model_name: str, no_validate: bool):
 
         click.echo(f"\n✅ Successfully downloaded: {model_name}")
         click.echo(f"   📁 Location: {metadata.local_path}")
-        click.echo(f"   📊 Size: {metadata.size_bytes / (1024*1024):.1f}MB")
+        click.echo(f"   📊 Size: {metadata.size_bytes / (1024 * 1024):.1f}MB")
 
     except (ValidationError, InferenceError) as e:
         click.echo(f"\n❌ Download failed: {e}", err=True)
@@ -151,7 +151,7 @@ def download_hf(ctx, model_id: str, filename: str | None, no_validate: bool):
 
         click.echo("\n✅ Successfully downloaded from Hugging Face")
         click.echo(f"   📁 Location: {metadata.local_path}")
-        click.echo(f"   📊 Size: {metadata.size_bytes / (1024*1024):.1f}MB")
+        click.echo(f"   📊 Size: {metadata.size_bytes / (1024 * 1024):.1f}MB")
 
     except (ValidationError, InferenceError) as e:
         click.echo(f"\n❌ Download failed: {e}", err=True)

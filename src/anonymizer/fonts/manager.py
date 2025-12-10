@@ -374,7 +374,6 @@ class FontManager:
 
         """
         try:
-
             font_data = []
             for font in self.fonts_cache.values():
                 font_data.append(

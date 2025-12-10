@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 
 
-def reorganize_data():  # noqa: PLR0912, PLR0915
+def reorganize_data():
     """Reorganize XFUND data into train/val splits with cleaner structure."""
 
     # Define paths

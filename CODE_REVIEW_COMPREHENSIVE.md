@@ -1,8 +1,8 @@
 # Comprehensive Code Review - Document Anonymizer
 
-**Date:** 2025-08-06  
-**Reviewer:** Claude Code  
-**Codebase:** Document Anonymization System for Financial Documents  
+**Date:** 2025-08-06
+**Reviewer:** Claude Code
+**Codebase:** Document Anonymization System for Financial Documents
 **Last Updated:** 2025-08-06
 
 ## Executive Summary
@@ -241,7 +241,7 @@ This codebase implements a document anonymization system using diffusion models 
 
 ## Conclusion
 
-This is a well-architected, security-conscious implementation of a document anonymization system. The code quality is high, with excellent separation of concerns and defensive programming practices. 
+This is a well-architected, security-conscious implementation of a document anonymization system. The code quality is high, with excellent separation of concerns and defensive programming practices.
 
 **Key Updates from Current Review:**
 - UNet training is more complete than previously documented (full training loop exists)

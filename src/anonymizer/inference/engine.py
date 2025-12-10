@@ -56,7 +56,7 @@ from src.anonymizer.core.models import (
     TextRegion,
 )
 from src.anonymizer.inference.cache import BatchProcessor, ModelCache
-from src.anonymizer.ocr.models import OCRConfig, OCREngine
+from src.anonymizer.ocr.models import DetectedText, OCRConfig, OCREngine
 from src.anonymizer.ocr.processor import OCRProcessor, OCRTimeoutError
 from src.anonymizer.training.datasets import ImageValidator
 from src.anonymizer.utils.image_ops import ImageProcessor
@@ -78,20 +78,20 @@ class SecurePathValidator:
 
             # Check if path is within allowed directory
             def _raise_path_outside_error() -> None:
-                raise PathOutsideDirectoryError(str(path))  # noqa: TRY301
+                raise PathOutsideDirectoryError(str(path))
 
             if not str(resolved_path).startswith(str(allowed_base)):
                 _raise_path_outside_error()
 
             # Check if file exists and is readable
             def _raise_file_not_found_error() -> None:
-                raise ModelFileNotFoundError(str(resolved_path))  # noqa: TRY301
+                raise ModelFileNotFoundError(str(resolved_path))
 
             if not resolved_path.exists():
                 _raise_file_not_found_error()
 
             def _raise_not_file_error() -> None:
-                raise PathNotFileError(str(resolved_path))  # noqa: TRY301
+                raise PathNotFileError(str(resolved_path))
 
             if not resolved_path.is_file():
                 _raise_not_file_error()
@@ -133,7 +133,6 @@ class NERProcessor:
     def __init__(self):
         """Initialize NER processor with presidio."""
         try:
-
             self.analyzer = AnalyzerEngine()
             self.anonymizer = AnonymizerEngine()
 
@@ -667,7 +666,7 @@ class InferenceEngine:
                         if len(region.original_text) > TEXT_PREVIEW_LENGTH:
                             text_preview += "..."
                         logger.debug(
-                            f"Anonymizing region {i+1}/{len(text_regions)}: "
+                            f"Anonymizing region {i + 1}/{len(text_regions)}: "
                             f"bbox={region.bbox}, text='{text_preview}'",
                         )
 
@@ -678,7 +677,7 @@ class InferenceEngine:
                         anonymized_image = self._apply_patch(anonymized_image, patch, region.bbox)
 
                         logger.debug(
-                            f"Successfully anonymized region {i+1} - "
+                            f"Successfully anonymized region {i + 1} - "
                             f"patch confidence: {patch.confidence:.3f}, "
                             f"processing time: {patch.metadata.processing_time_ms:.1f}ms",
                         )
@@ -883,7 +882,7 @@ class InferenceEngine:
 
         # Get original OCR bounding box dimensions
         bbox_width = detected_text.bbox.right - detected_text.bbox.left
-        bbox_height = detected_text.bbox.bottom - detected_text.bbox.top
+        _bbox_height = detected_text.bbox.bottom - detected_text.bbox.top
 
         # Estimate PII bounding box position (assuming horizontal text layout)
         # This is a simple approximation - more sophisticated methods could use
@@ -1028,7 +1027,7 @@ class InferenceEngine:
                 "requires_safety_checker": False,
             }
 
-            def loader_func():
+            def loader_func() -> StableDiffusionInpaintPipeline:
                 return StableDiffusionInpaintPipeline.from_pretrained(
                     base_model,
                     torch_dtype=(torch.float16 if self.device.type == "cuda" else torch.float32),
@@ -1051,7 +1050,7 @@ class InferenceEngine:
         except Exception as e:
             raise ModelLoadingError() from e
 
-    def _load_custom_models_cached(self):
+    def _load_custom_models_cached(self) -> None:
         """Load custom trained VAE and UNet models with caching."""
         try:
             # Load VAE with caching
@@ -1064,7 +1063,7 @@ class InferenceEngine:
 
                 vae_config_dict = {"model_type": "vae", "path": str(vae_path.parent)}
 
-                def vae_loader():
+                def vae_loader() -> AutoencoderKL:
                     return AutoencoderKL.from_pretrained(vae_path.parent)
 
                 self.vae, vae_cache_hit = self.model_cache.get(
@@ -1086,7 +1085,7 @@ class InferenceEngine:
 
                 unet_config_dict = {"model_type": "unet", "path": str(unet_path.parent)}
 
-                def unet_loader():
+                def unet_loader() -> UNet2DConditionModel:
                     return UNet2DConditionModel.from_pretrained(unet_path.parent)
 
                 self.unet, unet_cache_hit = self.model_cache.get(
@@ -1105,7 +1104,7 @@ class InferenceEngine:
                 "components_only": True,
             }
 
-            def base_pipeline_loader():
+            def base_pipeline_loader() -> StableDiffusionInpaintPipeline:
                 return StableDiffusionInpaintPipeline.from_pretrained(
                     base_model,
                     torch_dtype=(torch.float16 if self.device.type == "cuda" else torch.float32),

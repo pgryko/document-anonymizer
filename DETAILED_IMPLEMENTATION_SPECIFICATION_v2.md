@@ -138,16 +138,16 @@ class DiffusionEngine:
         self.preprocessor = ImagePreprocessor(config.preprocessing)
         self.postprocessor = ResultProcessor(config.postprocessing)
         self.verifier = QualityVerifier(config.verification)
-        
+
     async def anonymize_document(self, request: AnonymizationRequest) -> AnonymizationResult:
         """Main anonymization workflow with error handling."""
         try:
             # 1. Load models if not cached
             await self._ensure_models_loaded()
-            
+
             # 2. Detect PII entities
             entities = await self._detect_entities(request.document)
-            
+
             # 3. Process each entity
             patches = []
             for entity in entities:
@@ -155,29 +155,29 @@ class DiffusionEngine:
                 processed = self.preprocessor.preprocess_image(
                     request.document.image, entity.bbox
                 )
-                
+
                 # Generate synthetic replacement
                 patch = await self._generate_patch(processed, entity)
-                
+
                 # Verify quality
                 confidence = self.verifier.calculate_patch_confidence(patch)
                 if confidence > self.config.min_confidence:
                     patches.append(patch)
-                    
+
             # 4. Compose final result
             result_image = self.postprocessor.compose_final_image(
                 request.document.image, patches
             )
-            
+
             # 5. Final quality check
             quality_report = self.verifier.validate_result_quality(result_image)
-            
+
             return AnonymizationResult(
                 image=result_image,
                 patches=patches,
                 quality_report=quality_report
             )
-            
+
         except Exception as e:
             logger.error(f"Anonymization failed: {e}", exc_info=True)
             raise AnonymizationError(f"Failed to process document: {str(e)}")
@@ -198,21 +198,21 @@ def preprocess_image(self, image: np.ndarray, bbox: BoundingBox) -> ProcessedIma
     """Extract and prepare image region for diffusion model."""
     # Validate inputs
     bbox = self._validate_bbox(bbox, image.shape[1], image.shape[0])
-    
+
     # Check memory requirements
     estimated_memory = self._estimate_memory_usage(bbox, self.config.target_size)
     if estimated_memory > self.config.max_memory_bytes:
         raise MemoryError(f"Processing would require {estimated_memory} bytes")
-    
+
     # Extract crop with padding
     crop_data = self._extract_crop_safely(image, bbox)
-    
+
     # Resize to model input size
     resized = self._resize_with_aspect_ratio(crop_data.image, self.config.target_size)
-    
+
     # Generate mask
     mask = self._generate_mask(resized.shape, crop_data.relative_bbox)
-    
+
     return ProcessedImage(
         image=resized,
         mask=mask,
@@ -267,15 +267,15 @@ Unified interface for all storage providers.
 ```python
 class StorageClient(ABC):
     """Abstract base for storage operations."""
-    
+
     @abstractmethod
     async def upload_model(self, model: ModelArtifacts) -> str:
         """Upload model artifacts and return identifier."""
-        
+
     @abstractmethod
     async def download_model(self, model_id: str) -> ModelArtifacts:
         """Download model artifacts by identifier."""
-        
+
     @abstractmethod
     async def list_models(self, prefix: str = "") -> List[ModelInfo]:
         """List available models."""
@@ -393,10 +393,10 @@ async def upload_document(file: UploadFile = File(...)):
         content = await file.read()
         tmp.write(content)
         tmp_path = tmp.name
-    
+
     # Process through pipeline with intermediate results
     pipeline_results = await process_with_debugging(tmp_path)
-    
+
     return {
         "status": "success",
         "results": pipeline_results,
@@ -430,7 +430,7 @@ async def regenerate_patch(patch_id: str, params: dict):
         <input type="file" id="file-input" accept=".pdf,.jpg,.png" />
         <div class="drag-drop-area">Drop document here or click to upload</div>
     </div>
-    
+
     <!-- Pipeline Progress -->
     <div class="pipeline-progress">
         <div class="stage active">1. Upload</div>
@@ -438,7 +438,7 @@ async def regenerate_patch(patch_id: str, params: dict):
         <div class="stage">3. Patch Generation</div>
         <div class="stage">4. Final Composition</div>
     </div>
-    
+
     <!-- Results Viewer -->
     <div class="results-container">
         <div class="before-after">
@@ -453,7 +453,7 @@ async def regenerate_patch(patch_id: str, params: dict):
                 <div class="quality-metrics" id="quality-metrics"></div>
             </div>
         </div>
-        
+
         <!-- Stage Details -->
         <div class="stage-details">
             <h3>Stage Details</h3>
@@ -465,7 +465,7 @@ async def regenerate_patch(patch_id: str, params: dict):
             <div class="tab-content" id="stage-content"></div>
         </div>
     </div>
-    
+
     <!-- Parameter Tuning -->
     <div class="parameter-panel">
         <h3>Parameters</h3>

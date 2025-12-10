@@ -103,7 +103,7 @@ def compute_reconstruction_metrics(
     return {"MSE": mse, "MAE": mae, "PSNR": psnr, "SSIM": ssim}
 
 
-def main():  # noqa: PLR0915
+def main():
     st.set_page_config(page_title="VAE Quality Dashboard", page_icon="🔍", layout="wide")
 
     st.title("🔍 VAE Quality Assessment Dashboard")
@@ -153,7 +153,7 @@ def main():  # noqa: PLR0915
             st.write(f"**Text Regions:** {len(sample['texts'])}")
             with st.expander("View Text Regions"):
                 for i, text in enumerate(sample["texts"]):
-                    st.write(f"{i+1}. {text}")
+                    st.write(f"{i + 1}. {text}")
 
     with col2:
         st.header("Reconstruction Analysis")

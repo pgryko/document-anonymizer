@@ -11,7 +11,7 @@
 ### 2. Improve path validation security
 **Location**: `src/anonymizer/core/config.py:35-47`, `src/anonymizer/inference/engine.py:348,355`
 **Issue**: Uses blacklist approach, hardcoded `/tmp` path
-**Action**: 
+**Action**:
 - Implement whitelist of allowed directories
 - Make base directory configurable via environment variable
 - Add protection against symlinks and path normalization attacks

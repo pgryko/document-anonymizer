@@ -76,7 +76,7 @@ addopts = [
 ]
 markers = [
     "unit: Unit tests",
-    "integration: Integration tests", 
+    "integration: Integration tests",
     "gpu: Tests requiring GPU",
     "slow: Slow tests",
     "benchmark: Performance benchmark tests",
@@ -177,7 +177,16 @@ ignore = [
     "S105",  # hardcoded password
     "S106",  # hardcoded password
     "PLR0913",  # Too many arguments
+    "TRY003",  # long exception messages (acceptable with custom exceptions)
+    "TRY300",  # return in try (acceptable pattern)
+    "TRY301",  # raise in try (acceptable pattern)
+    "PLR0911",  # too many return statements
+    "PLR0912",  # too many branches
+    "PLR0915",  # too many statements
+    "PLC0415",  # import outside top-level (needed for optional deps)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "ARG", "PLR2004"]
+"tests/*" = ["S101", "ARG", "PLR2004", "S108", "SIM117"]
+"scripts/*" = ["S310"]
+"docs/examples/*" = ["F821", "F841", "ARG002"]

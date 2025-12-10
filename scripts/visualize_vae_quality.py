@@ -75,13 +75,13 @@ def visualize_reconstructions(
         axes[0, i].imshow(
             img_orig, cmap="gray" if len(img_orig.shape) == GRAYSCALE_DIFF_SHAPE else None
         )
-        axes[0, i].set_title(f"Original {i+1}")
+        axes[0, i].set_title(f"Original {i + 1}")
         axes[0, i].axis("off")
 
         axes[1, i].imshow(
             img_recon, cmap="gray" if len(img_recon.shape) == GRAYSCALE_DIFF_SHAPE else None
         )
-        axes[1, i].set_title(f"Reconstructed {i+1}")
+        axes[1, i].set_title(f"Reconstructed {i + 1}")
         axes[1, i].axis("off")
 
         # Difference map

@@ -118,7 +118,7 @@ class OCRResult:
     detected_texts: List[DetectedText]
     processing_time_ms: float
     engine_used: str
-    
+
     def high_confidence_texts(self, threshold: float = 0.8) -> List[DetectedText]
     def filter_by_area(self, min_area: int) -> List[DetectedText]
     def get_text_content(self) -> str
@@ -171,7 +171,7 @@ Real-time performance monitoring and profiling.
 ```python
 class PerformanceMonitor:
     def __init__(self, results_dir: Optional[Path] = None, auto_export: bool = True)
-    
+
     def start_session(self, session_name: str) -> None
     def end_session(self) -> Dict[str, Any]
     def get_current_usage(self) -> Optional[ResourceSample]
@@ -187,7 +187,7 @@ Standardized benchmarking suite.
 ```python
 class AnonymizationBenchmark:
     def __init__(self, profiler: Optional[PerformanceProfiler] = None)
-    
+
     def benchmark_document_loading(self, **kwargs) -> BenchmarkResult
     def benchmark_text_detection(self, **kwargs) -> BenchmarkResult
     def benchmark_pii_detection(self, **kwargs) -> BenchmarkResult
@@ -226,7 +226,7 @@ High-level interface for model lifecycle management.
 ```python
 class ModelManager:
     def __init__(self, config: Optional[ModelConfig] = None)
-    
+
     def download_model(self, model_name: str, **kwargs) -> ModelMetadata
     def list_available_models(self, model_type: Optional[ModelType] = None) -> List[ModelSource]
     def list_downloaded_models(self) -> List[ModelMetadata]
@@ -268,19 +268,19 @@ Geometric bounding box representation.
 @dataclass
 class BoundingBox:
     left: int
-    top: int  
+    top: int
     right: int
     bottom: int
-    
+
     @property
     def width(self) -> int
-    @property  
+    @property
     def height(self) -> int
     @property
     def area(self) -> int
     @property
     def center(self) -> Tuple[int, int]
-    
+
     def scale(self, factor: float) -> "BoundingBox"
     def expand(self, pixels: int) -> "BoundingBox"
     def intersects(self, other: "BoundingBox") -> bool
@@ -358,7 +358,7 @@ except OCRError as e:
     print(f"OCR failed: {e}")
     # Fallback to simple redaction
     result = anonymizer.anonymize_document(
-        "document.pdf", 
+        "document.pdf",
         anonymization_strategy="redaction"
     )
 except NERError as e:
@@ -417,8 +417,8 @@ config = AnonymizationConfig(
     ocr_engines=["paddleocr", "easyocr", "trotr"],  # Multiple engines
     ocr_confidence_threshold=0.9,                    # High confidence
     entity_types=[  # Comprehensive entity detection
-        "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER", 
-        "CREDIT_CARD", "IBAN_CODE", "US_SSN", 
+        "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER",
+        "CREDIT_CARD", "IBAN_CODE", "US_SSN",
         "LOCATION", "DATE_TIME"
     ],
     ner_confidence_threshold=0.95,                   # Very high confidence
@@ -438,21 +438,21 @@ config = AnonymizationConfig(
     # Balanced OCR setup
     ocr_engines=["paddleocr", "easyocr"],
     ocr_confidence_threshold=0.8,
-    
+
     # Standard PII types
     entity_types=["PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD"],
     ner_confidence_threshold=0.85,
-    
+
     # High-quality anonymization
     anonymization_strategy="inpainting",
     preserve_formatting=True,
-    
+
     # Performance optimization
     use_gpu=True,
     batch_size=6,
     memory_optimization=True,
     enable_caching=True,
-    
+
     # Monitoring
     enable_performance_monitoring=True,
     enable_audit_logging=True

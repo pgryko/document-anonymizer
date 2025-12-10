@@ -237,7 +237,6 @@ class TestUNetTrainer:
                 return_value=mock_trocr,
             ),
         ):
-
             trocr, processor = trainer._initialize_trocr()
 
             assert trocr == mock_trocr

@@ -487,7 +487,7 @@ class VAETrainer:
         else:
             return artifacts
 
-    def train(  # noqa: PLR0912  # Complex training loop
+    def train(  # Complex training loop
         self,
         train_dataloader: DataLoader,
         val_dataloader: DataLoader | None = None,
@@ -589,7 +589,7 @@ class VAETrainer:
 
                         # Check if we should continue based on error analysis
                         if not self.error_handler.should_continue_epoch(error):
-                            logger.error(f"Stopping epoch {epoch} due to critical error")
+                            logger.warning(f"Stopping epoch {epoch} due to critical error")
                             break
                         if self.error_handler.should_skip_batch(error):
                             logger.warning(f"Skipping batch {batch_idx} due to error")
@@ -645,11 +645,10 @@ class VAETrainer:
         except Exception as e:
             # Log final error summary before raising
             error_summary = self.error_handler.get_error_summary()
-            logger.error(f"Training failed after handling {error_summary['total_errors']} errors")
-            if error_summary["total_errors"] > 0:
-                logger.error(f"Error breakdown: {error_summary['errors_by_category']}")
-
-            logger.exception("Training failed")
+            logger.exception(
+                f"Training failed after handling {error_summary['total_errors']} errors. "
+                f"Error breakdown: {error_summary['errors_by_category']}"
+            )
             raise VAETrainingFailedError(str(e)) from e
 
         finally:

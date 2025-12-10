@@ -1,6 +1,6 @@
 # TODO Comments in Codebase
 
-**Last Updated:** 2025-08-07  
+**Last Updated:** 2025-08-07
 This document tracks all TODO/FIXME comments found in the source code.
 
 ## High Priority

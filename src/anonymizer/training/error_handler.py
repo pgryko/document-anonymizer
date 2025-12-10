@@ -14,11 +14,15 @@ from typing import Any
 import torch
 
 from src.anonymizer.core.exceptions import (
+    ErrorRateTooHighError,
     InvalidLossError,
-    TrainingLoopError,
+    TooManyConsecutiveFailuresError,
 )
 
 logger = logging.getLogger(__name__)
+
+# Minimum steps before checking error rate (avoid noisy early metrics)
+MIN_STEPS_FOR_ERROR_RATE_CHECK = 100
 
 
 class ErrorSeverity(Enum):
@@ -296,19 +300,13 @@ class TrainingErrorHandler:
         """Check if training should continue based on error patterns."""
         # Check consecutive failures
         if self.stats.consecutive_failures >= self.max_consecutive_failures:
-            raise TrainingLoopError(
-                f"Too many consecutive failures ({self.stats.consecutive_failures}). "
-                "Training terminated for stability."
-            )
+            raise TooManyConsecutiveFailuresError(self.stats.consecutive_failures)
 
         # Check error rate
-        if current_step > 100:  # Only check after sufficient steps
+        if current_step > MIN_STEPS_FOR_ERROR_RATE_CHECK:
             error_rate = self.stats.get_error_rate(current_step)
             if error_rate > self.max_error_rate_percent:
-                raise TrainingLoopError(
-                    f"Error rate too high ({error_rate:.2f}%). "
-                    "Training terminated for quality assurance."
-                )
+                raise ErrorRateTooHighError(error_rate)
 
     def should_continue_training(self, error: TrainingError) -> bool:
         """Determine if training should continue after this error."""
@@ -333,11 +331,11 @@ class TrainingErrorHandler:
             "recent_errors": [error.to_dict() for error in self.errors[-5:]],  # Last 5 errors
         }
 
-    # Classification methods
-    def _classify_data_error(self, exception: Exception) -> ErrorSeverity:
+    # Classification methods - exception param kept for future subclass extension
+    def _classify_data_error(self, _exception: Exception) -> ErrorSeverity:
         return ErrorSeverity.MEDIUM
 
-    def _classify_model_error(self, exception: Exception) -> ErrorSeverity:
+    def _classify_model_error(self, _exception: Exception) -> ErrorSeverity:
         return ErrorSeverity.MEDIUM
 
     def _classify_loss_error(self, exception: Exception) -> ErrorSeverity:
@@ -345,13 +343,13 @@ class TrainingErrorHandler:
             return ErrorSeverity.HIGH
         return ErrorSeverity.MEDIUM
 
-    def _classify_backward_error(self, exception: Exception) -> ErrorSeverity:
+    def _classify_backward_error(self, _exception: Exception) -> ErrorSeverity:
         return ErrorSeverity.MEDIUM
 
-    def _classify_validation_error(self, exception: Exception) -> ErrorSeverity:
+    def _classify_validation_error(self, _exception: Exception) -> ErrorSeverity:
         return ErrorSeverity.LOW
 
-    def _classify_checkpoint_error(self, exception: Exception) -> ErrorSeverity:
+    def _classify_checkpoint_error(self, _exception: Exception) -> ErrorSeverity:
         return ErrorSeverity.HIGH
 
     def _classify_resource_error(self, exception: Exception) -> ErrorSeverity:
@@ -359,44 +357,44 @@ class TrainingErrorHandler:
             return ErrorSeverity.CRITICAL
         return ErrorSeverity.HIGH
 
-    def _classify_config_error(self, exception: Exception) -> ErrorSeverity:
+    def _classify_config_error(self, _exception: Exception) -> ErrorSeverity:
         return ErrorSeverity.CRITICAL
 
-    # Recovery strategies
-    def _recover_data_error(self, error: TrainingError) -> None:
+    # Recovery strategies - error param kept for future subclass extension
+    def _recover_data_error(self, _error: TrainingError) -> None:
         """Attempt to recover from data loading errors."""
         logger.info("Attempting data error recovery...")
         # Clear any cached data
         torch.cuda.empty_cache()
 
-    def _recover_model_error(self, error: TrainingError) -> None:
+    def _recover_model_error(self, _error: TrainingError) -> None:
         """Attempt to recover from model errors."""
         logger.info("Attempting model error recovery...")
         # Clear gradients and reset state
         torch.cuda.empty_cache()
 
-    def _recover_loss_error(self, error: TrainingError) -> None:
+    def _recover_loss_error(self, _error: TrainingError) -> None:
         """Attempt to recover from loss computation errors."""
         logger.info("Attempting loss error recovery...")
         # Reset any accumulated gradients
 
-    def _recover_backward_error(self, error: TrainingError) -> None:
+    def _recover_backward_error(self, _error: TrainingError) -> None:
         """Attempt to recover from backward pass errors."""
         logger.info("Attempting backward pass error recovery...")
         # Clear gradients
         torch.cuda.empty_cache()
 
-    def _recover_validation_error(self, error: TrainingError) -> None:
+    def _recover_validation_error(self, _error: TrainingError) -> None:
         """Attempt to recover from validation errors."""
         logger.info("Attempting validation error recovery...")
         # Reset validation state
 
-    def _recover_checkpoint_error(self, error: TrainingError) -> None:
+    def _recover_checkpoint_error(self, _error: TrainingError) -> None:
         """Attempt to recover from checkpoint errors."""
         logger.info("Attempting checkpoint error recovery...")
         # Ensure checkpoint directory exists and has proper permissions
 
-    def _recover_resource_error(self, error: TrainingError) -> None:
+    def _recover_resource_error(self, _error: TrainingError) -> None:
         """Attempt to recover from resource errors."""
         logger.info("Attempting resource error recovery...")
         # Aggressive memory cleanup

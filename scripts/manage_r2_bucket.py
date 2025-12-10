@@ -197,7 +197,7 @@ class CloudflareR2Manager:
         return bool(result)
 
 
-def main():  # noqa: PLR0912, PLR0915
+def main():
     # Load environment variables
     load_dotenv()
 

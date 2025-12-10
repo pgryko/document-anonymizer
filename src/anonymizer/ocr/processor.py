@@ -12,7 +12,12 @@ from contextlib import contextmanager
 
 import numpy as np
 
-from src.anonymizer.core.exceptions import InferenceError, ValidationError
+from src.anonymizer.core.exceptions import (
+    AllOCREnginesFailedError,
+    InferenceError,
+    OCRProcessingFailedError,
+    ValidationError,
+)
 from src.anonymizer.core.models import BoundingBox, TextRegion
 
 from .engines import BaseOCREngine, create_ocr_engine
@@ -260,7 +265,7 @@ class OCRProcessor:
                         # Distribute remaining time across fallback engines
                         per_engine_timeout = remaining_timeout / len(self.fallback_engines)
 
-                        for i, fallback_engine in enumerate(self.fallback_engines):
+                        for _i, fallback_engine in enumerate(self.fallback_engines):
                             try:
                                 # Apply timeout to fallback engine detection
                                 engine_name = fallback_engine.__class__.__name__
@@ -297,7 +302,7 @@ class OCRProcessor:
                     if any_errors:
                         # At least one engine had a non-timeout error, raise InferenceError
                         logger.error("All OCR engines failed with errors")
-                        raise InferenceError("All OCR engines failed with errors")
+                        raise AllOCREnginesFailedError()
                     # Engines returned results but no detections, return empty list
                     logger.error("All OCR engines returned no text detections")
                     return []
@@ -313,8 +318,8 @@ class OCRProcessor:
                 # Apply additional filtering
                 filtered_texts = self._apply_text_filters(filtered_texts)
 
-        except OCRTimeoutError as e:
-            logger.error(f"OCR processing timed out: {e}")
+        except OCRTimeoutError:
+            logger.exception("OCR processing timed out")
             # Update metrics for failed operation
             processing_time = time.time() - start_time
             self.total_processing_time += processing_time
@@ -322,11 +327,11 @@ class OCRProcessor:
             raise  # Re-raise the timeout error
 
         except Exception as e:
-            logger.exception(f"Unexpected error during OCR processing: {e}")
+            logger.exception("Unexpected error during OCR processing")
             processing_time = time.time() - start_time
             self.total_processing_time += processing_time
             self.total_images_processed += 1
-            raise InferenceError(f"OCR processing failed: {e}") from e
+            raise OCRProcessingFailedError(str(e)) from e
 
         # Update metrics
         processing_time = time.time() - start_time

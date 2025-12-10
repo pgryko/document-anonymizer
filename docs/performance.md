@@ -94,7 +94,7 @@ python scripts/benchmark.py full-suite --quick
 
 # Individual component benchmarks
 python scripts/benchmark.py text-detection --num-images 100
-python scripts/benchmark.py pii-detection --num-texts 1000  
+python scripts/benchmark.py pii-detection --num-texts 1000
 python scripts/benchmark.py inpainting --image-size 512x512
 python scripts/benchmark.py end-to-end --num-documents 50
 ```
@@ -161,16 +161,16 @@ from src.anonymizer.core.config import EngineConfig
 config = EngineConfig(
     use_gpu=True,
     mixed_precision=True,  # Use FP16 for 2x speed improvement
-    
+
     # Memory optimization
     enable_memory_efficient_attention=True,
     enable_vae_slicing=True,
     gpu_memory_fraction=0.8,  # Reserve 20% for system
-    
+
     # Batch optimization
     batch_size=8,  # Adjust based on GPU memory
     gradient_accumulation_steps=1,
-    
+
     # Compilation (PyTorch 2.0+)
     compile_models=True,
     compile_mode="max-autotune"
@@ -183,16 +183,16 @@ config = EngineConfig(
 # CPU-optimized configuration
 config = EngineConfig(
     use_gpu=False,
-    
+
     # Threading optimization
     num_threads=8,  # Match CPU cores
     enable_mkldnn=True,  # Intel optimization
-    
+
     # Memory settings
     batch_size=2,  # Smaller batches for CPU
     memory_optimization=True,
     pin_memory=False,  # Don't pin memory for CPU
-    
+
     # Model selection
     use_lightweight_models=True,
     prefer_cpu_optimized_models=True
@@ -206,19 +206,19 @@ config = EngineConfig(
 config = AnonymizationConfig(
     # Reduce batch sizes
     batch_size=1,
-    
+
     # Model loading strategy
     load_models_on_demand=True,
     unload_models_after_use=True,
     model_cache_size_gb=2,
-    
+
     # Processing optimization
     enable_gradient_checkpointing=True,
     use_cpu_offload=True,
-    
+
     # Disable caching
     enable_caching=False,
-    
+
     # Memory cleanup
     force_garbage_collection=True,
     cleanup_interval_documents=10
@@ -234,7 +234,7 @@ config = AnonymizationConfig(
 ocr_performance = {
     "tesseract": {
         "speed": "fast",
-        "accuracy": "good", 
+        "accuracy": "good",
         "memory": "low",
         "best_for": "simple documents, speed-critical applications"
     },
@@ -266,7 +266,7 @@ speed_config = EngineConfig(
     ocr_preprocessing=False  # Skip preprocessing
 )
 
-# Accuracy-optimized OCR  
+# Accuracy-optimized OCR
 accuracy_config = EngineConfig(
     ocr_engines=["paddleocr", "easyocr", "trotr"],  # Multiple engines
     ocr_confidence_threshold=0.9,  # High confidence
@@ -287,7 +287,7 @@ strategy_performance = {
         "use_case": "speed-critical, privacy compliance"
     },
     "blur": {
-        "speed": "fast", 
+        "speed": "fast",
         "quality": "medium",
         "resource_usage": "low",
         "use_case": "quick anonymization, moderate quality"
@@ -301,7 +301,7 @@ strategy_performance = {
     "replacement": {
         "speed": "fast",
         "quality": "medium-high",
-        "resource_usage": "low", 
+        "resource_usage": "low",
         "use_case": "text-based anonymization"
     }
 }
@@ -323,38 +323,38 @@ else:
 ```python
 def find_optimal_batch_size(config: EngineConfig) -> int:
     """Find optimal batch size for current hardware."""
-    
+
     # Start with hardware-based estimate
     if config.use_gpu:
         # GPU memory based estimation
         gpu_memory_gb = get_gpu_memory_gb()
         base_batch_size = max(1, int(gpu_memory_gb / 2))  # Conservative estimate
     else:
-        # CPU memory based estimation  
+        # CPU memory based estimation
         cpu_memory_gb = get_system_memory_gb()
         base_batch_size = max(1, int(cpu_memory_gb / 4))
-    
+
     # Test increasing batch sizes
     optimal_batch_size = base_batch_size
     best_throughput = 0
-    
+
     for batch_size in [base_batch_size, base_batch_size * 2, base_batch_size * 4]:
         try:
             test_config = config.copy()
             test_config.batch_size = batch_size
-            
+
             # Run small benchmark
             throughput = benchmark_batch_processing(test_config, num_documents=10)
-            
+
             if throughput > best_throughput:
                 best_throughput = throughput
                 optimal_batch_size = batch_size
             else:
                 break  # Performance degraded, stop testing
-                
+
         except OutOfMemoryError:
             break  # Hit memory limit
-    
+
     return optimal_batch_size
 ```
 
@@ -368,7 +368,7 @@ class OptimizedBatchProcessor:
     def __init__(self, config: EngineConfig):
         self.config = config
         self.num_workers = self._determine_optimal_workers()
-    
+
     def _determine_optimal_workers(self) -> int:
         """Determine optimal number of workers."""
         if self.config.use_gpu:
@@ -377,14 +377,14 @@ class OptimizedBatchProcessor:
         else:
             # CPU processing: more workers
             return min(mp.cpu_count(), 8)  # Cap at 8 to avoid overhead
-    
+
     def process_batch_parallel(self, documents: List[str]) -> List[AnonymizationResult]:
         """Process documents in parallel."""
-        
+
         if self.config.use_gpu:
             # Use ThreadPoolExecutor for GPU (shared memory)
             with ThreadPoolExecutor(max_workers=self.num_workers) as executor:
-                futures = [executor.submit(self._process_document, doc) 
+                futures = [executor.submit(self._process_document, doc)
                           for doc in documents]
                 return [future.result() for future in futures]
         else:
@@ -424,11 +424,11 @@ config = AnonymizationConfig(
     # Use quantized models
     use_quantized_models=True,
     quantization_method="int8",  # 8-bit quantization
-    
+
     # Model optimization
     optimize_for_inference=True,
     enable_torch_script=True,
-    
+
     # Memory settings
     use_fp16=True,  # Half precision
     enable_attention_slicing=True
@@ -442,21 +442,21 @@ class DynamicModelManager:
     def __init__(self):
         self.loaded_models = {}
         self.model_usage = {}
-        
+
     def get_model(self, model_name: str, priority: str = "normal"):
         """Get model with dynamic loading based on usage patterns."""
-        
+
         if model_name not in self.loaded_models:
             # Check if we need to free memory
             if self._memory_pressure():
                 self._unload_least_used_models()
-            
+
             # Load model
             self.loaded_models[model_name] = self._load_model(model_name)
-        
+
         # Update usage statistics
         self.model_usage[model_name] = time.time()
-        
+
         return self.loaded_models[model_name]
 ```
 
@@ -469,21 +469,21 @@ class StreamingProcessor:
     def __init__(self, config: EngineConfig):
         self.config = config
         self.buffer_size = 10
-        
+
     def process_stream(self, document_stream: Iterator[str]) -> Iterator[AnonymizationResult]:
         """Process documents in streaming fashion."""
-        
+
         buffer = []
         for document in document_stream:
             buffer.append(document)
-            
+
             if len(buffer) >= self.buffer_size:
                 # Process batch
                 results = self._process_batch(buffer)
                 for result in results:
                     yield result
                 buffer.clear()
-        
+
         # Process remaining documents
         if buffer:
             results = self._process_batch(buffer)
@@ -498,21 +498,21 @@ class AdaptiveProcessor:
     def __init__(self, base_config: EngineConfig):
         self.base_config = base_config
         self.performance_history = []
-        
+
     def process_document(self, document_path: str) -> AnonymizationResult:
         """Process document with adaptive configuration."""
-        
+
         # Analyze document characteristics
         doc_complexity = self._analyze_document_complexity(document_path)
-        
+
         # Adapt configuration
         config = self._adapt_config(doc_complexity)
-        
+
         # Process with monitoring
         start_time = time.time()
         result = self._process_with_config(document_path, config)
         processing_time = time.time() - start_time
-        
+
         # Update performance history
         self.performance_history.append({
             "complexity": doc_complexity,
@@ -520,24 +520,24 @@ class AdaptiveProcessor:
             "processing_time": processing_time,
             "success": result.success
         })
-        
+
         return result
-    
+
     def _adapt_config(self, complexity: float) -> EngineConfig:
         """Adapt configuration based on document complexity."""
-        
+
         config = self.base_config.copy()
-        
+
         if complexity > 0.8:  # High complexity
             config.ocr_engines = ["paddleocr", "easyocr"]
             config.batch_size = 2
             config.ocr_confidence_threshold = 0.8
-            
+
         elif complexity < 0.3:  # Low complexity
             config.ocr_engines = ["tesseract"]
             config.batch_size = 8
             config.ocr_confidence_threshold = 0.6
-            
+
         return config
 ```
 
@@ -553,28 +553,28 @@ class IntelligentCache:
         self.ocr_cache = {}
         self.ner_cache = {}
         self.model_cache = {}
-        
+
     @lru_cache(maxsize=1000)
     def get_ocr_result(self, image_hash: str, engine: str) -> OCRResult:
         """Cache OCR results based on image content."""
         cache_key = f"{image_hash}_{engine}"
-        
+
         if cache_key in self.ocr_cache:
             return self.ocr_cache[cache_key]
-        
+
         # If not cached, process and cache
         result = self._process_ocr(image_hash, engine)
         self.ocr_cache[cache_key] = result
         return result
-    
+
     def cache_model_result(self, input_hash: str, model_config: str, result: Any):
         """Cache model inference results."""
         cache_key = f"{input_hash}_{model_config}"
-        
+
         # Check cache size limits
         if self._get_cache_size() > self.cache_size_bytes:
             self._evict_oldest_entries()
-        
+
         self.model_cache[cache_key] = {
             "result": result,
             "timestamp": time.time(),
@@ -692,41 +692,41 @@ from src.anonymizer.performance import PerformanceTest
 class TestPerformanceRegression:
     def test_processing_speed_regression(self):
         """Test that processing speed hasn't regressed."""
-        
+
         benchmark = PerformanceTest()
-        
+
         # Load baseline performance
         baseline = benchmark.load_baseline("v1.0.0")
-        
+
         # Run current performance test
         current = benchmark.run_standard_benchmark()
-        
+
         # Check for regressions (allow 5% variance)
         speed_regression = (current.avg_processing_time / baseline.avg_processing_time - 1) * 100
-        
+
         assert speed_regression < 5, f"Processing speed regressed by {speed_regression:.1f}%"
-    
+
     def test_memory_usage_regression(self):
         """Test that memory usage hasn't regressed."""
-        
+
         benchmark = PerformanceTest()
         baseline = benchmark.load_baseline("v1.0.0")
         current = benchmark.run_memory_benchmark()
-        
+
         memory_regression = (current.peak_memory_mb / baseline.peak_memory_mb - 1) * 100
-        
+
         assert memory_regression < 10, f"Memory usage regressed by {memory_regression:.1f}%"
-    
+
     @pytest.mark.slow
     def test_throughput_benchmark(self):
         """Test overall system throughput."""
-        
+
         benchmark = PerformanceTest()
         throughput = benchmark.measure_throughput(
             num_documents=100,
             duration_minutes=10
         )
-        
+
         # Minimum acceptable throughput
         min_throughput = 10  # documents per minute
         assert throughput >= min_throughput, f"Throughput too low: {throughput:.1f} docs/min"

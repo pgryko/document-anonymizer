@@ -323,7 +323,6 @@ def find_similar_font(target_font: str, available_fonts: list[str]) -> str | Non
 def _calculate_string_similarity(s1: str, s2: str) -> float:
     """Calculate similarity between two strings."""
     try:
-
         return SequenceMatcher(None, s1, s2).ratio()
     except Exception:
         # Fallback to simple character overlap
@@ -395,7 +394,6 @@ def get_font_metrics(font_path: str, size: int = 12) -> dict[str, Any] | None:
 def _get_font_metrics_pil(font_path: str, size: int) -> dict[str, Any] | None:
     """Get font metrics using PIL."""
     try:
-
         font = ImageFont.truetype(font_path, size)
 
         # Create temporary image to measure text
@@ -513,7 +511,6 @@ def create_font_sample(font_path: str, text: str = "Sample Text", size: int = 24
 
     """
     try:
-
         font = ImageFont.truetype(font_path, size)
 
         # Calculate text size

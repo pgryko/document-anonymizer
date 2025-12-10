@@ -92,14 +92,14 @@ class ImageProcessor:
             max_scale = max(scale_w, scale_h)
 
             def _raise_scale_error() -> None:
-                raise ScaleFactorTooLargeError(max_scale)  # noqa: TRY301
+                raise ScaleFactorTooLargeError(max_scale)
 
             if max_scale > max_scale_factor:
                 _raise_scale_error()
 
             # Check output dimensions
             def _raise_size_error() -> None:
-                raise OutputSizeTooLargeError(new_w, new_h)  # noqa: TRY301
+                raise OutputSizeTooLargeError(new_w, new_h)
 
             if new_w > cls.MAX_DIMENSION or new_h > cls.MAX_DIMENSION:
                 _raise_size_error()
@@ -111,7 +111,7 @@ class ImageProcessor:
             estimated_memory = new_w * new_h * channels * image.itemsize
 
             def _raise_memory_error() -> None:
-                raise OutputMemoryTooLargeError(estimated_memory)  # noqa: TRY301
+                raise OutputMemoryTooLargeError(estimated_memory)
 
             if estimated_memory > cls.MAX_MEMORY_BYTES:
                 _raise_memory_error()
@@ -149,7 +149,7 @@ class ImageProcessor:
 
             # Validate crop parameters
             def _raise_crop_size_error() -> None:
-                raise InvalidCropSizeError(width, height)  # noqa: TRY301
+                raise InvalidCropSizeError(width, height)
 
             if width <= 0 or height <= 0:
                 _raise_crop_size_error()
@@ -282,7 +282,7 @@ class ImageProcessor:
             conversion_key = (source.upper(), target.upper())
 
             def _raise_conversion_error() -> None:
-                raise UnsupportedColorConversionError(source, target)  # noqa: TRY301
+                raise UnsupportedColorConversionError(source, target)
 
             if conversion_key not in conversion_map:
                 _raise_conversion_error()

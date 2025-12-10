@@ -210,7 +210,7 @@ class ModelDownloader:
 
             # Verify download
             if total_size > 0 and downloaded_size != total_size:
-                raise DownloadSizeMismatchError()  # noqa: TRY301
+                raise DownloadSizeMismatchError()
 
             # Verify checksum if provided
             if source.checksum and self.config.verify_checksums:
@@ -291,7 +291,7 @@ class ModelDownloader:
             required_with_buffer = int(required_bytes * 1.1)
 
             if available < required_with_buffer:
-                raise InsufficientDiskSpaceError()  # noqa: TRY301
+                raise InsufficientDiskSpaceError()
 
         except Exception as e:
             logger.warning(f"Could not check disk space: {e}")
@@ -409,7 +409,7 @@ class ModelDownloader:
                 logger.info(f"Downloaded {filename} from {model_id}")
                 return metadata
 
-            raise NotImplementedError("Full model download not yet implemented")  # noqa: TRY301
+            raise NotImplementedError("Full model download not yet implemented")
 
         except Exception as e:
             raise InferenceError() from e

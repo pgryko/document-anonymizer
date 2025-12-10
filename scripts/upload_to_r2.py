@@ -43,7 +43,9 @@ class CloudflareR2Uploader:
         )
 
         self.s3_client = session.client(
-            "s3", endpoint_url=endpoint_url, region_name="auto"  # R2 uses 'auto' region
+            "s3",
+            endpoint_url=endpoint_url,
+            region_name="auto",  # R2 uses 'auto' region
         )
 
     def upload_file(self, local_path: Path, r2_key: str, extra_args: dict | None = None) -> bool:
@@ -122,7 +124,7 @@ class CloudflareR2Uploader:
             return []
 
 
-def main():  # noqa: PLR0912, PLR0915
+def main():
     # Load environment variables
     load_dotenv()
 

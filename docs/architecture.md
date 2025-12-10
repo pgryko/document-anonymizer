@@ -72,7 +72,7 @@ class OCREngine(ABC):
 class OCRProcessor:
     def __init__(self, engines: List[str]):
         self.engines = [self.engine_factory.create(name) for name in engines]
-    
+
     def detect_text(self, image: np.ndarray) -> OCRResult:
         for engine in self.engines:
             try:
@@ -105,7 +105,7 @@ class NERPipeline:
         self.analyzer = AnalyzerEngine()
         self.entity_types = config.entity_types
         self.confidence_threshold = config.confidence_threshold
-    
+
     def detect_entities(self, texts: List[DetectedText]) -> List[PIIEntity]:
         entities = []
         for text in texts:
@@ -135,12 +135,12 @@ class DiffusionAnonymizer:
             torch_dtype=torch.float16 if config.use_fp16 else torch.float32
         )
         self.device = "cuda" if config.use_gpu else "cpu"
-        
+
     def anonymize_regions(self, image: Image, masks: List[Mask]) -> Image:
         # Combine masks and run inpainting
         combined_mask = self._combine_masks(masks)
         prompt = self._generate_prompt(image, masks)
-        
+
         result = self.pipeline(
             prompt=prompt,
             image=image,
@@ -165,7 +165,7 @@ class PerformanceMonitor:
     def __init__(self):
         self.profiler = PerformanceProfiler()
         self.resource_monitor = ResourceMonitor()
-    
+
     @contextmanager
     def monitor_operation(self, operation_name: str):
         self.resource_monitor.start_monitoring()
@@ -191,7 +191,7 @@ class ModelManager:
         self.downloader = ModelDownloader(config)
         self.validator = ModelValidator()
         self.registry = ModelRegistry()
-    
+
     def ensure_model_available(self, model_name: str) -> ModelMetadata:
         if not self.registry.is_downloaded(model_name):
             source = self.registry.get_model_source(model_name)

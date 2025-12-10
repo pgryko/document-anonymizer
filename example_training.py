@@ -221,7 +221,6 @@ def train_vae(config, data_path, output_dir, env_file):
     """
     try:
         if env_file:
-
             # Load environment variables from file
             with Path(env_file).open() as f:
                 for line in f:
@@ -275,7 +274,6 @@ def train_unet(config, data_path, output_dir, env_file):
     """
     try:
         if env_file:
-
             # Load environment variables from file
             with Path(env_file).open() as f:
                 for line in f:
@@ -336,7 +334,6 @@ def train_both(vae_config, unet_config, data_path, output_dir, env_file, sequent
     """
     try:
         if env_file:
-
             # Load environment variables from file
             with Path(env_file).open() as f:
                 for line in f:
@@ -397,7 +394,6 @@ def validate_config(config, model_type, env_file):
     """
     try:
         if env_file:
-
             # Load environment variables from file
             with Path(env_file).open() as f:
                 for line in f:
@@ -423,7 +419,6 @@ def validate_config(config, model_type, env_file):
             )
             logger.info(f"   Model: {config_obj.model_name}, Base: {config_obj.base_model}")
         elif model_type == "app":
-
             config_obj = AppConfig.from_env_and_yaml(yaml_path=config)
             logger.info(f"✅ App config valid - Environment: {config_obj.environment}")
             logger.info(f"   Device: {config_obj.device}, Debug: {config_obj.debug}")
