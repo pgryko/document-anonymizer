@@ -6,6 +6,7 @@ memory management, parallel processing, and progress tracking.
 """
 
 import gc
+import io
 import logging
 import shutil
 import threading
@@ -216,6 +217,8 @@ class BatchProcessor:
                 enable_memory_efficient_attention=True,
                 enable_sequential_cpu_offload=False,
                 max_batch_size=4,
+                enable_quality_check=True,
+                min_confidence_threshold=0.7,
             )
             self.inference_engine = InferenceEngine(default_config)
 
@@ -369,8 +372,12 @@ class BatchProcessor:
                 try:
                     ocr_config = OCRConfig()
                     ocr_processor = OCRProcessor(ocr_config)
-                    detected_regions = ocr_processor.extract_text_regions(image_data)
-                    text_regions = detected_regions
+                    # Convert bytes to numpy array for OCR processing
+                    pil_image = Image.open(io.BytesIO(image_data))
+                    image_array = np.array(pil_image)
+                    detected_regions = ocr_processor.extract_text_regions(image_array)
+                    # Convert DetectedText to TextRegion format for inference engine
+                    text_regions = detected_regions  # type: ignore[assignment]
                 except Exception as e:
                     logger.warning(f"OCR detection failed for {item.item_id}: {e}")
                     # Continue with empty regions - some items might not have text

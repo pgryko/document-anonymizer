@@ -182,7 +182,7 @@ class ModelValidator:
         """Validate PyTorch format."""
         try:
             # Try to load with torch.load (CPU only for safety)
-            checkpoint = torch.load(model_path, map_location="cpu")
+            checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
 
             if not isinstance(checkpoint, dict):
                 result.add_warning("PyTorch file is not a state dictionary")
@@ -333,7 +333,7 @@ class ModelValidator:
     ):
         """Validate PyTorch content."""
         try:
-            checkpoint = torch.load(model_path, map_location="cpu")
+            checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
 
             if isinstance(checkpoint, dict):
                 state_dict = checkpoint.get("state_dict", checkpoint)
@@ -429,7 +429,7 @@ class ModelValidator:
 
             elif model_path.suffix.lower() in [".pth", ".pt", ".bin"]:
                 # Test loading PyTorch
-                checkpoint = torch.load(model_path, map_location="cpu")
+                checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
                 if checkpoint is None:
                     result.add_error("Failed to load PyTorch checkpoint")
                 else:
@@ -506,7 +506,7 @@ class ModelValidator:
             if model_path.suffix.lower() == ".safetensors":
                 load_file(str(model_path), device="cpu")
             elif model_path.suffix.lower() in [".pth", ".pt", ".bin"]:
-                torch.load(model_path, map_location="cpu")
+                torch.load(model_path, map_location="cpu", weights_only=True)
 
             benchmark_results["loading_time_ms"] = (time.time() - start_time) * 1000
 

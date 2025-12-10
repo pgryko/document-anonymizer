@@ -154,7 +154,10 @@ class UNetTrainer:
         """
         try:
             logger.info(f"Loading UNet from {self.config.base_model}")
-            unet = UNet2DConditionModel.from_pretrained(self.config.base_model, subfolder="unet")
+            # Pin revision for reproducibility and security
+            unet = UNet2DConditionModel.from_pretrained(
+                self.config.base_model, subfolder="unet", revision="main"
+            )
 
             # Verify architecture is correct (9 channels for inpainting)
             if unet.conv_in.in_channels != EXPECTED_UNET_INPUT_CHANNELS:
@@ -172,7 +175,10 @@ class UNetTrainer:
         """Initialize VAE for latent encoding."""
         try:
             logger.info("Loading VAE for latent encoding")
-            vae = AutoencoderKL.from_pretrained(self.config.base_model, subfolder="vae")
+            # Pin revision for reproducibility and security
+            vae = AutoencoderKL.from_pretrained(
+                self.config.base_model, subfolder="vae", revision="main"
+            )
             vae.eval()  # VAE is used for encoding only
 
             # Freeze VAE parameters
@@ -192,8 +198,10 @@ class UNetTrainer:
 
             # Load TrOCR model and processor
             model_name = "microsoft/trocr-base-printed"
-            trocr_processor = TrOCRProcessor.from_pretrained(model_name)
-            trocr = VisionEncoderDecoderModel.from_pretrained(model_name)
+            # Pin revision for reproducibility and security
+            trocr_revision = "main"
+            trocr_processor = TrOCRProcessor.from_pretrained(model_name, revision=trocr_revision)
+            trocr = VisionEncoderDecoderModel.from_pretrained(model_name, revision=trocr_revision)
 
             # Move to device and set to eval mode
             trocr = trocr.to(self.device)
@@ -212,7 +220,10 @@ class UNetTrainer:
     def _initialize_noise_scheduler(self) -> DDPMScheduler:
         """Initialize noise scheduler for training."""
         try:
-            scheduler = DDPMScheduler.from_pretrained(self.config.base_model, subfolder="scheduler")
+            # Pin revision for reproducibility and security
+            scheduler = DDPMScheduler.from_pretrained(
+                self.config.base_model, subfolder="scheduler", revision="main"
+            )
 
             # Set training timesteps
             scheduler.set_timesteps(self.config.num_train_timesteps)

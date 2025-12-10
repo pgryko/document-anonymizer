@@ -1249,8 +1249,11 @@ class InferenceMemoryError(InferenceError):
 class ModelLoadingError(ModelLoadError):
     """Exception raised when model loading fails."""
 
-    def __init__(self) -> None:
-        super().__init__("Failed to load model")
+    def __init__(self, error: str | None = None) -> None:
+        message = "Failed to load model"
+        if error:
+            message = f"Failed to load model: {error}"
+        super().__init__(message)
 
 
 class MissingOCRResultsError(ValidationError):

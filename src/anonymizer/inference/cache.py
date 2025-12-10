@@ -95,7 +95,8 @@ class ModelCache:
         """Compute unique hash for model configuration."""
         # Create hash from model path and relevant config
         hash_input = f"{model_path}:{sorted(config_dict.items())!s}"
-        return hashlib.md5(hash_input.encode()).hexdigest()[:16]
+        # Use SHA256 for better security (MD5 has collision vulnerabilities)
+        return hashlib.sha256(hash_input.encode()).hexdigest()[:16]
 
     def _estimate_model_memory(self, model: Any) -> float:
         """Estimate memory usage of a model in MB."""

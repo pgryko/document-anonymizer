@@ -410,8 +410,12 @@ class TrOCREngine(BaseOCREngine):
 
             # Load TrOCR model and processor
             model_name = "microsoft/trocr-base-printed"  # or "microsoft/trocr-base-handwritten"
-            self.processor = TrOCRProcessor.from_pretrained(model_name)
-            self.model = VisionEncoderDecoderModel.from_pretrained(model_name).to(self.device)
+            # Pin revision for reproducibility and security
+            trocr_revision = "main"
+            self.processor = TrOCRProcessor.from_pretrained(model_name, revision=trocr_revision)
+            self.model = VisionEncoderDecoderModel.from_pretrained(
+                model_name, revision=trocr_revision
+            ).to(self.device)
         except ImportError:
             self.logger.warning(
                 "TrOCR not available - install with: pip install transformers torch",
